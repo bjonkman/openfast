@@ -1444,7 +1444,6 @@ subroutine BEMT_InitStates(t, u, p, x, xd, z, OtherState, m, AFInfo, ErrStat, Er
    integer(IntKi),                 intent(  out)  :: errStat     ! Error status of the operation
    character(*),                   intent(  out)  :: errMsg      ! Error message if ErrStat /= ErrID_None
 
-   INTEGER(IntKi)                                 :: i, j
    INTEGER(IntKi),                 parameter      :: InputIndex  = 1
    LOGICAL,                        parameter      :: CalculateDBEMTInputs = .true.
    LOGICAL,                        parameter      :: ApplyCorrections = .true.
@@ -1468,7 +1467,7 @@ subroutine BEMT_InitStates(t, u, p, x, xd, z, OtherState, m, AFInfo, ErrStat, Er
    
    if (p%UA_Flag) then
       call CalculateInputsAndOtherStatesForUA(InputIndex, u, p, x, xd, z, OtherState, AFInfo, m)
-      call UA_InitStates_AllNodes( m%u_UA(i,j,InputIndex), p%UA, x%UA, OtherState%UA, OtherState%UA_Flag, AFInfo, p%AFIndx )
+      call UA_InitStates_AllNodes( m%u_UA(:,:,InputIndex), p%UA, x%UA, OtherState%UA, OtherState%UA_Flag, AFInfo, p%AFIndx )
    end if ! is UA used?
    
    

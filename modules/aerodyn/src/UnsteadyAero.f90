@@ -1718,7 +1718,7 @@ end subroutine UA_UpdateStates
 !!----------------------------------------------------------------------------------------------------------------------------------
 !> routine to initialize the states based on inputs at t=0
 subroutine UA_InitStates_AllNodes( u, p, x, OtherState, UA_is_on, AFInfo, AFIndx )
-   type(UA_InputType),           intent(in   ) :: u          !< Inputs at t
+   type(UA_InputType),           intent(in   ) :: u(:,:)     !< Inputs at t
    type(UA_ParameterType),       intent(in   ) :: p          !< Parameters
    type(UA_ContinuousStateType), intent(inout) :: x          !< Input: Continuous states at t;
    type(UA_OtherStateType),      intent(inout) :: OtherState !< Other/logical states at t on input; at t+dt on output
@@ -1745,7 +1745,7 @@ subroutine UA_InitStates_AllNodes( u, p, x, OtherState, UA_is_on, AFInfo, AFIndx
                if ( UA_is_on(i,j) .and. OtherState%FirstPass(i,j) ) then
                
                   ! initialize states to steady-state values:
-                  call HGM_Steady( i, j, u, p, x%element(i,j), AFInfo(AFIndx(i,j)), ErrStat2, ErrMsg2 )
+                  call HGM_Steady( i, j, u(i,j), p, x%element(i,j), AFInfo(AFIndx(i,j)), ErrStat2, ErrMsg2 )
                      !call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
                      
                   OtherState%FirstPass(i,j) = .false.
