@@ -83,7 +83,7 @@ subroutine FAST_DeallocateTurbines(ErrStat_c, ErrMsg_c) BIND (C, NAME='FAST_Deal
    ErrMsg_c = C_NULL_CHAR
 end subroutine
 !==================================================================================================================================
-subroutine FAST_Sizes(iTurb, InputFileName_c, AbortErrLev_c, NumOuts_c, dt_c, tmax_c, ErrStat_c, ErrMsg_c, ChannelNames_c, TMax, InitInpAry) BIND (C, NAME='FAST_Sizes')
+subroutine FAST_Sizes(iTurb, InputFileName_c, AbortErrLev_c, NumOuts_c, dt_c, tmax_c, ErrStat_c, ErrMsg_c, ChannelNames_c, UseInitInpAry, InitInpAry) BIND (C, NAME='FAST_Sizes')
    IMPLICIT NONE 
 #ifndef IMPLICIT_DLLEXPORT
 !DEC$ ATTRIBUTES DLLEXPORT :: FAST_Sizes
@@ -93,13 +93,13 @@ subroutine FAST_Sizes(iTurb, InputFileName_c, AbortErrLev_c, NumOuts_c, dt_c, tm
    CHARACTER(KIND=C_CHAR), INTENT(IN   ) :: InputFileName_c(IntfStrLen)      
    INTEGER(C_INT),         INTENT(  OUT) :: AbortErrLev_c      
    INTEGER(C_INT),         INTENT(  OUT) :: NumOuts_c      
-   REAL(C_DOUBLE),         INTENT(  OUT) :: dt_c      
+   REAL(C_DOUBLE),         INTENT(INOUT) :: dt_c
    REAL(C_DOUBLE),         INTENT(  OUT) :: tmax_c
    INTEGER(C_INT),         INTENT(  OUT) :: ErrStat_c      
    CHARACTER(KIND=C_CHAR), INTENT(  OUT) :: ErrMsg_c(IntfStrLen) 
    CHARACTER(KIND=C_CHAR), INTENT(  OUT) :: ChannelNames_c(ChanLen*MAXOUTPUTS+1)
-   REAL(C_DOUBLE), OPTIONAL, INTENT(IN   ) :: TMax      
-   REAL(C_DOUBLE), OPTIONAL, INTENT(IN   ) :: InitInpAry(MAXInitINPUTS) 
+   LOGICAL(C_BOOL),        INTENT(IN   ) :: UseInitInpAry      
+   REAL(C_DOUBLE),         INTENT(IN   ) :: InitInpAry(MAXInitINPUTS) 
    
    ! local
    CHARACTER(IntfStrLen)               :: InputFileName   
@@ -114,17 +114,8 @@ subroutine FAST_Sizes(iTurb, InputFileName_c, AbortErrLev_c, NumOuts_c, dt_c, tm
       ! initialize variables:   
    n_t_global = 0
 
-   IF (PRESENT(TMax) .AND. .NOT. PRESENT(InitInpAry)) THEN
-      ErrStat_c = ErrID_Fatal
-      ErrMsg  = "FAST_Sizes: TMax optional argument provided but it is invalid without InitInpAry optional argument. Provide InitInpAry to use TMax."
-      ErrMsg_c  = TRANSFER( ErrMsg//C_NULL_CHAR, ErrMsg_c )
-      RETURN
-   END IF
-
-   IF (PRESENT(InitInpAry)) THEN
-      IF (PRESENT(TMax)) THEN
-         ExternInitData%TMax = TMax
-      END IF
+   IF (UseInitInpAry) THEN
+      ExternInitData%TMax = tmax_c
       ExternInitData%TurbineID  = -1        ! we're not going to use this to simulate a wind farm
       ExternInitData%TurbinePos = 0.0_ReKi  ! turbine position is at the origin
       ExternInitData%NumCtrl2SC = 0

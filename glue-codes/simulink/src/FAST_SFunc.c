@@ -50,6 +50,7 @@ static int NumInputs = NumFixedInputs;
 static int NumAddInputs = 0;  // number of additional inputs
 static int NumOutputs = 1;
 static bool EndEarly = false;
+static bool UseInitInputAry = true;
 static int ErrStat = 0;
 static char ErrMsg[INTERFACE_STRING_LENGTH];        // make sure this is the same size as IntfStrLen in FAST_Library.f90
 static int ErrStat2 = 0;
@@ -203,8 +204,7 @@ static void mdlInitializeSizes(SimStruct *S)
        FAST_AllocateTurbines(&nTurbines, &ErrStat, ErrMsg);
        if (checkError(S)) return;
 
-       FAST_Sizes(&iTurb, InputFileName, &AbortErrLev, &NumOutputs, &TMax, &dt, &ErrStat, ErrMsg, ChannelNames, &TMax, InitInputAry);
-       FAST_Sizes(&iTurb, InputFileName, &AbortErrLev, &NumOutputs, &dt, &TMax, &ErrStat, ErrMsg, ChannelNames, &TMax, InitInputAry);
+       FAST_Sizes(&iTurb, InputFileName, &AbortErrLev, &NumOutputs, &dt, &TMax, &ErrStat, ErrMsg, ChannelNames, &UseInitInputAry, InitInputAry);
        n_t_global = -1;
        if (checkError(S)) return;
 

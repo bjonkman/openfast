@@ -38,6 +38,7 @@ class FastLibAPI(CDLL):
         self.num_outs = c_int(0)
         self.channel_names = create_string_buffer(20 * 4000)
         self.ended = False
+        self.UseInitInpAry = c_bool(False)
 
         # The inputs are meant to be from Simulink.
         # If < 51, FAST_SetExternalInputs simply returns,
@@ -67,13 +68,13 @@ class FastLibAPI(CDLL):
             POINTER(c_char),        # InputFileName_c IN
             POINTER(c_int),         # AbortErrLev_c OUT
             POINTER(c_int),         # NumOuts_c OUT
-            POINTER(c_double),      # dt_c OUT
+            POINTER(c_double),      # dt_c INOUT (IN only when InitInpAry is used)
             POINTER(c_double),      # tmax_c OUT
             POINTER(c_int),         # ErrStat_c OUT
             POINTER(c_char),        # ErrMsg_c OUT
             POINTER(c_char),        # ChannelNames_c OUT
-            POINTER(c_double),      # TMax OPTIONAL IN
-            POINTER(c_double)       # InitInpAry OPTIONAL IN
+            POINTER(c_bool),        # UseInitInpAry IN
+            POINTER(c_double)       # InitInpAry NOT USED
         ]
         self.FAST_Sizes.restype = c_int
 
@@ -149,8 +150,8 @@ class FastLibAPI(CDLL):
             byref(_error_status),
             _error_message,
             self.channel_names,
-            None,   # Optional arguments must pass C-Null pointer; with ctypes, use None.
-            None    # Optional arguments must pass C-Null pointer; with ctypes, use None.
+            byref(self.UseInitInpAry),   # we aren't using initialization input from Simulink
+            byref(self.inp_array)        # Unused.
         )
         if self.fatal_error(_error_status):
             raise RuntimeError(f"Error {_error_status.value}: {_error_message.value}")
