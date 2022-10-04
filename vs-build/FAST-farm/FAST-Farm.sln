@@ -1,7 +1,7 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.40629.0
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.1778
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "FASTlib", "..\FASTlib\FASTlib.vfproj", "{1A440C5B-CBA6-47D9-9CC2-C1CBA8C00BF9}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -35,10 +35,10 @@ Global
 		{1A440C5B-CBA6-47D9-9CC2-C1CBA8C00BF9}.Debug|Win32.Build.0 = Debug|Win32
 		{1A440C5B-CBA6-47D9-9CC2-C1CBA8C00BF9}.Debug|x64.ActiveCfg = Debug|x64
 		{1A440C5B-CBA6-47D9-9CC2-C1CBA8C00BF9}.Debug|x64.Build.0 = Debug|x64
-		{1A440C5B-CBA6-47D9-9CC2-C1CBA8C00BF9}.Release_OpenMP|Win32.ActiveCfg = Release_OpenMP|Win32
-		{1A440C5B-CBA6-47D9-9CC2-C1CBA8C00BF9}.Release_OpenMP|Win32.Build.0 = Release_OpenMP|Win32
-		{1A440C5B-CBA6-47D9-9CC2-C1CBA8C00BF9}.Release_OpenMP|x64.ActiveCfg = Release_OpenMP|x64
-		{1A440C5B-CBA6-47D9-9CC2-C1CBA8C00BF9}.Release_OpenMP|x64.Build.0 = Release_OpenMP|x64
+		{1A440C5B-CBA6-47D9-9CC2-C1CBA8C00BF9}.Release_OpenMP|Win32.ActiveCfg = Release|Win32
+		{1A440C5B-CBA6-47D9-9CC2-C1CBA8C00BF9}.Release_OpenMP|Win32.Build.0 = Release|Win32
+		{1A440C5B-CBA6-47D9-9CC2-C1CBA8C00BF9}.Release_OpenMP|x64.ActiveCfg = Release|x64
+		{1A440C5B-CBA6-47D9-9CC2-C1CBA8C00BF9}.Release_OpenMP|x64.Build.0 = Release|x64
 		{1A440C5B-CBA6-47D9-9CC2-C1CBA8C00BF9}.Release|Win32.ActiveCfg = Release|Win32
 		{1A440C5B-CBA6-47D9-9CC2-C1CBA8C00BF9}.Release|Win32.Build.0 = Release|Win32
 		{1A440C5B-CBA6-47D9-9CC2-C1CBA8C00BF9}.Release|x64.ActiveCfg = Release|x64
