@@ -680,7 +680,7 @@ subroutine BEMT_Init( InitInp, u, p, x, xd, z, OtherState, AFInfo, y, misc, Inte
          end if
       
       call UA_Init( InitInp%UA_Init, misc%u_UA(1,1,1), p%UA, x%UA, xd%UA, OtherState%UA, misc%y_UA, misc%UA, interval, AFInfo, p%AFIndx, InitOutData_UA, errStat2, errMsg2 )
-         call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+         call SetErrStat_LongMessages( errStat2, errMsg2, errStat, errMsg, RoutineName )
          if (errStat >= AbortErrLev) then
             call cleanup()
             return

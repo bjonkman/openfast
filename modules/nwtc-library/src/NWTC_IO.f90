@@ -7927,6 +7927,35 @@ end subroutine ReadR8AryWDefault
    RETURN
    END SUBROUTINE WrScr1
 
+   
+   subroutine SetErrStat_LongMessages(ErrStat2, ErrMsg2_IN, ErrStat, ErrMsg, RoutineName)
+      INTEGER(IntKi), INTENT(IN   )  :: ErrStat2   ! Error status of the operation
+      CHARACTER(*),   INTENT(IN   )  :: ErrMsg2_IN ! Error message if ErrStat /= ErrID_None
+
+      INTEGER(IntKi), INTENT(INOUT)  :: ErrStat    ! Error status of the operation
+      CHARACTER(*),   INTENT(INOUT)  :: ErrMsg     ! Error message if ErrStat /= ErrID_None
+   
+      CHARACTER(*),   INTENT(IN   )  :: RoutineName  ! Name of the routine error occurred in
+      CHARACTER(len(ErrMsg2_IN))     :: ErrMsg2      ! Error message if ErrStat /= ErrID_None
+      
+      if (ErrStat2 /= ErrID_None) then ! in case someone didn't initialize ErrMsg2
+      
+         ErrMsg2 = ErrMsg2_IN
+         if ( LEN_TRIM(ErrMsg2) + LEN_TRIM(ErrMsg) > LEN(ErrMsg) ) then ! some of the concatenated message will be lost
+            ! print longer of the two strings to be concatenated and move on
+            if (LEN_TRIM(ErrMsg) > LEN_TRIM(ErrMsg2)) then
+               call WrScr(TRIM(ErrMsg))
+               ErrMsg = ""
+            else
+               call WrScr(TRIM(RoutineName)//':'//TRIM(ErrMsg2))
+               ErrMsg2 = ""
+            end if
+         end if
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+
+      end if
+         
+   end subroutine SetErrStat_LongMessages
    !----------------------------------------------------------------------------------------------------------------------------------
    !> Read a delimited file of float with one or multiple lines of header
    !! TODO: put me in a CSV.f90 file of the NWTC library
