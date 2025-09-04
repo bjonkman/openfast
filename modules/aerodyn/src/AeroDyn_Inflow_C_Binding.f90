@@ -34,7 +34,6 @@ MODULE AeroDyn_Inflow_C_BINDING
    SAVE
 
    PUBLIC :: ADI_C_Init
-   !PUBLIC :: ADI_C_ReInit
    PUBLIC :: ADI_C_CalcOutput
    PUBLIC :: ADI_C_UpdateStates
    PUBLIC :: ADI_C_End
