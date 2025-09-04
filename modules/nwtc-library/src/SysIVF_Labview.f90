@@ -73,7 +73,7 @@ MODULE SysSubs
 
 
    INTEGER, PARAMETER            :: ConRecL     = 120                               ! The record length for console output.
-   INTEGER, PRIVATE              :: CU          = 7                                 ! The I/O unit for the console (Can be changed with SetConsoleUnit subroutine)
+   INTEGER, PUBLIC               :: CU          = 7                                 ! The I/O unit for the console (Can be changed with SetConsoleUnit subroutine)
    INTEGER, PARAMETER            :: MaxWrScrLen = 98                                ! The maximum number of characters allowed to be written to a line in WrScr
 
    LOGICAL, PARAMETER            :: KBInputOK   = .FALSE.                           ! A flag to tell the program that keyboard input is allowed in the environment.
