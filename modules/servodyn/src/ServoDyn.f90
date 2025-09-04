@@ -1037,7 +1037,7 @@ contains
          do i=1,size(InitOut%LinNames_y)
             Flag='F'
             if (InitOut%RotFrame_y(i)) Flag='T'
-            call WrScr('    '//Num2LStr(i)//Flag//'      '//InitOut%LinNames_y(i)//NewLine)
+            call WrScr('    '//Num2LStr(i)//Flag//'      '//InitOut%LinNames_y(i))
          enddo
       endif
       if (allocated(InitOut%LinNames_x)) then
@@ -1059,13 +1059,13 @@ contains
          do i=1,size(InitOut%LinNames_x)
             Flag='F'
             if (InitOut%RotFrame_x(i)) Flag='T'
-            call WrScr('    '//Num2LStr(i)//Flag//'      '//trim(Num2LStr(InitOut%DerivOrder_x(i)))//'     '//InitOut%LinNames_x(i)//NewLine)
+            call WrScr('    '//Num2LStr(i)//Flag//'      '//trim(Num2LStr(InitOut%DerivOrder_x(i)))//'     '//InitOut%LinNames_x(i))
          enddo
       endif
       if (allocated(InitOut%LinNames_u)) then
          call WrScr('Perturb Size u')
          do i=1,size(p%du)
-            call WrScr('          '//trim(Num2LStr(i))//'        '//trim(Num2LStr(p%du(i)))//NewLine)
+            call WrScr('          '//trim(Num2LStr(i))//'        '//trim(Num2LStr(p%du(i))))
          enddo
          call WrScr('LinNames_u')
          do j=1,p%NumBStC
@@ -1089,7 +1089,7 @@ contains
             if (InitOut%IsLoad_u(i)) FlagLoad='T'
             call WrScr('    '//Num2LStr(i)//Flag//'      '//FlagLoad//'      ('//   &
                               trim(Num2LStr(p%Jac_u_indx(i,1)))//','//trim(Num2LStr(p%Jac_u_indx(i,2)))//','//trim(Num2LStr(p%Jac_u_indx(i,3)))//  &
-                           ')     '//InitOut%LinNames_u(i)//NewLine)
+                           ')     '//InitOut%LinNames_u(i))
          enddo
       endif
    end subroutine CheckInfo
