@@ -211,6 +211,9 @@ typedef	^	ED_InputFile	ReKi	TwFAM1Sh	{:}	-	-	"Tower fore-aft mode-1 shape coeffi
 typedef	^	ED_InputFile	ReKi	TwFAM2Sh	{:}	-	-	"Tower fore-aft mode-2 shape coefficients"	-
 typedef	^	ED_InputFile	ReKi	TwSSM1Sh	{:}	-	-	"Tower side-to-side mode-1 shape coefficients"	-
 typedef	^	ED_InputFile	ReKi	TwSSM2Sh	{:}	-	-	"Tower side-to-side mode-2 shape coefficients"	-
+typedef ^       ED_InputFile    IntKi   NTwCMass	-	-	-	"Number of tower concentrated masses"	-
+typedef ^       ED_InputFile    ReKi    TwCMassHtFract	{:}	-	-	"Fractional heights of tower concentrated masses"	-
+typedef ^       ED_InputFile    ReKi    TwCMass	{:}	-	-	"List of concentrated masses on the tower"	kg
 # ..... Furling Input file data ...........................................................................................................
 typedef	^	ED_InputFile	LOGICAL	RFrlDOF	-	-	-	"Rotor-furl DOF"	-
 typedef	^	ED_InputFile	LOGICAL	TFrlDOF	-	-	-	"Tail-furl DOF"	-

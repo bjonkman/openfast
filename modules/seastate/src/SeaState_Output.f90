@@ -966,7 +966,7 @@ SUBROUTINE SeaStOut_CloseOutput ( p, ErrStat, ErrMsg )
       
 
          ! Write the summary file header
-   IF ( p%UnOutFile > -1 ) THEN   
+   IF ( p%UnOutFile > 0 ) THEN   
       ! WRITE (p%UnOutFile,'(/,A/)', IOSTAT=ErrStat)  'This output file was closed on '//CurDate()//' at '//CurTime()//'.'
    
    !-------------------------------------------------------------------------------------------------

@@ -267,7 +267,6 @@ subroutine ADI_CalcOutput(t, u, p, x, xd, z, OtherState, y, m, errStat, errMsg)
 
    integer(IntKi)                :: errStat2
    character(errMsgLen)          :: errMsg2
-   integer(IntKi)                :: node
    character(*), parameter       :: RoutineName = 'ADI_CalcOutput'
    integer :: iWT
    errStat = ErrID_None

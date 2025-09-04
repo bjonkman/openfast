@@ -5,6 +5,7 @@ MODULE TNO
    use NWTC_SLATEC   ! slatec_qk61 -- which is all that is in that library right now.
 
    implicit none
+   PRIVATE
    PUBLIC :: SPL_integrate
 
    INTEGER,       PARAMETER :: TNOKi = ReKi
@@ -63,8 +64,10 @@ function SPL_integrate(Omega,limits,ISSUCTION,   &
    ! Set module values from input
    ISSUCTION_TNO  = ISSUCTION
    Omega_TNO      = real(Omega,TNOKi)
+   
    ! Mach number of segment
    Mach_TNO       = real(Mach,TNOKi)
+   
    ! Atmospheric values
    co       = real(SpdSound,  TNOKi)
    rho      = real(AirDens,   TNOKi)
@@ -158,10 +161,10 @@ FUNCTION f_int1(x2)
 END FUNCTION f_int1
 
 
-FUNCTION f_int2(k1)  ! changed name from 'int2' to avoid conflicts with intrinsic of same name
-   REAL (TNOKi), intent(in)  :: k1
+FUNCTION f_int2(k1_in)  ! changed name from 'int2' to avoid conflicts with intrinsic of same name
+   REAL (TNOKi), intent(in)  :: k1_in
    REAL (TNOKi) :: f_int2
-   f_int2 = Omega_TNO/co/k1*Pressure(k1)
+   f_int2 = Omega_TNO/co/k1_in*Pressure(k1_in)
    RETURN 
 END FUNCTION f_int2
 

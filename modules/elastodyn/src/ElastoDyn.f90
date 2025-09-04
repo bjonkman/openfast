@@ -3023,7 +3023,7 @@ SUBROUTINE SetTowerParameters( p, InputFileData, ErrStat, ErrMsg )
 
    ! Local variables:
    REAL(ReKi)                               :: x                            ! Fractional location between two points in linear interpolation
-   INTEGER(IntKi )                          :: J                            ! Index for the node arrays
+   INTEGER(IntKi)                           :: I, J                         ! Index for the node arrays
    INTEGER(IntKi)                           :: InterpInd                    ! Index for the interpolation routine
 
 
@@ -3074,7 +3074,23 @@ SUBROUTINE SetTowerParameters( p, InputFileData, ErrStat, ErrMsg )
       p%MassT     (J) = InterpStp( p%HNodesNorm(J), InputFileData%HtFract, InputFileData%TMassDen, InterpInd, InputFileData%NTwInpSt )
       p%StiffTFA  (J) = InterpStp( p%HNodesNorm(J), InputFileData%HtFract, InputFileData%TwFAStif, InterpInd, InputFileData%NTwInpSt )
       p%StiffTSS  (J) = InterpStp( p%HNodesNorm(J), InputFileData%HtFract, InputFileData%TwSSStif, InterpInd, InputFileData%NTwInpSt )
+
    END DO ! J
+
+   DO J=1,InputFileData%NTwCMass
+
+         ! Add contributions from concentrated masses. Find the tower element on which the concentrated mass is located.
+      DO I=1,p%TwrNodes
+         IF ( (p%HNodesNorm(I)+0.5*p%DHNodes(I)/p%TwrFlexL) >= InputFileData%TwCMassHtFract(J) ) THEN
+            EXIT
+         END IF
+      END DO
+
+         ! Modify the linear density of the tower element by adding the contribution from the concentrated mass.
+      p%MassT(I) = p%MassT(I) + InputFileData%TwCMass(J) / p%DHNodes(I)
+
+   END DO ! J
+
    p%MassT = abs(p%MassT)
    p%StiffTFA = abs(p%StiffTFA)
    p%StiffTSS = abs(p%StiffTSS)

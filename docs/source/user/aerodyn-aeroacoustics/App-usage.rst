@@ -112,20 +112,22 @@ Finally, the set Outputs contains a few options for the output data:
    levels are reported with (True) or without (False) the A-weighting
    correction; see :numref:`aa-sec-ModelUsage`.
 
--  **NAAOutFile** – Integer 1/2/3: flag to set the desired output file. When
+-  **NAAOutFile** – Integer 1/2/3/4: flag to set the desired output file. When
    set to 1, a value of overall sound pressure level at every **DT_AA** time
    step per observer is printed to file. When set to 2, the first output
    is accompanied by a second file where the total sound pressure level
    spectrum is printed per time step per observer. When set to
-   3, the two first outputs are accompanied by a third file where the
+   3, the two first output files are accompanied by a third file where the
    sound pressure level spectrum per noise mechanism is printed per time
    step per observer. When set to 4, a fourth file is generated with the
    values of overall sound pressure levels per node, per blade, 
    per observer, and per time step.
 
--  The following line contains the file name used to store the outputs.
-   The file name is attached with a 1, 2, 3, and 4 flag based on the
-   **NAAOutFile** options.
+-  The following line, **AAOutFile**, contains the root name for the files 
+   used to store the outputs. If set to "default", the default output file
+   root name will be used.
+   The file name is appended with a 1, 2, 3, and 4 flag based on the
+   **NAAOutFile** options. 
 
 The file must be closed by an END command.
 

@@ -375,7 +375,7 @@ CONTAINS
             Line%r(3,J) = Line%r(3,0) + (Line%r(3,N) - Line%r(3,0))*REAL(J, DbKi)/REAL(N, DbKi)
          END DO
 
-         CALL WrScr(' Vertical initial profile for Line '//trim(Num2LStr(Line%IdNum))//'.')
+         CALL WrScr('    Vertical initial profile for Line '//trim(Num2LStr(Line%IdNum))//'.')
 
       ELSE ! If the line is not vertical, solve for the catenary profile
 
@@ -396,9 +396,9 @@ CONTAINS
 
          ELSE ! if there is a problem with the catenary approach, just stretch the nodes linearly between fairlead and anchor
             ! CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, ' Line_Initialize: Line '//trim(Num2LStr(Line%IdNum))//' ')
-            CALL WrScr('   Catenary solve of Line '//trim(Num2LStr(Line%IdNum))//' unsuccessful. Initializing as linear.')
+            CALL WrScr('    Catenary solve of Line '//trim(Num2LStr(Line%IdNum))//' unsuccessful. Initializing as linear.')
             IF (wordy == 1) THEN 
-               CALL WrScr('   Message from catenary solver: '//ErrMsg2)
+               CALL WrScr('    Message from catenary solver: '//ErrMsg2)
             ENDIF
 
             DO J = 0,N ! Loop through all nodes per line where the line position and tension can be output
@@ -579,7 +579,7 @@ CONTAINS
       IF ( ZF <  0.0 )  THEN   ! .TRUE. if the fairlead has passed below its anchor
          ZF = -ZF
          reverseFlag = .TRUE.
-         CALL WrScr(' Warning from catenary: Anchor point is above the fairlead point for Line '//trim(Num2LStr(Line%IdNum))//', consider changing.')
+         CALL WrScr('    Warning from catenary: Anchor point is above the fairlead point for Line '//trim(Num2LStr(Line%IdNum))//', consider changing.')
       ELSE 
          reverseFlag = .FALSE.
       ENDIF
@@ -1349,8 +1349,8 @@ CONTAINS
          
          
          ! >>>> could do similar as above for nonlinear damping or bending stiffness <<<<         
-         if (Line%nBApoints > 0) print *, 'Nonlinear elastic damping not yet implemented'
-         if (Line%nEIpoints > 0) print *, 'Nonlinear bending stiffness not yet implemented'
+         if (Line%nBApoints > 0) CALL SetErrStat(ErrID_Warn,'Nonlinear elastic damping not yet implemented',ErrStat,ErrMsg,RoutineName)
+         if (Line%nEIpoints > 0) CALL SetErrStat(ErrID_Warn,'Nonlinear bending stiffness not yet implemented',ErrStat,ErrMsg,RoutineName)
             
             
          ! basic elasticity model
@@ -1375,8 +1375,7 @@ CONTAINS
                   
                   ! Double check none of the assumptions were violated (this should never happen)
                   IF (Line%alphaMBL <= 0 .OR. Line%vbeta <= 0 .OR. Line%l(I) <= 0 .OR. Line%dl_1(I) <= 0 .OR. EA_D < Line%EA) THEN
-                     ErrStat = ErrID_Warn
-                     ErrMsg = "Viscoelastic model: Assumption for mean load dependent dynamic stiffness violated"
+                     CALL SetErrStat(ErrID_Warn,"Viscoelastic model: Assumption for mean load dependent dynamic stiffness violated",ErrStat,ErrMsg,RoutineName)
                      if (wordy > 2) then
                         print *, "Line%alphaMBL", Line%alphaMBL
                         print *, "Line%vbeta", Line%vbeta
@@ -1397,12 +1396,10 @@ CONTAINS
             endif
 
             if (EA_D == 0.0) then ! Make sure EA != EA_D or else nans, also make sure EA_D != 0  or else nans. 
-               ErrStat = ErrID_Fatal
-               ErrMsg = "Viscoelastic model: Dynamic stiffness cannot equal zero"
+               CALL SetErrStat(ErrID_Fatal,"Viscoelastic model: Dynamic stiffness cannot equal zero",ErrStat,ErrMsg,RoutineName)
                return
             else if (EA_D == Line%EA) then
-               ErrStat = ErrID_Fatal
-               ErrMsg = "Viscoelastic model: Dynamic stiffness cannot equal static stiffness"
+               CALL SetErrStat(ErrID_Fatal,"Viscoelastic model: Dynamic stiffness cannot equal static stiffness",ErrStat,ErrMsg,RoutineName)
                return
             endif
          

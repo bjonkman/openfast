@@ -230,6 +230,9 @@ IMPLICIT NONE
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: TwFAM2Sh      !< Tower fore-aft mode-2 shape coefficients [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: TwSSM1Sh      !< Tower side-to-side mode-1 shape coefficients [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: TwSSM2Sh      !< Tower side-to-side mode-2 shape coefficients [-]
+    INTEGER(IntKi)  :: NTwCMass = 0_IntKi      !< Number of tower concentrated masses [-]
+    REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: TwCMassHtFract      !< Fractional heights of tower concentrated masses [-]
+    REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: TwCMass      !< List of concentrated masses on the tower [kg]
     LOGICAL  :: RFrlDOF = .false.      !< Rotor-furl DOF [-]
     LOGICAL  :: TFrlDOF = .false.      !< Tail-furl DOF [-]
     REAL(ReKi)  :: RotFurl = 0.0_ReKi      !< Initial or fixed rotor-furl angle [radians]
@@ -1860,6 +1863,31 @@ subroutine ED_CopyInputFile(SrcInputFileData, DstInputFileData, CtrlCode, ErrSta
       end if
       DstInputFileData%TwSSM2Sh = SrcInputFileData%TwSSM2Sh
    end if
+   DstInputFileData%NTwCMass = SrcInputFileData%NTwCMass
+   if (allocated(SrcInputFileData%TwCMassHtFract)) then
+      LB(1:1) = lbound(SrcInputFileData%TwCMassHtFract)
+      UB(1:1) = ubound(SrcInputFileData%TwCMassHtFract)
+      if (.not. allocated(DstInputFileData%TwCMassHtFract)) then
+         allocate(DstInputFileData%TwCMassHtFract(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstInputFileData%TwCMassHtFract.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstInputFileData%TwCMassHtFract = SrcInputFileData%TwCMassHtFract
+   end if
+   if (allocated(SrcInputFileData%TwCMass)) then
+      LB(1:1) = lbound(SrcInputFileData%TwCMass)
+      UB(1:1) = ubound(SrcInputFileData%TwCMass)
+      if (.not. allocated(DstInputFileData%TwCMass)) then
+         allocate(DstInputFileData%TwCMass(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstInputFileData%TwCMass.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstInputFileData%TwCMass = SrcInputFileData%TwCMass
+   end if
    DstInputFileData%RFrlDOF = SrcInputFileData%RFrlDOF
    DstInputFileData%TFrlDOF = SrcInputFileData%TFrlDOF
    DstInputFileData%RotFurl = SrcInputFileData%RotFurl
@@ -1984,6 +2012,12 @@ subroutine ED_DestroyInputFile(InputFileData, ErrStat, ErrMsg)
    end if
    if (allocated(InputFileData%TwSSM2Sh)) then
       deallocate(InputFileData%TwSSM2Sh)
+   end if
+   if (allocated(InputFileData%TwCMassHtFract)) then
+      deallocate(InputFileData%TwCMassHtFract)
+   end if
+   if (allocated(InputFileData%TwCMass)) then
+      deallocate(InputFileData%TwCMass)
    end if
    if (allocated(InputFileData%BldNd_OutList)) then
       deallocate(InputFileData%BldNd_OutList)
@@ -2136,6 +2170,9 @@ subroutine ED_PackInputFile(RF, Indata)
    call RegPackAlloc(RF, InData%TwFAM2Sh)
    call RegPackAlloc(RF, InData%TwSSM1Sh)
    call RegPackAlloc(RF, InData%TwSSM2Sh)
+   call RegPack(RF, InData%NTwCMass)
+   call RegPackAlloc(RF, InData%TwCMassHtFract)
+   call RegPackAlloc(RF, InData%TwCMass)
    call RegPack(RF, InData%RFrlDOF)
    call RegPack(RF, InData%TFrlDOF)
    call RegPack(RF, InData%RotFurl)
@@ -2342,6 +2379,9 @@ subroutine ED_UnPackInputFile(RF, OutData)
    call RegUnpackAlloc(RF, OutData%TwFAM2Sh); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%TwSSM1Sh); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%TwSSM2Sh); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%NTwCMass); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%TwCMassHtFract); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%TwCMass); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%RFrlDOF); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%TFrlDOF); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%RotFurl); if (RegCheckErr(RF, RoutineName)) return

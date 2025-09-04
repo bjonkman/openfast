@@ -78,15 +78,14 @@ PROGRAM MoorDyn_Driver
    ! SeaState types
    TYPE(SeaSt_InitInputType)             :: InitInData_SeaSt     ! Input data for initialization
    TYPE(SeaSt_InitOutputType)            :: InitOutData_SeaSt    ! Output data from initialization
-   type(SeaSt_ContinuousStateType)                    :: x_SeaSt              ! Continuous states
-   type(SeaSt_DiscreteStateType)                      :: xd_SeaSt             ! Discrete states
-   type(SeaSt_ConstraintStateType)                    :: z_SeaSt              ! Constraint states
-   type(SeaSt_OtherStateType)                         :: OtherState_SeaSt     ! Other states
-   type(SeaSt_MiscVarType)                            :: m_SeaSt              ! Misc/optimization variables
-   type(SeaSt_ParameterType)                          :: p_SeaSt              ! Parameters
-   type(SeaSt_InputType)                              :: u_SeaSt(1)      ! System inputs
-   type(SeaSt_OutputType)                             :: y_SeaSt              ! System outputs
-   LOGICAL                                            :: SeaState_Initialized = .FALSE.
+   type(SeaSt_ContinuousStateType)       :: x_SeaSt              ! Continuous states
+   type(SeaSt_DiscreteStateType)         :: xd_SeaSt             ! Discrete states
+   type(SeaSt_ConstraintStateType)       :: z_SeaSt              ! Constraint states
+   type(SeaSt_OtherStateType)            :: OtherState_SeaSt     ! Other states
+   type(SeaSt_MiscVarType)               :: m_SeaSt              ! Misc/optimization variables
+   type(SeaSt_ParameterType)             :: p_SeaSt              ! Parameters
+   type(SeaSt_InputType)                 :: u_SeaSt(1)           ! System inputs
+   type(SeaSt_OutputType)                :: y_SeaSt              ! System outputs
 
    ! Motion file parsing
    type(FileInfoType)                    :: FileInfo_PrescribeMtn  !< The derived type for holding the prescribed forces input file for parsing -- we may pass this in the future
@@ -138,6 +137,7 @@ PROGRAM MoorDyn_Driver
    ErrStat = ErrID_None
    UnEcho=-1 ! set to -1 as echo is no longer used by MD
    UnIn  =-1
+
   
    ! TODO: Sort out error handling (two sets of flags currently used)
   
@@ -210,8 +210,6 @@ PROGRAM MoorDyn_Driver
   
    ! allocate Input and Output arrays; used for interpolation and extrapolation
    Allocate(MD_uTimes(MD_interp_order + 1)) 
-  
-   ! @bonnie : This is in the FAST developers glue code example, but it's probably not needed here. 
    Allocate(MD_u(MD_interp_order + 1))
      
 
@@ -237,8 +235,8 @@ PROGRAM MoorDyn_Driver
       InitInData_SeaSt%TMax         = MD_InitInp%TMax
       InitInData_SeaSt%Linearize    = MD_InitInp%Linearize
       
-      CALL SeaSt_Init( InitInData_SeaSt, u_SeaSt(1), p_SeaSt,  x_SeaSt, xd_SeaSt, z_SeaSt, OtherState_SeaSt, y_SeaSt, m_SeaSt, dtC, InitOutData_SeaSt, ErrStat2, ErrMsg2 ); call AbortIfFailed()
-      SeaState_Initialized = .TRUE.
+      CALL SeaSt_Init( InitInData_SeaSt, u_SeaSt(1), p_SeaSt,  x_SeaSt, xd_SeaSt, z_SeaSt, OtherState_SeaSt, y_SeaSt, m_SeaSt, dtC, InitOutData_SeaSt, ErrStat2, ErrMsg2 )
+      call AbortIfFailed()
 
       IF ( dtC /= drvrInitInp%dtC) THEN
          ErrMsg2 = 'The SeaState Module attempted to change the coupling timestep, but this is not allowed.  The SeaState Module must use the Driver coupling timestep.'
@@ -252,13 +250,10 @@ PROGRAM MoorDyn_Driver
    END IF
   
    ! call the initialization routine
-   CALL MD_Init( MD_InitInp, MD_u(1), MD_p, MD_x , MD_xd, MD_xc, MD_xo, MD_y, MD_m, dtC, MD_InitOut, ErrStat2, ErrMsg2 ); call AbortIfFailed()
+   CALL MD_Init( MD_InitInp, MD_u(1), MD_p, MD_x , MD_xd, MD_xc, MD_xo, MD_y, MD_m, dtC, MD_InitOut, ErrStat2, ErrMsg2 )
+      call AbortIfFailed()
 
-   CALL MD_DestroyInitInput  ( MD_InitInp , ErrStat2, ErrMsg2 ); call AbortIfFailed()
-   CALL MD_DestroyInitOutput ( MD_InitOut , ErrStat2, ErrMsg2 ); call AbortIfFailed()
-      
-   CALL DispNVD( MD_InitOut%Ver ) 
-   
+   CALL DispNVD( MD_InitOut%Ver )
    
    ! determine number of input channels expected from driver input file time series (DOFs including active tensioning channels)
    if (allocated(MD_u(1)%DeltaL)) then
@@ -693,50 +688,47 @@ PROGRAM MoorDyn_Driver
    CALL RunTimes( ProgStrtTime, ProgStrtCPU, SimStrtTime, SimStrtCPU, t )   
    
    ! Destroy all objects
-   IF (SeaState_Initialized) THEN
-      CALL SeaSt_End( u_SeaSt(1), p_SeaSt, x_SeaSt, xd_SeaSt, z_SeaSt, OtherState_SeaSt, y_SeaSt, m_SeaSt, ErrStat2, ErrMsg2); call AbortIfFailed()
-   ENDIF
-   CALL MD_End( MD_u(1), MD_p, MD_x, MD_xd, MD_xc , MD_xo, MD_y, MD_m, ErrStat2, ErrMsg2 ); call AbortIfFailed()
-   
-   do j = 2,MD_interp_order+1
-      call MD_DestroyInput( MD_u(j), ErrStat2, ErrMsg2)
-   end do  
-
-   if ( ErrStat /= ErrID_None ) THEN ! Display all errors
-      CALL WrScr1( "Errors: " )
-      CALL WrScr( trim(GetErrStr(ErrStat))//': '//trim(ErrMsg) )
-   endif
-   
-   !close (un)    
-   call CleanUp()
+   call EndAndCleanUp()
    CALL NormStop()
   
 
 CONTAINS
-
+   !-------------------------------------------------------------------------------------------------------------------------------
    SUBROUTINE AbortIfFailed()
-   
-        call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'MoorDyn_Driver')
-        
-        if (ErrStat >= AbortErrLev) then
-           if (SeaState_Initialized) then
-              call SeaSt_End( u_SeaSt(1), p_SeaSt, x_SeaSt, xd_SeaSt, z_SeaSt, OtherState_SeaSt, y_SeaSt, m_SeaSt, ErrStat2, ErrMsg2)
-                 call SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'MoorDyn_Driver' )
-           end if
 
-           CALL SeaSt_DestroyInitOutput( InitOutData_SeaSt, ErrStat2, ErrMsg2 )
-           call SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'MoorDyn_Driver' )
-           CALL SeaSt_DestroyInitInput( InitInData_SeaSt, ErrStat2, ErrMsg2 )
-           call SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'MoorDyn_Driver' )
+      if (ErrStat >= AbortErrLev .OR. ErrStat2 >= AbortErrLev) then
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'MoorDyn_Driver')
 
-           call CleanUp()
-           Call ProgAbort(trim(ErrMsg))
-        elseif ( ErrStat2 /= ErrID_None ) THEN
-           CALL WrScr1( trim(GetErrStr(ErrStat2))//': '//trim(ErrMsg2)//NewLine)
-        end if
+         call EndAndCleanUp()
+         Call ProgAbort(trim(ErrMsg))
+      elseif ( ErrStat2 /= ErrID_None ) THEN ! print messages as we get them (but don't call SetErrStat or they will be printed 2x)
+         CALL WrScr1( trim(GetErrStr(ErrStat2))//': '//trim(ErrMsg2)//NewLine)
+      end if
+
    END SUBROUTINE AbortIfFailed
+   !-------------------------------------------------------------------------------------------------------------------------------
+   SUBROUTINE EndAndCleanUp()
+      CALL SeaSt_DestroyInitOutput( InitOutData_SeaSt, ErrStat2, ErrMsg2 )
+         call SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'MoorDyn_Driver' )
+      CALL SeaSt_DestroyInitInput( InitInData_SeaSt, ErrStat2, ErrMsg2 )
+         call SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'MoorDyn_Driver' )
 
-   SUBROUTINE CleanUp()
+      CALL MD_DestroyInitOutput( MD_InitOut, ErrStat2, ErrMsg2 )
+         call SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'MoorDyn_Driver' )
+      CALL MD_DestroyInitInput( MD_InitInp, ErrStat2, ErrMsg2 )
+         call SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'MoorDyn_Driver' )
+
+      call SeaSt_End( u_SeaSt(1), p_SeaSt, x_SeaSt, xd_SeaSt, z_SeaSt, OtherState_SeaSt, y_SeaSt, m_SeaSt, ErrStat2, ErrMsg2)
+         call SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'MoorDyn_Driver' )
+      
+      CALL MD_End( MD_u(1), MD_p, MD_x, MD_xd, MD_xc , MD_xo, MD_y, MD_m, ErrStat2, ErrMsg2 )
+         call SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'MoorDyn_Driver' )
+         
+      do j = 2,MD_interp_order+1
+         call MD_DestroyInput( MD_u(j), ErrStat2, ErrMsg2)
+            call SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'MoorDyn_Driver' )
+      end do
+
       if(UnEcho     >0) CLOSE( UnEcho )
       if(UnIn       >0) CLOSE( UnIn )
 
@@ -749,7 +741,15 @@ CONTAINS
       IF (ALLOCATED(rd_in2   )) DEALLOCATE(rd_in2   )
       IF (ALLOCATED(rdd_in   )) DEALLOCATE(rdd_in   )
       IF (ALLOCATED(rdd_in2  )) DEALLOCATE(rdd_in2  )
-   END SUBROUTINE CleanUp
+      IF (ALLOCATED(TmpRe    )) DEALLOCATE(TmpRe  )
+      
+
+
+      if ( ErrStat /= ErrID_None ) THEN ! Display all errors
+         CALL WrScr1( "Errors: " )
+         CALL WrScr( trim(GetErrStr(ErrStat))//': '//trim(ErrMsg) )
+      endif
+   END SUBROUTINE EndAndCleanUp
 
    !-------------------------------------------------------------------------------------------------------------------------------
    SUBROUTINE ReadDriverInputFile( inputFile, InitInp)

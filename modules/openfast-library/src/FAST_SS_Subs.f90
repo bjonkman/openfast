@@ -104,6 +104,10 @@ SUBROUTINE FAST_InitializeSteadyState_T( Turbine, ErrStat, ErrMsg )
                      Turbine%IceF, Turbine%IceD, Turbine%MeshMapData, CompAeroMaps, ErrStat, ErrMsg )
 
       call InitFlowField()
+      
+      CALL SimStatus_FirstTime( Turbine%m_FAST%TiLstPrn, Turbine%m_FAST%PrevClockTime, Turbine%m_FAST%SimStrtTime, Turbine%m_FAST%UsrTime2, &
+                                t_initial, Turbine%p_FAST%TMax, Turbine%p_FAST%TDesc, useCases=Turbine%p_FAST%CompAeroMaps)
+      
 
 contains
    !> AD15 now directly accesses FlowField data from IfW.  Since we don't use IfW, we need to manually set the FlowField data

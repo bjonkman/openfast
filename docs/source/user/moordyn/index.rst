@@ -12,6 +12,6 @@ usage of MoorDyn at the FAST.Farm level
 and links to publications with the relevant theory.
 
 
-The user guide can be downloaded below.
+Examples of how to use MoorDynF and MoorDynC can be found here:
 
-`Official User's Guide <http://www.matt-hall.ca/files/MoorDyn%20Users%20Guide%202017-08-16.pdf>`_
+`MoorDyn Example Uses <https://github.com/FloatingArrayDesign/MoorDyn/tree/dev/example>`_

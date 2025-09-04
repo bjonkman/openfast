@@ -1004,26 +1004,35 @@ subroutine AWAE_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitO
 
    ! Test the request output wind locations against grid information
       ! XY plane slices
+   call AllocAry(p%OutDisWindZvalid,p%NOutDisWindXY,'p%OutDisWindZvalid', ErrStat2, ErrMsg2); if(Failed()) return;
+   p%OutDisWindZvalid = .true.
    do i = 1,p%NOutDisWindXY
       gridLoc = (p%OutDisWindZ(i) - p%Z0_low) / p%dZ_low
       if ( ( gridLoc < 0.0_ReKi ) .or. ( gridLoc > real(p%nZ_low-1, ReKi) ) ) then
-         call SetErrStat(ErrID_Fatal, "The requested low-resolution XY output slice location, Z="//TRIM(Num2LStr(p%OutDisWindZ(i)))//", is outside of the low-resolution grid.", errStat, errMsg, RoutineName )
+         call SetErrStat(ErrID_Warn, "The requested low-resolution XY output slice location, Z="//TRIM(Num2LStr(p%OutDisWindZ(i)))//", is outside of the low-resolution grid. Ignoring this slice.", errStat, errMsg, RoutineName )
+         p%OutDisWindZvalid(i) = .false.
       end if
    end do
 
       ! XZ plane slices
+   call AllocAry(p%OutDisWindYvalid,p%NOutDisWindXZ,'p%OutDisWindYvalid', ErrStat2, ErrMsg2); if(Failed()) return;
+   p%OutDisWindYvalid = .true.
    do i = 1,p%NOutDisWindXZ
       gridLoc = (p%OutDisWindY(i) - p%Y0_low) / p%dY_low
       if ( ( gridLoc < 0.0_ReKi ) .or. ( gridLoc > real(p%nY_low-1, ReKi) ) ) then
-         call SetErrStat(ErrID_Fatal, "The requested low-resolution XZ output slice location, Y="//TRIM(Num2LStr(p%OutDisWindY(i)))//", is outside of the low-resolution grid.", errStat, errMsg, RoutineName )
+         call SetErrStat(ErrID_Warn, "The requested low-resolution XZ output slice location, Y="//TRIM(Num2LStr(p%OutDisWindY(i)))//", is outside of the low-resolution grid. Ignoring this slice.", errStat, errMsg, RoutineName )
+         p%OutDisWindYvalid(i) = .false.
       end if
    end do
 
-      ! XZ plane slices
+      ! YZ plane slices
+   call AllocAry(p%OutDisWindXvalid,p%NOutDisWindYZ,'p%OutDisWindXvalid', ErrStat2, ErrMsg2); if(Failed()) return;
+   p%OutDisWindXvalid = .true.
    do i = 1,p%NOutDisWindYZ
       gridLoc = (p%OutDisWindX(i) - p%X0_low) / p%dX_low
       if ( ( gridLoc < 0.0_ReKi ) .or. ( gridLoc > real(p%nX_low-1, ReKi) ) ) then
-         call SetErrStat(ErrID_Fatal, "The requested low-resolution YZ output slice location, X="//TRIM(Num2LStr(p%OutDisWindX(i)))//", is outside of the low-resolution grid.", errStat, errMsg, RoutineName )
+         call SetErrStat(ErrID_Warn, "The requested low-resolution YZ output slice location, X="//TRIM(Num2LStr(p%OutDisWindX(i)))//", is outside of the low-resolution grid. Ignoring this slice.", errStat, errMsg, RoutineName )
+         p%OutDisWindXvalid(i) = .false.
       end if
    end do
    if (errStat >= AbortErrLev) return
@@ -1464,6 +1473,7 @@ subroutine AWAE_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, errStat, errMsg
 
          ! XY plane slices
       do k = 1,p%NOutDisWindXY
+         if (.not. p%OutDisWindZvalid(k)) cycle    ! skip if invalid
          write(PlaneNumStr, '(i3.3)') k
          call ExtractSlice( XYSlice, p%OutDisWindZ(k), p%Z0_low, p%nZ_low, p%nX_low, p%nY_low, p%dZ_low, m%Vdist_low_full, m%outVizXYPlane(:,:,:,1))
             ! Create the output vtk file with naming <WindFilePath>/Low/DisXY<k>.t<n/p%WrDisSkp1>.vtk
@@ -1474,6 +1484,7 @@ subroutine AWAE_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, errStat, errMsg
 
          ! YZ plane slices
       do k = 1,p%NOutDisWindYZ
+         if (.not. p%OutDisWindXvalid(k)) cycle    ! skip if invalid
          write(PlaneNumStr, '(i3.3)') k
          call ExtractSlice( YZSlice, p%OutDisWindX(k), p%X0_low, p%nX_low, p%nY_low, p%nZ_low, p%dX_low, m%Vdist_low_full, m%outVizYZPlane(:,:,:,1))
             ! Create the output vtk file with naming <WindFilePath>/Low/DisYZ<k>.t<n/p%WrDisSkp1>.vtk
@@ -1484,6 +1495,7 @@ subroutine AWAE_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, errStat, errMsg
 
          ! XZ plane slices
       do k = 1,p%NOutDisWindXZ
+         if (.not. p%OutDisWindYvalid(k)) cycle    ! skip if invalid
          write(PlaneNumStr, '(i3.3)') k
          call ExtractSlice( XZSlice, p%OutDisWindY(k), p%Y0_low, p%nY_low, p%nX_low, p%nZ_low, p%dY_low, m%Vdist_low_full, m%outVizXZPlane(:,:,:,1))
             ! Create the output vtk file with naming <WindFilePath>/Low/DisXZ<k>.t<n/p%WrDisSkp1>.vtk

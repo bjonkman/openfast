@@ -1200,6 +1200,10 @@ subroutine FAST_CFD_WriteOutput(iTurb_c, ErrStat_c, ErrMsg_c) BIND (C, NAME='FAS
 
    CALL FAST_WriteOutput_T( t_initial, n_t_global, Turbine(iTurb), ErrStat, ErrMsg )
 
+   ErrStat_c = ErrStat
+   ErrMsg = TRIM(ErrMsg)//C_NULL_CHAR
+   ErrMsg_c  = TRANSFER( ErrMsg//C_NULL_CHAR, ErrMsg_c )
+
 end subroutine FAST_CFD_WriteOutput
 !==================================================================================================================================
 subroutine FAST_CFD_Step(iTurb_c, ErrStat_c, ErrMsg_c) BIND (C, NAME='FAST_CFD_Step')

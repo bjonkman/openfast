@@ -201,10 +201,13 @@ typedef  ^  ParameterType  IntKi            WrDisSkp1          -  - -   "Number 
 typedef  ^  ParameterType  LOGICAL          WrDisWind          -  - -   "Write disturbed wind data to <WindFilePath>/Low/Dis.t<n>.vtk etc.?" -
 typedef  ^  ParameterType  IntKi            NOutDisWindXY      -  - -   "Number of XY planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXY.<n_out>.t<n>.vtk [0 to 9]" -
 typedef  ^  ParameterType  ReKi             OutDisWindZ       {:} - -   "Z coordinates of XY planes for output of disturbed wind data across the low-resolution domain [1 to NOutDisWindXY]" meters
+typedef  ^  ParameterType  LOGICAL          OutDisWindZvalid  {:}   - - "Valid XY planes for output of disturbed wind data across the low-resolution domain [1 to NOutDisWindXY]" -
 typedef  ^  ParameterType  IntKi            NOutDisWindYZ      -  - -   "Number of YZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisYZ.<n_out>.t<n>.vtk [0 to 9]" -
 typedef  ^  ParameterType  ReKi             OutDisWindX       {:} - -   "X coordinates of YZ planes for output of disturbed wind data across the low-resolution domain [1 to NOutDisWindYZ]" meters
+typedef  ^  ParameterType  LOGICAL          OutDisWindXvalid  {:}   - - "Valid YZ planes for output of disturbed wind data across the low-resolution domain [1 to NOutDisWindYZ]" -
 typedef  ^  ParameterType  IntKi            NOutDisWindXZ      -  - -   "Number of XZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXZ.<n_out>.t<n>.vtk [0 to 9]" -
 typedef  ^  ParameterType  ReKi             OutDisWindY       {:} - -   "Y coordinates of XZ planes for output of disturbed wind data across the low-resolution domain [1 to NOutDisWindXZ]" meters
+typedef  ^  ParameterType  LOGICAL          OutDisWindYvalid  {:}   - - "Valid XZ planes for output of disturbed wind data across the low-resolution domain [1 to NOutDisWindXZ]" -
 typedef  ^  ParameterType  CHARACTER(1024)  OutFileRoot        -  - -   "The root name derived from the primary FAST.Farm input file" -
 typedef  ^  ParameterType  CHARACTER(1024)  OutFileVTKRoot     -  - -   "The root name for VTK outputs" -
 typedef  ^  ParameterType  IntKi            VTK_tWidth         -  - -   "Number of characters for VTK timestamp outputs" -

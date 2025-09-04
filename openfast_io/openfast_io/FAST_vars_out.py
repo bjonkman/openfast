@@ -9585,27 +9585,9 @@ ElastoDyn_Nodes['FyL']        = False     # (kN); Edgewise shear force in local 
 # Update the message in FAST_writer.write_MoorDyn() when this is finished
 
 MoorDyn = {}
-MoorDyn['FairTen1']            = False     # (); ; 
-MoorDyn['FairTen2']            = False     # (); ; 
-MoorDyn['FairTen3']            = False     # (); ; 
-MoorDyn['FairTen4']            = False     # (); ; 
-MoorDyn['FairTen5']            = False     # (); ; 
-MoorDyn['FairTen6']            = False     # (); ; 
-MoorDyn['FairTen7']            = False     # (); ; 
-MoorDyn['FairTen8']            = False     # (); ; 
-MoorDyn['FairTen9']            = False     # (); ; 
-MoorDyn['AnchTen1']            = False     # (); ; 
-MoorDyn['AnchTen2']            = False     # (); ; 
-MoorDyn['AnchTen3']            = False     # (); ; 
-MoorDyn['AnchTen4']            = False     # (); ; 
-MoorDyn['AnchTen5']            = False     # (); ; 
-MoorDyn['AnchTen6']            = False     # (); ; 
-MoorDyn['AnchTen7']            = False     # (); ; 
-MoorDyn['AnchTen8']            = False     # (); ; 
-MoorDyn['AnchTen9']            = False     # (); ; 
-
-
-
+for i in range(1, 31):
+    MoorDyn[f'FairTen{i}'] = False     # (); ; 
+    MoorDyn[f'AnchTen{i}'] = False     # (); ; 
 
 
 """ ExtPtfm """

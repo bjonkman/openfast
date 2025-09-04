@@ -157,7 +157,7 @@ CONTAINS
       CHARACTER(*), PARAMETER       :: RoutineName = 'MD_Init'
 
       
-
+      ! Initialize Err stat
       ErrStat = ErrID_None
       ErrMsg  = ""
       m%zeros6 = 0.0_DbKi
@@ -241,13 +241,9 @@ CONTAINS
       !            read input file and create cross-referenced mooring system objects
       !---------------------------------------------------------------------------------------------
       
-      
-      ! Initialize ErrStat
-      ErrStat = ErrID_None
-      ErrMsg  = ""
 
 
-      CALL WrScr( '   Parsing MoorDyn input file: '//trim(InitInp%FileName) )
+      CALL WrScr( '  Parsing MoorDyn input file: '//trim(InitInp%FileName) )
 
 
       ! -----------------------------------------------------------------
@@ -290,6 +286,13 @@ CONTAINS
       Line = NextLine(i);     ! Get the line and increment counter.  See description of routine. 
       
       do while ( i <= FileInfo_In%NumLines )
+
+         if (INDEX(Line, "ECHO") > 0) then
+            ! check for Echo flag and if so, throw message suggesting write log
+            ErrStat2 = ErrID_Info
+            ErrMsg2 = 'MoorDyn does not support ECHO. Instead, enable the log file by setting WriteLog > 0.'
+            CALL CheckError( ErrStat2, ErrMsg2 )
+         end if
 
          if (INDEX(Line, "---") > 0) then ! look for a header line
 
@@ -438,10 +441,10 @@ CONTAINS
                      read (OptValue,*) p%writeLog
                      if (p%writeLog > 0) then   ! if not zero, open a log file for output
                         CALL GetNewUnit( p%UnLog )
-                        CALL OpenFOutFile ( p%UnLog, TRIM(p%RootName)//'.log', ErrStat, ErrMsg )
-                        IF ( ErrStat > AbortErrLev ) THEN
-                           ErrMsg = ' Failed to open MoorDyn log file: '//TRIM(ErrMsg)
-                           RETURN
+                        CALL OpenFOutFile ( p%UnLog, TRIM(p%RootName)//'.log', ErrStat2, ErrMsg2 )
+                        IF ( ErrStat2 > AbortErrLev ) THEN
+                           ErrMsg2 = ' Failed to open MoorDyn log file: '//TRIM(ErrMsg2)
+                           CALL CheckError( ErrStat2, ErrMsg2 ); IF (ErrStat >= AbortErrLev) RETURN
                         END IF
                         write(p%UnLog,'(A)', IOSTAT=ErrStat2) "MoorDyn v2 log file with output level "//TRIM(Num2LStr(p%writeLog))
                         write(p%UnLog,'(A)', IOSTAT=ErrStat2) "Note: options above the writeLog line in the input file will not be recorded."
@@ -490,7 +493,9 @@ CONTAINS
                   else if ( OptString == 'DISABLEOUTTIME') then
                      read (OptValue,*) p%disableOutTime
                   else
-                     CALL SetErrStat( ErrID_Warn, 'Unable to interpret input '//trim(OptString)//' in OPTIONS section.', ErrStat, ErrMsg, RoutineName )
+                     ErrStat2 = ErrID_Warn
+                     ErrMsg2 = 'Unable to interpret input '//trim(OptString)//' in OPTIONS section.'
+                     CALL CheckError( ErrStat2, ErrMsg2 )
                   end if
 
                   nOpts = nOpts + 1
@@ -548,7 +553,8 @@ CONTAINS
 
 
       ! set up seabed bathymetry
-      CALL setupBathymetry(DepthValue, InitInp%WtrDepth, m%BathymetryGrid, m%BathGrid_Xs, m%BathGrid_Ys, ErrStat2, ErrMsg2)
+      CALL setupBathymetry(p, DepthValue, InitInp%WtrDepth, m%BathymetryGrid, m%BathGrid_Xs, m%BathGrid_Ys, ErrStat2, ErrMsg2)
+      CALL CheckError( ErrStat2, ErrMsg2 ); IF (ErrStat >= AbortErrLev) RETURN
       CALL getDepthFromBathymetry(m%BathymetryGrid, m%BathGrid_Xs, m%BathGrid_Ys, 0.0_DbKi, 0.0_DbKi, p%WtrDpth, nvec)  ! set depth at 0,0 as nominal for waves etc
       
       
@@ -1235,29 +1241,24 @@ CONTAINS
                   ! process output flag characters (LineOutString) and set line output flag array (OutFlagList)
                   m%RodList(l)%OutFlagList = 0  ! first set array all to zero
                   ! per node, 3 component
-                  IF ( scan( LineOutString, 'p') > 0 )  m%RodList(l)%OutFlagList(2 ) = 1   ! node position
-                  IF ( scan( LineOutString, 'v') > 0 )  m%RodList(l)%OutFlagList(3 ) = 1   ! node velocity
-                  IF ( scan( LineOutString, 'U') > 0 )  m%RodList(l)%OutFlagList(4 ) = 1   ! water velocity
-                  IF ( scan( LineOutString, 'B') > 0 )  m%RodList(l)%OutFlagList(5 ) = 1   ! node buoyancy force
-                  IF ( scan( LineOutString, 'D') > 0 )  m%RodList(l)%OutFlagList(6 ) = 1   ! drag force
-                  IF ( scan( LineOutString, 'I') > 0 )  m%RodList(l)%OutFlagList(7 ) = 1   ! inertia force
-                  IF ( scan( LineOutString, 'P') > 0 )  m%RodList(l)%OutFlagList(8 ) = 1   ! dynamic pressure force
-                  IF ( scan( LineOutString, 'b') > 0 )  m%RodList(l)%OutFlagList(9 ) = 1   ! seabed contact forces
+                  IF ( scan( LineOutString, 'p') > 0 )  m%RodList(l)%OutFlagList(2 ) = 1   ! node position (p)
+                  IF ( scan( LineOutString, 'v') > 0 )  m%RodList(l)%OutFlagList(3 ) = 1   ! node velocity (v)
+                  IF ( scan( LineOutString, 'U') > 0 )  m%RodList(l)%OutFlagList(4 ) = 1   ! water velocity (U)
+                  IF ( scan( LineOutString, 'B') > 0 )  m%RodList(l)%OutFlagList(5 ) = 1   ! node buoyancy force (Bo)
+                  IF ( scan( LineOutString, 'D') > 0 )  m%RodList(l)%OutFlagList(6 ) = 1   ! drag force (D)
+                  IF ( scan( LineOutString, 'I') > 0 )  m%RodList(l)%OutFlagList(7 ) = 1   ! inertia force (I)
+                  IF ( scan( LineOutString, 'P') > 0 )  m%RodList(l)%OutFlagList(8 ) = 1   ! dynamic pressure force (Pd)
+                  IF ( scan( LineOutString, 'b') > 0 )  m%RodList(l)%OutFlagList(9 ) = 1   ! seabed contact forces (B)
                   ! per node, 1 component
                   IF ( scan( LineOutString, 'W') > 0 )  m%RodList(l)%OutFlagList(10) = 1   ! node weight/buoyancy (positive up)
-                  IF ( scan( LineOutString, 'K') > 0 )  m%RodList(l)%OutFlagList(11) = 1   ! curvature at node
-                  ! per element, 1 component >>> these don't apply to a rod!! <<<
-                  IF ( scan( LineOutString, 't') > 0 )  m%RodList(l)%OutFlagList(12) = 1  ! segment tension force (just EA)
-                  IF ( scan( LineOutString, 'c') > 0 )  m%RodList(l)%OutFlagList(13) = 1  ! segment internal damping force
-                  IF ( scan( LineOutString, 's') > 0 )  m%RodList(l)%OutFlagList(14) = 1  ! Segment strain
-                  IF ( scan( LineOutString, 'd') > 0 )  m%RodList(l)%OutFlagList(15) = 1  ! Segment strain rate
+                  ! Extended flags outputs
+                  IF ( scan( LineOutString, 'A') > 0 )  m%RodList(l)%OutFlagList(16) = 1   ! Transverse fluid inertia force (Ap)
+                  IF ( scan( LineOutString, 'a') > 0 )  m%RodList(l)%OutFlagList(17) = 1   ! Axial fluid inertia force (Aq)
+                  IF ( scan( LineOutString, 'X') > 0 )  m%RodList(l)%OutFlagList(18) = 1   ! Transverse drag forces (Dp)
+                  IF ( scan( LineOutString, 'Y') > 0 )  m%RodList(l)%OutFlagList(19) = 1   ! Tangential drag forces (Dq)
 
                   IF (SUM(m%RodList(l)%OutFlagList) > 0)   m%RodList(l)%OutFlagList(1) = 1  ! this first entry signals whether to create any output file at all
                   ! the above letter-index combinations define which OutFlagList entry corresponds to which output type
-
-
-                  ! specify IdNum of line for error checking
-                  m%RodList(l)%IdNum = l  
 
                   if (p%writeLog > 1) then
                      write(p%UnLog, '(A)'        ) "  - Rod"//trim(num2lstr(m%RodList(l)%IdNum))//":"
@@ -1269,7 +1270,7 @@ CONTAINS
 
                   ! check for sequential IdNums
                   IF ( m%RodList(l)%IdNum .NE. l ) THEN
-                     CALL SetErrStat( ErrID_Fatal, 'Line numbers must be sequential starting from 1.', ErrStat, ErrMsg, RoutineName )
+                     CALL SetErrStat( ErrID_Fatal, 'Rod numbers must be sequential starting from 1.', ErrStat, ErrMsg, RoutineName )
                      CALL CleanUp()
                      RETURN
                   END IF
@@ -1625,11 +1626,11 @@ CONTAINS
                   ! process output flag characters (LineOutString) and set line output flag array (OutFlagList)
                   m%LineList(l)%OutFlagList = 0  ! first set array all to zero
                   ! per node 3 component
-                  IF ( scan( LineOutString, 'p') > 0 )  m%LineList(l)%OutFlagList(2) = 1 
-                  IF ( scan( LineOutString, 'v') > 0 )  m%LineList(l)%OutFlagList(3) = 1
-                  IF ( scan( LineOutString, 'U') > 0 )  m%LineList(l)%OutFlagList(4) = 1
-                  IF ( scan( LineOutString, 'D') > 0 )  m%LineList(l)%OutFlagList(5) = 1
-                  IF ( scan( LineOutString, 'b') > 0 )  m%LineList(l)%OutFlagList(6) = 1   ! seabed contact forces
+                  IF ( scan( LineOutString, 'p') > 0 )  m%LineList(l)%OutFlagList(2) = 1  ! node position (p)
+                  IF ( scan( LineOutString, 'v') > 0 )  m%LineList(l)%OutFlagList(3) = 1  ! node velocity (v)
+                  IF ( scan( LineOutString, 'U') > 0 )  m%LineList(l)%OutFlagList(4) = 1  ! node displacement (U)
+                  IF ( scan( LineOutString, 'D') > 0 )  m%LineList(l)%OutFlagList(5) = 1  ! node rotation (D)
+                  IF ( scan( LineOutString, 'b') > 0 )  m%LineList(l)%OutFlagList(6) = 1  ! seabed contact forces (B)
                   IF ( scan( LineOutString, 'V') > 0 )  m%LineList(l)%OutFlagList(7) = 1   ! VIV forces
                   ! per node 1 component
                   IF ( scan( LineOutString, 'W') > 0 )  m%LineList(l)%OutFlagList(8) = 1  ! node weight/buoyancy (positive up)
@@ -1644,9 +1645,6 @@ CONTAINS
                   IF (SUM(m%LineList(l)%OutFlagList) > 0)   m%LineList(l)%OutFlagList(1) = 1  ! this first entry signals whether to create any output file at all
                   ! the above letter-index combinations define which OutFlagList entry corresponds to which output type
 
-
-                  ! specify IdNum of line for error checking
-                  m%LineList(l)%IdNum = l  
 
                   if (p%writeLog > 1) then
                      write(p%UnLog, '(A)'        ) "  - Line"//trim(num2lstr(m%LineList(l)%IdNum))//":"
@@ -2935,7 +2933,7 @@ CONTAINS
          ENDIF
       endif
       
-      CALL WrScr('   MoorDyn initialization completed.')
+      CALL WrScr('  MoorDyn initialization completed.')
       if (p%writeLog > 0) then
          write(p%UnLog, '(A)') NewLine//"MoorDyn initialization completed."//NewLine
          if (ErrStat /= ErrID_None) then
@@ -2998,7 +2996,7 @@ CONTAINS
 
             IF (ErrStat /= ErrID_None) ErrMsg = TRIM(ErrMsg)//NewLine   ! if there's a pre-existing warning/error, retain the message and start a new line
 
-            ErrMsg = TRIM(ErrMsg)//' MD_Init:'//TRIM(Msg)
+            ErrMsg = TRIM(ErrMsg)//RoutineName//":"//TRIM(Msg)
             ErrStat = MAX(ErrStat, ErrID)
 
             Msg = "" ! Reset the error message now that it has been logged into ErrMsg

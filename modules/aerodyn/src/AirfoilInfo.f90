@@ -1745,12 +1745,7 @@ subroutine AFI_ComputeAirfoilCoefs1D( AOA, p, AFI_interp, errStat, errMsg, Table
    
    
          ! Spline interpolation of lower table based on requested AOA
-   
-      IntAFCoefs(1:s1) = CubicSplineInterpM( Alpha  &
-                                             , p%Table(iTab)%Alpha &
-                                             , p%Table(iTab)%Coefs &
-                                             , p%Table(iTab)%SplineCoefs &
-                                             , ErrStat, ErrMsg )
+       CALL CubicSplineInterpM( Alpha, p%Table(iTab)%Alpha, p%Table(iTab)%Coefs, p%Table(iTab)%SplineCoefs, IntAFCoefs(1:s1) )
    end if
   
    AFI_interp%Cl    = IntAFCoefs(p%ColCl)
