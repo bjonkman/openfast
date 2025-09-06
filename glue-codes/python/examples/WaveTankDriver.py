@@ -19,8 +19,8 @@ from scipy.spatial.transform import Rotation
 from pyOpenFAST.interface_abc import OpenFASTInterfaceType
 from pyOpenFAST.tdmslib import parse_tdms
 
-project_root = '/Users/rmudafor/Development/openfast'
-library_path = project_root + '/build/glue-codes/labview/libwavetanktestinglib.dylib'
+project_root = '../../../'
+library_path = project_root + '/build-Single-Debug/glue-codes/labview/libwavetanktestinglib.dylib'
 
 class WaveTankLib(OpenFASTInterfaceType):
 
@@ -218,11 +218,11 @@ if __name__=="__main__":
     wavetanklib = WaveTankLib(
         library_path,
         {
-            "WaveTank": "/Users/rmudafor/Development/openfast/glue-codes/python/examples/wavetankconfig.in",
-            "MoorDyn": "/Users/rmudafor/Development/openfast/reg_tests/r-test/glue-codes/openfast/MHK_RM1_Floating/MHK_RM1_Floating_MoorDyn.dat",
-            "SeaState": "/Users/rmudafor/Development/openfast/reg_tests/r-test/glue-codes/openfast/MHK_RM1_Floating/SeaState.dat",
-            "AeroDyn": "/Users/rmudafor/Development/openfast/reg_tests/r-test/glue-codes/openfast/MHK_RM1_Floating/MHK_RM1_Floating_AeroDyn.dat",
-            "InflowWind": "/Users/rmudafor/Development/openfast/reg_tests/r-test/glue-codes/openfast/MHK_RM1_Floating/MHK_RM1_Floating_InflowWind.dat",
+            "WaveTank":   "wavetankconfig.in",
+            "MoorDyn":    "../../../reg_tests/r-test/glue-codes/openfast/MHK_RM1_Floating/MHK_RM1_Floating_MoorDyn.dat",
+            "SeaState":   "../../../reg_tests/r-test/glue-codes/openfast/MHK_RM1_Floating/SeaState.dat",
+            "AeroDyn":    "../../../reg_tests/r-test/glue-codes/openfast/MHK_RM1_Floating/MHK_RM1_Floating_AeroDyn.dat",
+            "InflowWind": "../../../reg_tests/r-test/glue-codes/openfast/MHK_RM1_Floating/MHK_RM1_Floating_InflowWind.dat",
         },
     )
     wavetanklib.init()
