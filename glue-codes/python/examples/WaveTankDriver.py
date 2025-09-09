@@ -1,4 +1,4 @@
-
+# FIXME: Check if we can do some sloppy timesteps
 from ctypes import (
     CDLL,
     POINTER,
@@ -71,19 +71,6 @@ class WaveTankLib(OpenFASTInterfaceType):
         self.ended = False   # For error handling at end
         self.print_error_level = 1
 
-        # Create buffers for class data
-        # These will generally be overwritten by the Fortran code
-        # self.ss_output_channel_names = []
-        # self.ss_output_channel_units = []
-        # self.ss_output_values = None
-
-        self.md_output_channel_names = []
-        self.md_output_channel_units = []
-        self.md_output_values = None
-
-        self.adi_output_channel_names = []
-        self.adi_output_channel_units = []
-        self.adi_output_values = None
 
         # Error handling setup
         self.abort_error_level = 4
@@ -111,9 +98,6 @@ class WaveTankLib(OpenFASTInterfaceType):
             POINTER(c_float),       # real(c_float),          intent(in   ) :: blade_rotation_matrix(9)
             POINTER(c_float),       # real(c_float),          intent(  out) :: MD_Forces_C(1,6)
             POINTER(c_float),       # real(c_float),          intent(  out) :: ADI_MeshFrc_C(NumMeshPts,6)
-            POINTER(c_float),       # real(c_float),          intent(  out) :: ADI_HHVel_C(3)
-            POINTER(c_float),       # real(c_float),          intent(  out) :: md_outputs(MD_NumChannels_C)
-            POINTER(c_float),       # real(c_float),          intent(  out) :: adi_outputs(ADI_NumChannels_C)
             POINTER(c_int),         # integer(c_int),         intent(  out) :: ErrStat_C
             POINTER(c_char),        # character(kind=c_char), intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
@@ -130,13 +114,6 @@ class WaveTankLib(OpenFASTInterfaceType):
             POINTER(c_char),        # character(kind=c_char), intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
         self.WaveTank_SetWaveFieldPointer.restype = c_int
-
-        self.WaveTank_Sizes.argtypes = [
-            POINTER(c_int),
-            POINTER(c_int),
-            POINTER(c_int),
-        ]
-        self.WaveTank_Sizes.restype = c_int
 
 
     def check_error(self) -> None:
@@ -218,9 +195,6 @@ class WaveTankLib(OpenFASTInterfaceType):
             blade_rotation_matrix.ctypes.data_as(POINTER(c_float)),
             md_loads.ctypes.data_as(POINTER(c_float)),
             ad_loads.ctypes.data_as(POINTER(c_float)),
-            hub_height_velocities.ctypes.data_as(POINTER(c_float)),
-            self.md_output_values.ctypes.data_as(POINTER(c_float)),
-            self.adi_output_values.ctypes.data_as(POINTER(c_float)),
             byref(self.error_status_c),             # OUT <- error status code
             self.error_message_c                    # OUT <- error message buffer
         )
@@ -232,26 +206,6 @@ class WaveTankLib(OpenFASTInterfaceType):
             self.error_message_c                    # OUT <- error message buffer
         )
         self.check_error()
-
-    def allocate_outputs(self):
-        ss_numouts = c_int(0)
-        md_numouts = c_int(0)
-        adi_numouts = c_int(0)
-        self.WaveTank_Sizes(
-            byref(ss_numouts),
-            byref(md_numouts),
-            byref(adi_numouts),
-        )
-
-        # self.ss_output_values = np.zeros(ss_numouts.value, dtype=np.float32, order='C')
-        self.md_output_values = np.zeros(md_numouts.value, dtype=np.float32, order='C')
-        self.adi_output_values = np.zeros(adi_numouts.value, dtype=np.float32, order='C')
-        # self.ss_output_channel_names = [b""] * ss_numouts.value
-        # self.ss_output_channel_units = [b""] * ss_numouts.value
-        # self.md_output_channel_names = [b""] * md_numouts.value
-        # self.md_output_channel_units = [b""] * md_numouts.value
-        # self.adi_output_channel_names = [b""] * adi_numouts.value
-        # self.adi_output_channel_units = [b""] * adi_numouts.value
 
 
 if __name__=="__main__":
@@ -276,7 +230,6 @@ if __name__=="__main__":
     ad_loads = np.zeros((2,6), dtype=np.float32, order='C')
     hub_height_velocities = np.zeros((3,1), dtype=np.float32, order='C')
 
-    wavetanklib.allocate_outputs()
 
     blade_dcm = np.zeros((2*9), dtype=np.float32, order='C')
 

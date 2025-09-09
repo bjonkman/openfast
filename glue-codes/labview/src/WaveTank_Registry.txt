@@ -1,0 +1,74 @@
+###################################################################################################################################
+# Registry for WaveTank module 
+# This Registry file is used to create WaveTank_Types.f90
+# It also contains copy, destroy, pack, and unpack routines associated with each defined data types.
+# See the NWTC Programmer's Handbook for further information on the format/contents of this file.
+#
+# Entries are of the form
+# <keyword>    <ModuleName/ModName>    <TypeName>    <FieldType>    <FieldName>    <Dims>    <IO>    <DNAME>    <DESCRIP>    <UNITS>
+#
+# Use ^ as a shortcut for the value in the same column from the previous line.
+###################################################################################################################################
+# ...... Include files (definitions from NWTC Library) ............................................................................
+include    Registry_NWTC_Library.txt
+#
+
+typedef  WaveTank/WaveTank    Sim            c_double          DT                   -  -  -  "timestep" -
+typedef  ^                    ^              c_float           RPM                  -  -  -  "RPM of rotor" -
+typedef  ^                    ^              c_double          TMax                 -  -  -  "Max sim time" -
+typedef  ^                    ^              c_int             InterpOrd            -  1  -  "Interpolation order" -
+typedef  ^                    ^              c_int             DebugLevel           -  -  -  "Debug level for outputs" -
+typedef  ^                    ^              character(1024)   OutRootName          -  -  -  "Rootname for outputs" -
+
+typedef  ^                    Env            c_float           Gravity_C            -  -  -  "gravitational constant (positive for down)" (m/s^2)
+typedef  ^                    ^              ^                 WtrDens_C            -  -  -  "Water density" (kg/m^3)
+typedef  ^                    ^              ^                 WtrDepth_C           -  -  -  "Water depth" (m)
+typedef  ^                    ^              ^                 WtrViscosity         -  -  -  "fluid viscosity" (m^2/s)
+typedef  ^                    ^              ^                 MSL2SWL_C            -  -  -  "Mean sea level to still water level" (m)
+
+typedef  ^                    Geom           c_float           PRP_loc              3  -  -  "location of PRP" (m)
+typedef  ^                    ^              ^                 PRP_Ori              3  -  -  "orientation of PRP" (m)
+typedef  ^                    ^              ^                 Nac_loc              3  -  -  "location of nacelle, relative to PRP.  used to set tower" (m)
+typedef  ^                    ^              ^                 Nac_Ori              3  -  -  "orientation of nacelle, relative to PRP.  used to set tower" (m)
+typedef  ^                    ^              ^                 Hub_loc              3  -  -  "location of hub, relative to nacelle" (m)
+typedef  ^                    ^              ^                 Hub_Ori              3  -  -  "orientation of hub, relative to nacelle" (m)
+typedef  ^                    ^              ^                 BldPitch             -  -  -  "Fixed blade pitch for full simulation" (deg)
+typedef  ^                    ^              ^                 NumBlades            -  -  -  "number of blades" -
+typedef  ^                    ^              ^                 ShftTilt             -  -  -  "Shaft tilt angle" (deg)
+
+typedef  ^                    Viz            c_int             WrVTK                -  -  -  "Write VTK?" -
+typedef  ^                    ^              ^                 WrVTK_type           -  -  -  "Write VTK outputs as [1: surface, 2: lines, 3: both]" -
+typedef  ^                    ^              c_double          WrVTK_DT             -  -  -  "Time step between VTK writes" -
+typedef  ^                    ^              character(1024)   VTK_dir              -  -  -  "Directory for VTK writing" -
+
+# Input settings specific to modules
+typedef  ^                    AD_Setup       c_int       NumTurbines                -  1  -  "Number of turbines" -
+typedef  ^                    ^              ^           TransposeDCM               -  -  -  "Transpose the DCM for ADI?" -
+typedef  ^                    ^              ^           PointLoadOutput            -  1  -  "Point loads, or distributed loads (use pointload since mapping to root)" -
+typedef  ^                    ^              ^           TurbineIsHAWT_c            -  1  -  "true for HAWT, false for VAWT" -
+typedef  ^                    ^              ^           MHK                        -  1  -  "MHK turbine, set to 1" -
+#typedef  ^                    MD_Setup  
+typedef  ^                    SS_Setup       c_int       NSteps                     -  -  -  "Number of timesteps" -
+typedef  ^                    ^              c_double    WaveDT                     -  -  -  "Wave DT for calcs" -
+typedef  ^                    ^              c_int       WaveElevSeriesFlag         -  0  -  "Output the wave elevation series info (unused)" -
+typedef  ^                    ^              c_int       WrWvKinMod                 -  0  -  "Write the wave kin mod files" -
+
+
+# Mesh structures and mappings
+typedef  ^                    MeshesMotion   MeshType    PtfmPRPMotion              -  -  -  "Platform principle ref point. Also serves as tower base" -
+typedef  ^                    ^              ^           TowerMotion                -  -  -  "Tower mesh (used only for vis)" -
+typedef  ^                    ^              ^           HubMotion                  -  -  -  "Hub mesh (for mappings, no loadings)" -
+typedef  ^                    ^              ^           BladeRootMotion            :  -  -  "Blade root motions" -
+
+typedef  ^                    MesheshLoads   MeshType    PtfmPRPLoads               -  -  -  "Platform principle ref point loads output" -
+typedef  ^                    ^              ^           TowerLoads                 -  -  -  "Tower mesh (unused)" -
+typedef  ^                    ^              ^           HubLoads                   -  -  -  "Hub mesh (for mappings, intermediate loads)" -
+typedef  ^                    ^              ^           BladeRootLoads             :  -  -  "Blade root loads" -
+
+# NOTE: rigid geometry, no yaw, static pitch
+typedef  ^                    MeshMaps       MeshMapType Motion_PRP_2_Twr           -  -  -  "PRP to tower motion" -
+typedef  ^                    ^              ^           Motion_PRP_2_Hub           -  -  -  "Twrtop to nacelle - add rotation afterwards" -
+typedef  ^                    ^              ^           Motion_Hub_2_BldRoot       -  -  -  "Hub to blade root motion transfer" -
+typedef  ^                    ^              ^           Load_BldRoot_2_Hub         -  -  -  "Blade root loads to hub" -
+typedef  ^                    ^              ^           Load_Hub_2_PRP             -  -  -  "Hub to nacelle load transfer" -
+typedef  ^                    ^              ^           Load_Twr_2_PRP             -  -  -  "Tower loads to PRP (unused)" -

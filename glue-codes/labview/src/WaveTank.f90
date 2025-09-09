@@ -28,14 +28,15 @@
 !**********************************************************************************************************************************
 MODULE WaveTankTesting
 
-   USE ISO_C_BINDING
-   USE NWTC_Library
-   USE NWTC_IO
-   USE SeaState_C_Binding, ONLY: SeaSt_C_Init, SeaSt_C_CalcOutput, SeaSt_C_End, MaxOutPts, SeaSt_GetWaveFieldPointer_C
-   USE SeaSt_WaveField_Types, ONLY: SeaSt_WaveFieldType
-   USE AeroDyn_Inflow_C_BINDING, ONLY: ADI_C_PreInit, ADI_C_SetupRotor, ADI_C_Init, ADI_C_End, MaxADIOutputs, ADI_C_SetRotorMotion, ADI_C_UpdateStates, ADI_C_CalcOutput, ADI_C_GetRotorLoads
-   USE MoorDyn_C, ONLY: MD_C_Init, MD_C_End, MD_C_SetWaveFieldData, MD_C_UpdateStates, MD_C_CalcOutput
-   USE NWTC_C_Binding, ONLY: IntfStrLen, SetErrStat_C, SetErrStat_F2C, ErrMsgLen_C, StringConvert_F2C, FileNameFromCString
+!FIXME: add error messages to log file before returning them (with timestamp)
+   use ISO_C_BINDING
+   use NWTC_Library
+   use NWTC_IO
+   use SeaState_C_Binding, ONLY: SeaSt_C_Init, SeaSt_C_CalcOutput, SeaSt_C_End, MaxOutPts, SeaSt_GetWaveFieldPointer_C
+   use SeaSt_WaveField_Types, ONLY: SeaSt_WaveFieldType
+   use AeroDyn_Inflow_C_BINDING, ONLY: ADI_C_PreInit, ADI_C_SetupRotor, ADI_C_Init, ADI_C_End, MaxADIOutputs, ADI_C_SetRotorMotion, ADI_C_UpdateStates, ADI_C_CalcOutput, ADI_C_GetRotorLoads
+   use MoorDyn_C, ONLY: MD_C_Init, MD_C_End, MD_C_SetWaveFieldData, MD_C_UpdateStates, MD_C_CalcOutput
+   use NWTC_C_Binding, ONLY: IntfStrLen, SetErrStat_C, SetErrStat_F2C, ErrMsgLen_C, StringConvert_F2C, FileNameFromCString
    use WaveTank_Types
    use WaveTank_IO
 
@@ -45,8 +46,8 @@ MODULE WaveTankTesting
    public :: WaveTank_Init
    public :: WaveTank_CalcOutput
    public :: WaveTank_End
-   public :: WaveTank_SetWaveFieldPointer
-   public :: WaveTank_Sizes
+!   public :: WaveTank_SetWaveFieldPointer
+!   public :: WaveTank_Sizes
 
    INTEGER(C_INT) :: SS_NumChannels_C
    INTEGER(C_INT) :: MD_NumChannels_C
@@ -108,7 +109,6 @@ SUBROUTINE WaveTank_Init(   &
    character(1024)                         :: InputFile
    integer(IntKi)                          :: i
    type(FileInfoType)                      :: FileInfo_In   !< The derived type for holding the full input file for parsing -- we may pass this in the future
-
 
    ! The length of these arrays much match what is set in the corresponding C binding modules
    character(kind=c_char) :: SS_OutputChannelNames_C(ChanLen*MaxOutPts+1)
@@ -300,6 +300,28 @@ END SUBROUTINE WaveTank_Init
 
 
 
+!FIXME: use this interface instead
+!subroutine WaveTank_TimeStep( &
+!   time,                      &
+!   pos,                       &  ! (1x6)      ! x-y-z euler angle, intrinsic
+!   vel,                       &  ! (1x6)
+!   acc,                       &  ! (1x6)
+!   FrcMom,                    &  ! (1x6)
+!   ErrStat_C,                 &
+!   ErrMsg_C                   &
+!) BIND (C, NAME='WaveTank_TimeStep')
+!#ifndef IMPLICIT_DLLEXPORT
+!!DEC$ ATTRIBUTES DLLEXPORT :: WaveTank_TimeStep
+!!GCC$ ATTRIBUTES DLLEXPORT :: WaveTank_TimeStep
+!   real(c_double),         intent(in   ) :: time
+!   real(c_float),          intent(in   ) :: pos(6)
+!   real(c_float),          intent(in   ) :: vel(6)
+!   real(c_float),          intent(in   ) :: acc(6)
+!   real(c_float),          intent(  out) :: FrcMom(6)
+!   integer(c_int),         intent(  out) :: ErrStat_C
+!   character(kind=c_char), intent(  out) :: ErrMsg_C(ErrMsgLen_C)
+
+   
 SUBROUTINE WaveTank_CalcOutput( &
     time,                       &
     positions_x,                &
@@ -309,9 +331,6 @@ SUBROUTINE WaveTank_CalcOutput( &
     blade_rotation_matrix,      &
     MD_Forces_C,                &
     ADI_MeshFrc_C,              &
-    ADI_HHVel_C,                &
-    md_outputs,                 &
-    adi_outputs,                &
     ErrStat_C,                  &
     ErrMsg_C                    &
 ) BIND (C, NAME='WaveTank_CalcOutput')
@@ -330,9 +349,6 @@ SUBROUTINE WaveTank_CalcOutput( &
     ! Outputs
     REAL(C_FLOAT),          INTENT(  OUT) :: MD_Forces_C( 6 )
     REAL(C_FLOAT),          INTENT(  OUT) :: ADI_MeshFrc_C( 6*NumMeshPts_C )   !< A 6xNumMeshPts_C array [Fx,Fy,Fz,Mx,My,Mz]       -- forces and moments (global)
-    REAL(C_FLOAT),          INTENT(  OUT) :: ADI_HHVel_C(3)                    !< Wind speed array [Vx,Vy,Vz]                      -- (m/s) (global)
-    REAL(C_FLOAT),          INTENT(  OUT) :: md_outputs(MD_NumChannels_C)
-    REAL(C_FLOAT),          INTENT(  OUT) :: adi_outputs(ADI_NumChannels_C)
     INTEGER(C_INT),         INTENT(  OUT) :: ErrStat_C
     CHARACTER(KIND=C_CHAR), INTENT(  OUT) :: ErrMsg_C(ErrMsgLen_C)
 
@@ -341,6 +357,12 @@ SUBROUTINE WaveTank_CalcOutput( &
     CHARACTER(KIND=C_CHAR, LEN=ErrMsgLen_C) :: ErrMsg_C2
     REAL(C_FLOAT)                           :: DeltaS(3)                        !< Change in position from previous time step
     INTEGER                                 :: I, I0, I1
+
+!FIXME: setup new method for handling this
+!FIXME: turb off HHVel
+   real(c_float) :: md_outputs(MD_NumChannels_C)
+   real(c_float) :: adi_outputs(ADI_NumChannels_C)
+   real(c_float) :: ADI_HHVel_C(3)                    !< Wind speed array [Vx,Vy,Vz]                      -- (m/s) (global)
 
     ! ! ADI
     ! ! SetRotorMotion
@@ -540,12 +562,16 @@ SUBROUTINE WaveTank_CalcOutput( &
 
 END SUBROUTINE
 
+!FIXME: update interface
+!subroutine WaveTank_End(OutputRootName, VTKdirName, ErrStat_C, ErrMsg_C) bind (C, NAME="WaveTank_End")
 SUBROUTINE WaveTank_End(ErrStat_C, ErrMsg_C) bind (C, NAME="WaveTank_End")
 #ifndef IMPLICIT_DLLEXPORT
 !DEC$ ATTRIBUTES DLLEXPORT :: WaveTank_End
 !GCC$ ATTRIBUTES DLLEXPORT :: WaveTank_End
 #endif
 
+!   character(c_char),      intent(  out) :: OutputRootName(IntfStrLen)     ! return the rootname 
+!   character(c_char),      intent(  out) :: VTKdirName(IntfStrLen)     ! return the name of the vtk directory (leave empty in no VTK)
    integer(c_int),         intent(  out) :: ErrStat_C
    character(kind=c_char), intent(  out) :: ErrMsg_C(ErrMsgLen_C)
 
@@ -557,6 +583,7 @@ SUBROUTINE WaveTank_End(ErrStat_C, ErrMsg_C) bind (C, NAME="WaveTank_End")
    ErrStat_C = ErrID_None
    ErrMsg_C  = " "//C_NULL_CHAR
 
+!FIXME: fix MD_C_END so it doesn't segfault if no init occured
 ErrMsg_F2  = "WaveTank_End is broken!!!!"
 call SetErrStat_F2C(ErrID_Fatal, ErrMsg_F2, ErrStat_C, ErrMsg_C)
 return
@@ -571,6 +598,8 @@ return
    call ADI_C_END(ErrStat_C2, ErrMsg_C2)
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_END')
    if (ErrStat_C >= AbortErrLev) return
+
+!FIXME: close output file here
 
 END SUBROUTINE
 
@@ -607,21 +636,6 @@ SUBROUTINE WaveTank_SetWaveFieldPointer(ErrStat_C, ErrMsg_C) bind (C, NAME="Wave
     END IF
 
     CALL MD_C_SetWaveFieldData(WaveFieldPointer)
-
-END SUBROUTINE
-
-SUBROUTINE WaveTank_Sizes(SS_NumOuts, MD_NumOuts, ADI_NumOuts) bind (C, NAME="WaveTank_Sizes")
-#ifndef IMPLICIT_DLLEXPORT
-!DEC$ ATTRIBUTES DLLEXPORT :: WaveTank_Sizes
-!GCC$ ATTRIBUTES DLLEXPORT :: WaveTank_Sizes
-#endif
-    INTEGER(C_INT),         INTENT(  OUT) :: SS_NumOuts
-    INTEGER(C_INT),         INTENT(  OUT) :: MD_NumOuts
-    INTEGER(C_INT),         INTENT(  OUT) :: ADI_NumOuts
-
-    SS_NumOuts = SS_NumChannels_C
-    MD_NumOuts = MD_NumChannels_C
-    ADI_NumOuts = ADI_NumChannels_C
 
 END SUBROUTINE
 
