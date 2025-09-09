@@ -546,27 +546,31 @@ SUBROUTINE WaveTank_End(ErrStat_C, ErrMsg_C) bind (C, NAME="WaveTank_End")
 !GCC$ ATTRIBUTES DLLEXPORT :: WaveTank_End
 #endif
 
-    INTEGER(C_INT),         INTENT(  OUT) :: ErrStat_C
-    CHARACTER(KIND=C_CHAR), INTENT(  OUT) :: ErrMsg_C(ErrMsgLen_C)
+   integer(c_int),         intent(  out) :: ErrStat_C
+   character(kind=c_char), intent(  out) :: ErrMsg_C(ErrMsgLen_C)
 
-    ! Local variables
-    INTEGER(C_INT)                          :: ErrStat_C2
-    CHARACTER(KIND=C_CHAR, LEN=ErrMsgLen_C) :: ErrMsg_C2
+   ! Local variables
+   integer(c_int)                          :: ErrStat_C2
+   character(kind=c_char, len=ErrMsgLen_C) :: ErrMsg_C2
+   character(ErrMsgLen)                    :: ErrMsg_F2
 
-    ErrStat_C = ErrID_None
-    ErrMsg_C  = " "//C_NULL_CHAR
+   ErrStat_C = ErrID_None
+   ErrMsg_C  = " "//C_NULL_CHAR
 
-    CALL MD_C_END(ErrStat_C2, ErrMsg_C2)
-    CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'MD_C_END')
-    IF (ErrStat_C >= AbortErrLev) RETURN
+ErrMsg_F2  = "WaveTank_End is broken!!!!"
+call SetErrStat_F2C(ErrID_Fatal, ErrMsg_F2, ErrStat_C, ErrMsg_C)
+return
+   call MD_C_END(ErrStat_C2, ErrMsg_C2)
+   call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'MD_C_END')
+   if (ErrStat_C >= AbortErrLev) return
 
-    CALL SeaSt_C_END(ErrStat_C2, ErrMsg_C2)
-    CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'SeaSt_C_END')
-    IF (ErrStat_C >= AbortErrLev) RETURN
+   call SeaSt_C_END(ErrStat_C2, ErrMsg_C2)
+   call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'SeaSt_C_END')
+   if (ErrStat_C >= AbortErrLev) return
 
-    CALL ADI_C_END(ErrStat_C2, ErrMsg_C2)
-    CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_END')
-    IF (ErrStat_C >= AbortErrLev) RETURN
+   call ADI_C_END(ErrStat_C2, ErrMsg_C2)
+   call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_END')
+   if (ErrStat_C >= AbortErrLev) return
 
 END SUBROUTINE
 

@@ -154,20 +154,20 @@ class WaveTankLib(OpenFASTInterfaceType):
             self.error_status_c.value,
             f"Unknown Error Level: {self.error_status_c.value}"
         )
-#FIXME: losing the second line of the message here!!!!
-        error_msg = self.error_message_c.value.decode('utf-8') #.strip()
+        error_msg = self.error_message_c.raw.decode('utf-8').strip()
         message = f"WaveTank library {error_level}: {error_msg}"
         # If the error level is fatal, call WaveTank_End() and raise an error
         if self.error_status_c.value >= self.abort_error_level:
-            print(f"Fatal error occured.")
-            print(message)
-            raise RuntimeError(message)
             try:
-                self.end()
+                self.WaveTank_End(
+                    byref(self.error_status_c),             # OUT <- error status code
+                    self.error_message_c                    # OUT <- error message buffer
+                )
+                if self.error_status_c.value == 4:
+                    error_msg = self.error_message_c.raw.decode('utf-8').strip()
+                    print(f'WaveTank_End error: {error_msg}')
             except Exception as e:
                 message += f"\nAdditional error during cleanup: {e}"
-#FIXME: why isn't this triggered???
-
             raise RuntimeError(message)
         else:
             print(message)
@@ -227,8 +227,6 @@ class WaveTankLib(OpenFASTInterfaceType):
         self.check_error()
 
     def end(self) -> None:
-        _error_message = create_string_buffer(self.ERROR_MSG_C_LEN)
-
         self.WaveTank_End(
             byref(self.error_status_c),             # OUT <- error status code
             self.error_message_c                    # OUT <- error message buffer
