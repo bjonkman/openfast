@@ -12,8 +12,10 @@ from ctypes import (
     c_char_p, 
     c_bool
 )
+
 import numpy as np
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
 from scipy.spatial.transform import Rotation
 
 from pyOpenFAST.interface_abc import OpenFASTInterfaceType
@@ -23,6 +25,26 @@ project_root = '../../../'
 library_path = project_root + '/build-Single-Debug/glue-codes/labview/libwavetanktestinglib.dylib'
 
 class WaveTankLib(OpenFASTInterfaceType):
+
+    #--------------------------------------
+    # Error levels
+    #--------------------------------------
+    error_levels: Dict[int, str] = {
+        0: "None",
+        1: "Info",
+        2: "Warning",
+        3: "Severe Error",
+        4: "Fatal Error"
+    }
+
+    #--------------------------------------
+    # Constants
+    #--------------------------------------
+    # NOTE: The length of the error message in Fortran is determined by the
+    #       ErrMsgLen variable in the NWTC_Base.f90 file. If ErrMsgLen is modified,
+    #       the corresponding size here must also be updated to match.
+    ERROR_MESSAGE_LENGTH: int = 8197
+    DEFAULT_STRING_LENGTH: int = 1025
 
     def __init__(self, library_path: str, input_file_names: dict):
         """
@@ -62,6 +84,11 @@ class WaveTankLib(OpenFASTInterfaceType):
         self.adi_output_channel_names = []
         self.adi_output_channel_units = []
         self.adi_output_values = None
+
+        # Error handling setup
+        self.abort_error_level = 4
+        self.error_status_c = c_int(0)
+        self.error_message_c = create_string_buffer(self.ERROR_MESSAGE_LENGTH)
 
     def _initialize_routines(self):
         self.WaveTank_Init.argtypes = [
@@ -111,8 +138,42 @@ class WaveTankLib(OpenFASTInterfaceType):
         ]
         self.WaveTank_Sizes.restype = c_int
 
+
+    def check_error(self) -> None:
+        """Checks for and handles any errors from the Fortran library.
+
+        Raises:
+            RuntimeError: If a fatal error occurs in the Fortran code
+        """
+        # If the error status is 0, return
+        if self.error_status_c.value == 0:
+            return
+
+        # Get the error level and error message
+        error_level = self.error_levels.get(
+            self.error_status_c.value,
+            f"Unknown Error Level: {self.error_status_c.value}"
+        )
+#FIXME: losing the second line of the message here!!!!
+        error_msg = self.error_message_c.value.decode('utf-8') #.strip()
+        message = f"WaveTank library {error_level}: {error_msg}"
+        # If the error level is fatal, call WaveTank_End() and raise an error
+        if self.error_status_c.value >= self.abort_error_level:
+            print(f"Fatal error occured.")
+            print(message)
+            raise RuntimeError(message)
+            try:
+                self.end()
+            except Exception as e:
+                message += f"\nAdditional error during cleanup: {e}"
+#FIXME: why isn't this triggered???
+
+            raise RuntimeError(message)
+        else:
+            print(message)
+
+
     def init(self):
-        _error_status = c_int(0)
         _error_message = create_string_buffer(self.ERROR_MSG_C_LEN)
 
         # # Convert the initial positions array into c_float array
@@ -126,13 +187,10 @@ class WaveTankLib(OpenFASTInterfaceType):
             self.input_file_names["SeaState"],
             self.input_file_names["AeroDyn"],
             self.input_file_names["InflowWind"],
-            byref(_error_status),
-            _error_message,
+            byref(self.error_status_c),             # OUT <- error status code
+            self.error_message_c                    # OUT <- error message buffer
         )
-        if self.print_messages(_error_status):
-            print(f"WaveTank_Init:\n{_error_status.value}:\n{_error_message.value.decode('cp437')}")
-        if self.fatal_error(_error_status):
-            raise RuntimeError(f"Error Status: {_error_status.value}:\n{_error_message.value.decode('cp437')}")
+        self.check_error()
 
         # self.output_channel_names = [n.decode('UTF-8') for n in _channel_names.value.split()] 
         # self.output_channel_units = [n.decode('UTF-8') for n in _channel_units.value.split()] 
@@ -150,8 +208,6 @@ class WaveTankLib(OpenFASTInterfaceType):
         ad_loads: np.ndarray,
         hub_height_velocities: np.ndarray,
     ):
-        _error_status = c_int(0)
-        _error_message = create_string_buffer(self.ERROR_MSG_C_LEN)
 
         self.WaveTank_CalcOutput(
             byref(c_double(time)),
@@ -165,26 +221,19 @@ class WaveTankLib(OpenFASTInterfaceType):
             hub_height_velocities.ctypes.data_as(POINTER(c_float)),
             self.md_output_values.ctypes.data_as(POINTER(c_float)),
             self.adi_output_values.ctypes.data_as(POINTER(c_float)),
-            byref(_error_status),
-            _error_message,
+            byref(self.error_status_c),             # OUT <- error status code
+            self.error_message_c                    # OUT <- error message buffer
         )
-        if self.print_messages(_error_status):
-            print(f"WaveTank_CalcOutput:\n{_error_status.value}:\n{_error_message.value.decode('cp437')}")
-        if self.fatal_error(_error_status):
-            raise RuntimeError(f"Error {_error_status.value}: {_error_message.value}")
+        self.check_error()
 
-    def end(self):
-        _error_status = c_int(0)
+    def end(self) -> None:
         _error_message = create_string_buffer(self.ERROR_MSG_C_LEN)
 
         self.WaveTank_End(
-            byref(_error_status),
-            _error_message,
+            byref(self.error_status_c),             # OUT <- error status code
+            self.error_message_c                    # OUT <- error message buffer
         )
-        if self.print_messages(_error_status):
-            print(f"WaveTank_End:\n{_error_status.value}:\n{_error_message.value.decode('cp437')}")
-        if self.fatal_error(_error_status):
-            raise RuntimeError(f"Error {_error_status.value}: {_error_message.value}")
+        self.check_error()
 
     def allocate_outputs(self):
         ss_numouts = c_int(0)
@@ -206,9 +255,6 @@ class WaveTankLib(OpenFASTInterfaceType):
         # self.adi_output_channel_names = [b""] * adi_numouts.value
         # self.adi_output_channel_units = [b""] * adi_numouts.value
 
-
-    def print_messages(self, error_status):
-        return error_status.value >= self.print_error_level
 
 if __name__=="__main__":
 
