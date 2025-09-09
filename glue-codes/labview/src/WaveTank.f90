@@ -28,35 +28,35 @@
 !**********************************************************************************************************************************
 MODULE WaveTankTesting
 
-    USE ISO_C_BINDING
-    USE NWTC_Library
-    USE NWTC_IO
-    USE SeaState_C_Binding, ONLY: SeaSt_C_Init, SeaSt_C_CalcOutput, SeaSt_C_End, MaxOutPts, SeaSt_GetWaveFieldPointer_C
-    USE SeaSt_WaveField_Types, ONLY: SeaSt_WaveFieldType
-    USE AeroDyn_Inflow_C_BINDING, ONLY: ADI_C_PreInit, ADI_C_SetupRotor, ADI_C_Init, ADI_C_End, MaxADIOutputs, ADI_C_SetRotorMotion, ADI_C_UpdateStates, ADI_C_CalcOutput, ADI_C_GetRotorLoads
-    USE MoorDyn_C, ONLY: MD_C_Init, MD_C_End, MD_C_SetWaveFieldData, MD_C_UpdateStates, MD_C_CalcOutput
-    USE NWTC_C_Binding, ONLY: IntfStrLen, SetErrStat_C, SetErrStat_F2C, ErrMsgLen_C, StringConvert_F2C, FileNameFromCString
-    use WaveTank_Types
-    use WaveTank_IO
+   USE ISO_C_BINDING
+   USE NWTC_Library
+   USE NWTC_IO
+   USE SeaState_C_Binding, ONLY: SeaSt_C_Init, SeaSt_C_CalcOutput, SeaSt_C_End, MaxOutPts, SeaSt_GetWaveFieldPointer_C
+   USE SeaSt_WaveField_Types, ONLY: SeaSt_WaveFieldType
+   USE AeroDyn_Inflow_C_BINDING, ONLY: ADI_C_PreInit, ADI_C_SetupRotor, ADI_C_Init, ADI_C_End, MaxADIOutputs, ADI_C_SetRotorMotion, ADI_C_UpdateStates, ADI_C_CalcOutput, ADI_C_GetRotorLoads
+   USE MoorDyn_C, ONLY: MD_C_Init, MD_C_End, MD_C_SetWaveFieldData, MD_C_UpdateStates, MD_C_CalcOutput
+   USE NWTC_C_Binding, ONLY: IntfStrLen, SetErrStat_C, SetErrStat_F2C, ErrMsgLen_C, StringConvert_F2C, FileNameFromCString
+   use WaveTank_Types
+   use WaveTank_IO
 
-    IMPLICIT NONE
-    SAVE
+   implicit none
+   save
 
-    PUBLIC :: WaveTank_Init
-    PUBLIC :: WaveTank_CalcOutput
-    PUBLIC :: WaveTank_End
-    PUBLIC :: WaveTank_SetWaveFieldPointer
-    PUBLIC :: WaveTank_Sizes
+   public :: WaveTank_Init
+   public :: WaveTank_CalcOutput
+   public :: WaveTank_End
+   public :: WaveTank_SetWaveFieldPointer
+   public :: WaveTank_Sizes
 
-    INTEGER(C_INT) :: SS_NumChannels_C
-    INTEGER(C_INT) :: MD_NumChannels_C
-    INTEGER(C_INT) :: ADI_NumChannels_C
+   INTEGER(C_INT) :: SS_NumChannels_C
+   INTEGER(C_INT) :: MD_NumChannels_C
+   INTEGER(C_INT) :: ADI_NumChannels_C
 
-    INTEGER(C_INT) :: iWT_C
-    INTEGER(C_INT) :: NumBlades_C
-    INTEGER(C_INT) :: NumMeshPts_C
+   INTEGER(C_INT) :: iWT_C
+   INTEGER(C_INT) :: NumBlades_C
+   INTEGER(C_INT) :: NumMeshPts_C
 
-    REAL(C_DOUBLE) :: DT
+   REAL(C_DOUBLE) :: DT
 
 !FIXME: replace all this with meshes
     REAL(C_FLOAT), DIMENSION(3,3) :: FloaterPositions = 0.0_C_FLOAT
@@ -78,210 +78,227 @@ MODULE WaveTankTesting
 CONTAINS
 
 SUBROUTINE WaveTank_Init(   &
-    WT_InputFile_C,         &
-    MD_InputFile_C,         &
-    SS_InputFile_C,         &
-    AD_InputFile_C,         &
-    IfW_InputFile_C,        &
-    ErrStat_C,              &
-    ErrMsg_C                &
+   WT_InputFile_C,         &
+   MD_InputFile_C,         &
+   SS_InputFile_C,         &
+   AD_InputFile_C,         &
+   IfW_InputFile_C,        &
+   ErrStat_C,              &
+   ErrMsg_C                &
 ) BIND (C, NAME='WaveTank_Init')
 #ifndef IMPLICIT_DLLEXPORT
 !DEC$ ATTRIBUTES DLLEXPORT :: WaveTank_Init
 !GCC$ ATTRIBUTES DLLEXPORT :: WaveTank_Init
 #endif
 
-    character(c_char),          INTENT(IN   ) :: WT_InputFile_C(IntfStrLen)
-    character(c_char), target,  INTENT(IN   ) :: MD_InputFile_C(IntfStrLen)
-    character(c_char), target,  INTENT(IN   ) :: SS_InputFile_C(IntfStrLen)
-    character(c_char), target,  INTENT(IN   ) :: AD_InputFile_C(IntfStrLen)
-    character(c_char), target,  INTENT(IN   ) :: IfW_InputFile_C(IntfStrLen)
-    INTEGER(C_INT),             INTENT(  OUT) :: ErrStat_C
-    CHARACTER(KIND=C_CHAR),     INTENT(  OUT) :: ErrMsg_C(ErrMsgLen_C)
+   character(c_char),          intent(in   ) :: WT_InputFile_C(IntfStrLen)
+   character(c_char), target,  intent(in   ) :: MD_InputFile_C(IntfStrLen)
+   character(c_char), target,  intent(in   ) :: SS_InputFile_C(IntfStrLen)
+   character(c_char), target,  intent(in   ) :: AD_InputFile_C(IntfStrLen)
+   character(c_char), target,  intent(in   ) :: IfW_InputFile_C(IntfStrLen)
+   integer(c_int),             intent(  out) :: ErrStat_C
+   character(kind=c_char),     intent(  out) :: ErrMsg_C(ErrMsgLen_C)
 
-    ! Local variables
-    INTEGER(C_INT)                          :: ErrStat_C2
-    CHARACTER(KIND=C_CHAR, LEN=ErrMsgLen_C) :: ErrMsg_C2
-    INTEGER(IntKi)                          :: ErrStat_F2
-    CHARACTER(ErrMsgLen)                    :: ErrMsg_F2
-    TYPE(WaveTank_InitInput), target        :: WT_InitInp
-    CHARACTER(1024)                         :: WT_InputFilePath
-    integer(IntKi)                          :: i
+   ! Local variables
+   integer(c_int)                          :: ErrStat_C2
+   character(kind=c_char, len=ErrMsgLen_C) :: ErrMsg_C2
+   integer(IntKi)                          :: ErrStat_F2
+   character(ErrMsgLen)                    :: ErrMsg_F2
+   type(WaveTank_InitInput), target        :: WT_InitInp
+   character(1024)                         :: InputFile
+   integer(IntKi)                          :: i
+   type(FileInfoType)                      :: FileInfo_In   !< The derived type for holding the full input file for parsing -- we may pass this in the future
 
-    ! The length of these arrays much match what is set in the corresponding C binding modules
-    CHARACTER(KIND=C_CHAR) :: SS_OutputChannelNames_C(ChanLen*MaxOutPts+1)
-    CHARACTER(KIND=C_CHAR) :: SS_OutputChannelUnits_C(ChanLen*MaxOutPts+1)
-    CHARACTER(KIND=C_CHAR) :: MD_OutputChannelNames_C(100000)
-    CHARACTER(KIND=C_CHAR) :: MD_OutputChannelUnits_C(100000)
-    CHARACTER(KIND=C_CHAR) :: ADI_OutputChannelNames_C(ChanLen*MaxADIOutputs+1)
-    CHARACTER(KIND=C_CHAR) :: ADI_OutputChannelUnits_C(ChanLen*MaxADIOutputs+1)
 
-    ! Initialize error handling
-    ErrStat_C = ErrID_None
-    ErrMsg_C  = " "//C_NULL_CHAR
+   ! The length of these arrays much match what is set in the corresponding C binding modules
+   character(kind=c_char) :: SS_OutputChannelNames_C(ChanLen*MaxOutPts+1)
+   character(kind=c_char) :: SS_OutputChannelUnits_C(ChanLen*MaxOutPts+1)
+   character(kind=c_char) :: MD_OutputChannelNames_C(100000)
+   character(kind=c_char) :: MD_OutputChannelUnits_C(100000)
+   character(kind=c_char) :: ADI_OutputChannelNames_C(ChanLen*MaxADIOutputs+1)
+   character(kind=c_char) :: ADI_OutputChannelUnits_C(ChanLen*MaxADIOutputs+1)
 
-    WT_InputFilePath = transfer(WT_InputFile_C, WT_InputFilePath)
-    i = index(WT_InputFilePath, char(0))
-    WT_InputFilePath = WT_InputFilePath(1:i)
-    CALL ReadInput(WT_InputFilePath, WT_InitInp, ErrStat_F2, ErrMsg_F2)
-    CALL SetErrStat_F2C(ErrStat_F2, ErrMsg_F2, ErrStat_C, ErrMsg_C) !, 'WaveTank_Init')
-    IF (ErrStat_C >= AbortErrLev) RETURN
+   ! Initialize error handling
+   ErrStat_C = ErrID_None
+   ErrMsg_C  = " "//C_NULL_CHAR
 
-    ! Store to global variable for use in other routines
-    DT = WT_InitInp%DT
-    iWT_C = WT_InitInp%iWT_C
-    NumBlades_C = WT_InitInp%NumBlades_C
-    NumMeshPts_C = WT_InitInp%NumMeshPts_C
+   InputFile = transfer(WT_InputFile_C, InputFile)
+   i = index(InputFile, char(0))
+   InputFile = InputFile(1:i)
+   call ProcessComFile(InputFile,  FileInfo_In, ErrStat_F2, ErrMsg_F2); if (Failed()) return
+   call ParseInputFile(FileInfo_In, WT_InitInp, ErrStat_F2, ErrMsg_F2); if (Failed()) return
 
-    ! Initialize hub and nacelle position to input HubPos_C and NacPos_C
-    DO I=1,3
-        FloaterPositions(I,:) = WT_InitInp%HubPos_C
-        NacellePositions(I,:) = WT_InitInp%NacPos_C
-    END DO
+   ! Store to global variable for use in other routines
+   DT = WT_InitInp%DT
+   iWT_C = WT_InitInp%iWT_C
+   NumBlades_C = WT_InitInp%NumBlades_C
+   NumMeshPts_C = WT_InitInp%NumMeshPts_C
 
-    ! Allocate the blade root and blade mesh arrays since they're based on the number of blades and mesh points
-    IF (.NOT. ALLOCATED(BladeRootPositions)) THEN
-        ALLOCATE( BladeRootPositions(3,3*NumBlades_C) )
-    ENDIF
-    IF (.NOT. ALLOCATED(BladeRootVelocities)) THEN
-        ALLOCATE( BladeRootVelocities(2,6*NumBlades_C) )
-    ENDIF
-    IF (.NOT. ALLOCATED(BladeRootAccelerations)) THEN
-        ALLOCATE( BladeRootAccelerations(1,6*NumBlades_C) )
-    ENDIF
-    DO I=1,3
-        BladeRootPositions(I,:) = WT_InitInp%BldRootPos_C
-    END DO
-    BladeRootVelocities = 0.0_C_FLOAT
-    BladeRootAccelerations = 0.0_C_FLOAT
+   ! Initialize hub and nacelle position to input HubPos_C and NacPos_C
+   DO I=1,3
+       FloaterPositions(I,:) = WT_InitInp%HubPos_C
+       NacellePositions(I,:) = WT_InitInp%NacPos_C
+   END DO
 
-    IF (.NOT. ALLOCATED(BladeMeshPositions)) THEN
-        ALLOCATE( BladeMeshPositions(3,3*NumMeshPts_C) )
-    ENDIF
+   ! Allocate the blade root and blade mesh arrays since they're based on the number of blades and mesh points
+   IF (.NOT. ALLOCATED(BladeRootPositions)) THEN
+       ALLOCATE( BladeRootPositions(3,3*NumBlades_C) )
+   ENDIF
+   IF (.NOT. ALLOCATED(BladeRootVelocities)) THEN
+       ALLOCATE( BladeRootVelocities(2,6*NumBlades_C) )
+   ENDIF
+   IF (.NOT. ALLOCATED(BladeRootAccelerations)) THEN
+       ALLOCATE( BladeRootAccelerations(1,6*NumBlades_C) )
+   ENDIF
+   DO I=1,3
+       BladeRootPositions(I,:) = WT_InitInp%BldRootPos_C
+   END DO
+   BladeRootVelocities = 0.0_C_FLOAT
+   BladeRootAccelerations = 0.0_C_FLOAT
 
-    IF (.NOT. ALLOCATED(BladeMeshVelocities)) THEN
-        ALLOCATE( BladeMeshVelocities(2,6*NumMeshPts_C) )
-    ENDIF
+   IF (.NOT. ALLOCATED(BladeMeshPositions)) THEN
+       ALLOCATE( BladeMeshPositions(3,3*NumMeshPts_C) )
+   ENDIF
 
-    IF (.NOT. ALLOCATED(BladeMeshAccelerations)) THEN
-        ALLOCATE( BladeMeshAccelerations(1,6*NumMeshPts_C) )
-    ENDIF
-    DO I=1,3
-        BladeMeshPositions(I,:) = WT_InitInp%InitMeshPos_C
-    END DO
-    BladeMeshVelocities = 0.0_C_FLOAT
-    BladeMeshAccelerations = 0.0_C_FLOAT
+   IF (.NOT. ALLOCATED(BladeMeshVelocities)) THEN
+       ALLOCATE( BladeMeshVelocities(2,6*NumMeshPts_C) )
+   ENDIF
 
-    CALL SeaSt_C_Init(                          &    
-        c_loc(SS_InputFile_C(1)),               &
-        c_loc(WT_InitInp%SS_OutRootName_C(1)),  &
-        WT_InitInp%SS_Gravity_C,                &
-        WT_InitInp%SS_WtrDens_C,                &
-        WT_InitInp%SS_WtrDpth_C,                &
-        WT_InitInp%SS_MSL2SWL_C,                &
-        WT_InitInp%SS_NSteps_C,                 &
-        WT_InitInp%SS_TimeInterval_C,           &
-        WT_InitInp%SS_WaveElevSeriesFlag_C,     &
-        WT_InitInp%SS_WrWvKinMod_C,             &
-        WT_InitInp%DebugLevel,                  &
-        SS_NumChannels_C,                       &
-        SS_OutputChannelNames_C,                &
-        SS_OutputChannelUnits_C,                &
-        ErrStat_C2, ErrMsg_C2                   &
-    )
-    CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'SeaSt_C_Init')
-    IF (ErrStat_C >= AbortErrLev) RETURN
+   IF (.NOT. ALLOCATED(BladeMeshAccelerations)) THEN
+       ALLOCATE( BladeMeshAccelerations(1,6*NumMeshPts_C) )
+   ENDIF
+   DO I=1,3
+       BladeMeshPositions(I,:) = WT_InitInp%InitMeshPos_C
+   END DO
+   BladeMeshVelocities = 0.0_C_FLOAT
+   BladeMeshAccelerations = 0.0_C_FLOAT
 
-    ! Set the SeaState Wave Field pointer onto MoorDyn
-    CALL WaveTank_SetWaveFieldPointer(ErrStat_C2, ErrMsg_C2)
+   CALL SeaSt_C_Init(                          &    
+       c_loc(SS_InputFile_C(1)),               &
+       c_loc(WT_InitInp%SS_OutRootName_C(1)),  &
+       WT_InitInp%SS_Gravity_C,                &
+       WT_InitInp%SS_WtrDens_C,                &
+       WT_InitInp%SS_WtrDpth_C,                &
+       WT_InitInp%SS_MSL2SWL_C,                &
+       WT_InitInp%SS_NSteps_C,                 &
+       WT_InitInp%SS_TimeInterval_C,           &
+       WT_InitInp%SS_WaveElevSeriesFlag_C,     &
+       WT_InitInp%SS_WrWvKinMod_C,             &
+       WT_InitInp%DebugLevel,                  &
+       SS_NumChannels_C,                       &
+       SS_OutputChannelNames_C,                &
+       SS_OutputChannelUnits_C,                &
+       ErrStat_C2, ErrMsg_C2                   &
+   )
+   CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'SeaSt_C_Init')
+   IF (ErrStat_C >= AbortErrLev) RETURN
 
-    CALL MD_C_Init(                             &
-        0,                                      &   !< InputFilePassed: 0 for file, 1 for string
-        c_loc(MD_InputFile_C(1)),               &
-        IntfStrLen,                             &   !< InputFileStringLength_C
-        DT,                                     &
-        WT_InitInp%MD_G_C,                      &
-        WT_InitInp%MD_RHO_C,                    &
-        WT_InitInp%MD_DEPTH_C,                  &
-        WT_InitInp%MD_PtfmInit_C,               &
-        WT_InitInp%MD_InterpOrder_C,            &
-        MD_NumChannels_C,                       &
-        MD_OutputChannelNames_C,                &
-        MD_OutputChannelUnits_C,                &
-        ErrStat_C2,                             &
-        ErrMsg_C2                               &
-    )
-    CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'MD_C_Init')
-    IF (ErrStat_C >= AbortErrLev) RETURN
+   ! Set the SeaState Wave Field pointer onto MoorDyn
+   CALL WaveTank_SetWaveFieldPointer(ErrStat_C2, ErrMsg_C2)
 
-    CALL ADI_C_PreInit(                         &
-        WT_InitInp%NumTurbines_C,               &
-        WT_InitInp%TransposeDCM,                &
-        WT_InitInp%PointLoadOutput,             &
-        WT_InitInp%ADI_gravity_C,               &
-        WT_InitInp%ADI_defFldDens_C,            &
-        WT_InitInp%ADI_defKinVisc_C,            &
-        WT_InitInp%ADI_defSpdSound_C,           &
-        WT_InitInp%ADI_defPatm_C,               &
-        WT_InitInp%ADI_defPvap_C,               &
-        WT_InitInp%ADI_WtrDpth_C,               &
-        WT_InitInp%ADI_MSL2SWL_C,               &
-        WT_InitInp%MHK,                         &
-        WT_InitInp%DebugLevel,                  &
-        ErrStat_C2, ErrMsg_C2                   &
-    )
-    CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_PreInit')
-    IF (ErrStat_C >= AbortErrLev) RETURN
+   CALL MD_C_Init(                             &
+       0,                                      &   !< InputFilePassed: 0 for file, 1 for string
+       c_loc(MD_InputFile_C(1)),               &
+       IntfStrLen,                             &   !< InputFileStringLength_C
+       DT,                                     &
+       WT_InitInp%MD_G_C,                      &
+       WT_InitInp%MD_RHO_C,                    &
+       WT_InitInp%MD_DEPTH_C,                  &
+       WT_InitInp%MD_PtfmInit_C,               &
+       WT_InitInp%MD_InterpOrder_C,            &
+       MD_NumChannels_C,                       &
+       MD_OutputChannelNames_C,                &
+       MD_OutputChannelUnits_C,                &
+       ErrStat_C2,                             &
+       ErrMsg_C2                               &
+   )
+   CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'MD_C_Init')
+   IF (ErrStat_C >= AbortErrLev) RETURN
 
-    CALL ADI_C_SetupRotor(                      &
-        WT_InitInp%iWT_c,                       &
-        WT_InitInp%TurbineIsHAWT_c,             &
-        WT_InitInp%TurbOrigin_C,                &
-        WT_InitInp%HubPos_C,                    &
-        WT_InitInp%HubOri_C,                    &
-        WT_InitInp%NacPos_C,                    &
-        WT_InitInp%NacOri_C,                    &
-        WT_InitInp%NumBlades_C,                 &
-        WT_InitInp%BldRootPos_C,                &
-        WT_InitInp%BldRootOri_C,                &
-        WT_InitInp%NumMeshPts_C,                &
-        WT_InitInp%InitMeshPos_C,               &
-        WT_InitInp%InitMeshOri_C,               &
-        WT_InitInp%MeshPtToBladeNum_C,          &
-        ErrStat_C2, ErrMsg_C2                   &
-    )
-    CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_SetupRotor')
-    IF (ErrStat_C >= AbortErrLev) RETURN
+   CALL ADI_C_PreInit(                         &
+       WT_InitInp%NumTurbines_C,               &
+       WT_InitInp%TransposeDCM,                &
+       WT_InitInp%PointLoadOutput,             &
+       WT_InitInp%ADI_gravity_C,               &
+       WT_InitInp%ADI_defFldDens_C,            &
+       WT_InitInp%ADI_defKinVisc_C,            &
+       WT_InitInp%ADI_defSpdSound_C,           &
+       WT_InitInp%ADI_defPatm_C,               &
+       WT_InitInp%ADI_defPvap_C,               &
+       WT_InitInp%ADI_WtrDpth_C,               &
+       WT_InitInp%ADI_MSL2SWL_C,               &
+       WT_InitInp%MHK,                         &
+       WT_InitInp%DebugLevel,                  &
+       ErrStat_C2, ErrMsg_C2                   &
+   )
+   CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_PreInit')
+   IF (ErrStat_C >= AbortErrLev) RETURN
 
-    CALL ADI_C_Init(                            &
-        0,                                      &   !< ADinputFilePassed; 0 for file, 1 for string
-        c_loc(AD_InputFile_C(1)),               &   !< ADinputFileString_C; Input file as a single string with lines delineated by C_NULL_CHAR
-        IntfStrLen,                             &   !< ADinputFileStringLength_C; length of the input file string
-        0,                                      &   !< IfWinputFilePassed; 0 for file, 1 for string
-        c_loc(IfW_InputFile_C(1)),              &   !< IfWinputFileString_C; Input file as a single string with lines delineated by C_NULL_CHAR
-        IntfStrLen,                             &   !< IfWinputFileStringLength_C; length of the input file string
-        WT_InitInp%ADI_OutRootName_C,           &   !< Root name to use for echo files and other
-        WT_InitInp%ADI_OutVTKDir_C,             &   !< Directory to put all vtk output
-        WT_InitInp%ADI_InterpOrder_C,           &   !< Interpolation order to use (must be 1 or 2)
-        DT,                                     &   !< Timestep used with AD for stepping forward from t to t+dt.  Must be constant.
-        WT_InitInp%ADI_TMax_C,                  &   !< Maximum time for simulation
-        WT_InitInp%ADI_storeHHVel,              &   !< Store hub height time series from IfW
-        WT_InitInp%ADI_WrVTK_in,                &   !< Write VTK outputs [0: none, 1: init only, 2: animation]
-        WT_InitInp%ADI_WrVTK_inType,            &   !< Write VTK outputs as [1: surface, 2: lines, 3: both]
-        WT_InitInp%ADI_WrVTK_inDT,              &   !< Timestep between VTK writes
-        WT_InitInp%ADI_VTKNacDim_in,            &   !< Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz] (m)
-        WT_InitInp%ADI_VTKHubRad_in,            &   !< Hub radius for VTK surface rendering
-        WT_InitInp%ADI_wrOuts_C,                &
-        WT_InitInp%ADI_DT_Outs_C,               &
-        ADI_NumChannels_C,                      &
-        ADI_OutputChannelNames_C,               &
-        ADI_OutputChannelUnits_C,               &
-        ErrStat_C2, ErrMsg_C2                   &
-    )
-    CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_Init')
-    IF (ErrStat_C >= AbortErrLev) RETURN
+   CALL ADI_C_SetupRotor(                      &
+       WT_InitInp%iWT_c,                       &
+       WT_InitInp%TurbineIsHAWT_c,             &
+       WT_InitInp%TurbOrigin_C,                &
+       WT_InitInp%HubPos_C,                    &
+       WT_InitInp%HubOri_C,                    &
+       WT_InitInp%NacPos_C,                    &
+       WT_InitInp%NacOri_C,                    &
+       WT_InitInp%NumBlades_C,                 &
+       WT_InitInp%BldRootPos_C,                &
+       WT_InitInp%BldRootOri_C,                &
+       WT_InitInp%NumMeshPts_C,                &
+       WT_InitInp%InitMeshPos_C,               &
+       WT_InitInp%InitMeshOri_C,               &
+       WT_InitInp%MeshPtToBladeNum_C,          &
+       ErrStat_C2, ErrMsg_C2                   &
+   )
+   CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_SetupRotor')
+   IF (ErrStat_C >= AbortErrLev) RETURN
+
+   CALL ADI_C_Init(                            &
+       0,                                      &   !< ADinputFilePassed; 0 for file, 1 for string
+       c_loc(AD_InputFile_C(1)),               &   !< ADinputFileString_C; Input file as a single string with lines delineated by C_NULL_CHAR
+       IntfStrLen,                             &   !< ADinputFileStringLength_C; length of the input file string
+       0,                                      &   !< IfWinputFilePassed; 0 for file, 1 for string
+       c_loc(IfW_InputFile_C(1)),              &   !< IfWinputFileString_C; Input file as a single string with lines delineated by C_NULL_CHAR
+       IntfStrLen,                             &   !< IfWinputFileStringLength_C; length of the input file string
+       WT_InitInp%ADI_OutRootName_C,           &   !< Root name to use for echo files and other
+       WT_InitInp%ADI_OutVTKDir_C,             &   !< Directory to put all vtk output
+       WT_InitInp%ADI_InterpOrder_C,           &   !< Interpolation order to use (must be 1 or 2)
+       DT,                                     &   !< Timestep used with AD for stepping forward from t to t+dt.  Must be constant.
+       WT_InitInp%ADI_TMax_C,                  &   !< Maximum time for simulation
+       WT_InitInp%ADI_storeHHVel,              &   !< Store hub height time series from IfW
+       WT_InitInp%ADI_WrVTK_in,                &   !< Write VTK outputs [0: none, 1: init only, 2: animation]
+       WT_InitInp%ADI_WrVTK_inType,            &   !< Write VTK outputs as [1: surface, 2: lines, 3: both]
+       WT_InitInp%ADI_WrVTK_inDT,              &   !< Timestep between VTK writes
+       WT_InitInp%ADI_VTKNacDim_in,            &   !< Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz] (m)
+       WT_InitInp%ADI_VTKHubRad_in,            &   !< Hub radius for VTK surface rendering
+       WT_InitInp%ADI_wrOuts_C,                &
+       WT_InitInp%ADI_DT_Outs_C,               &
+       ADI_NumChannels_C,                      &
+       ADI_OutputChannelNames_C,               &
+       ADI_OutputChannelUnits_C,               &
+       ErrStat_C2, ErrMsg_C2                   &
+   )
+   CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_Init')
+   IF (ErrStat_C >= AbortErrLev) RETURN
+
+contains
+   logical function Failed()
+      CALL SetErrStat_F2C(ErrStat_F2, ErrMsg_F2, ErrStat_C, ErrMsg_C)
+      Failed = ErrStat_C >= AbortErrLev
+      if (Failed)    call Cleanup()
+   end function Failed
+   subroutine Cleanup()
+      CALL NWTC_Library_Destroyfileinfotype(FileInfo_In, ErrStat_F2, ErrMsg_F2)  ! ignore error from this
+!      if (ErrStat_C >= AbortErrLev) call DeallocEverything()
+   end subroutine Cleanup
 
 END SUBROUTINE WaveTank_Init
+
+!subroutine DeallocEverything()
+!end subroutine DeallocEverything
+
+
 
 SUBROUTINE WaveTank_CalcOutput( &
     time,                       &

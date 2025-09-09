@@ -36,109 +36,98 @@ MODULE WaveTank_IO
 
 contains
 
-subroutine ReadInput(InputFilePath, InitInp, ErrStat, ErrMsg)
-
-   character(*),               intent(in   )   :: InputFilePath
-   type(WaveTank_InitInput),   intent(  out)   :: InitInp
-   integer(IntKi),             intent(  out)   :: ErrStat
-   character(*),               intent(  out)   :: ErrMsg
+subroutine ParseInputFile(FileInfo_In, InitInp, ErrStat, ErrMsg)
+   type(FileInfoType),         intent(in   )  :: FileInfo_In       !< The derived type for holding the file information.
+   type(WaveTank_InitInput),   intent(  out)  :: InitInp
+   integer(IntKi),             intent(  out)  :: ErrStat
+   character(*),               intent(  out)  :: ErrMsg
 
    ! Local variables
-   integer :: UnIn = -1
-   character(1024), target                     :: TmpPath
-   character(1024)                             :: FileName
+   integer                                    :: CurLine
+   character(1024), target                    :: TmpPath
+   character(1024)                            :: FileName
 
-   integer(IntKi)                              :: ErrStat2             ! local status of error message
-   character(ErrMsgLen)                        :: ErrMsg2              ! local error message if errStat /= ErrID_None
+   integer(IntKi)                             :: ErrStat2             ! local status of error message
+   character(ErrMsgLen)                       :: ErrMsg2              ! local error message if errStat /= ErrID_None
 
-   character(*), parameter                     :: RoutineName = 'WaveTankTesting.ReadInput'
+   character(*), parameter                    :: RoutineName = 'WaveTankTesting.ParseInputFile'
 
    ErrStat = ErrID_None
    ErrMsg  = " "
 
-   FileName = TRIM(InputFilePath)
-   call GetNewUnit( UnIn )
-   call OpenFInpFile( UnIn, FileName, ErrStat2, ErrMsg2); if(Failed()) return;
+   CurLine = 1
+   ! Separator line skipped
+   call ParseVar( FileInfo_In, CurLine, 'DT', InitInp%DT, ErrStat2, ErrMsg2); 
 
-   call ReadCom( UnIn, FileName, 'Init comment', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%DT, 'DT', 'DT', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadCom( UnIn, FileName, 'SeaState Init comment', ErrStat2, ErrMsg2); if(Failed()) return;
-   if (ErrStat >= AbortErrLev) return
-
-   call ReadVar( UnIn, FileName, TmpPath, 'SS_OutRootName_C', 'SS_OutRootName_C', ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'SS_OutRootName_C', TmpPath, ErrStat2, ErrMsg2); if(Failed()) return;
    InitInp%SS_OutRootName_C = transfer(TmpPath, InitInp%SS_OutRootName_C)
-   call ReadVar( UnIn, FileName, InitInp%SS_Gravity_C, 'SS_Gravity_C', 'SS_Gravity_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%SS_WtrDens_C, 'SS_WtrDens_C', 'SS_WtrDens_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%SS_WtrDpth_C, 'SS_WtrDpth_C', 'SS_WtrDpth_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%SS_MSL2SWL_C, 'SS_MSL2SWL_C', 'SS_MSL2SWL_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%SS_NSteps_C, 'SS_NSteps_C', 'SS_NSteps_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%SS_TimeInterval_C, 'SS_TimeInterval_C', 'SS_TimeInterval_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%SS_WaveElevSeriesFlag_C, 'SS_WaveElevSeriesFlag_C', 'SS_WaveElevSeriesFlag_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%SS_WrWvKinMod_C, 'SS_WrWvKinMod_C', 'SS_WrWvKinMod_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   if (ErrStat >= AbortErrLev) return
+   call ParseVar( FileInfo_In, CurLine, 'SS_Gravity_C', InitInp%SS_Gravity_C, ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'SS_WtrDens_C', InitInp%SS_WtrDens_C, ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'SS_WtrDpth_C', InitInp%SS_WtrDpth_C, ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'SS_MSL2SWL_C', InitInp%SS_MSL2SWL_C, ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'SS_NSteps_C',  InitInp%SS_NSteps_C,  ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'SS_TimeInterval_C',       InitInp%SS_TimeInterval_C,       ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'SS_WaveElevSeriesFlag_C', InitInp%SS_WaveElevSeriesFlag_C, ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'SS_WrWvKinMod_C',         InitInp%SS_WrWvKinMod_C,         ErrStat2, ErrMsg2); if(Failed()) return;
 
-   call ReadCom( UnIn, FileName, 'MoorDyn Init comment', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%MD_G_C, 'MD_G_C', 'MD_G_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%MD_RHO_C, 'MD_RHO_C', 'MD_RHO_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%MD_DEPTH_C, 'MD_DEPTH_C', 'MD_DEPTH_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadAry( UnIn, FileName, InitInp%MD_PtfmInit_C, 6, 'MD_PtfmInit_C', 'MD_PtfmInit_C', ErrStat2,  ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%MD_InterpOrder_C, 'MD_InterpOrder_C', 'MD_InterpOrder_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   if (ErrStat >= AbortErrLev) return
+   ! Separator line skipped
+   call ParseVar( FileInfo_In, CurLine, 'MD_G_C',            InitInp%MD_G_C,              ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'MD_RHO_C',          InitInp%MD_RHO_C,            ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'MD_DEPTH_C',        InitInp%MD_DEPTH_C,          ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseAry( FileInfo_In, CurLine, 'MD_PtfmInit_C',     InitInp%MD_PtfmInit_C,    6, ErrStat2,  ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'MD_InterpOrder_C',  InitInp%MD_InterpOrder_C,    ErrStat2, ErrMsg2); if(Failed()) return;
 
-   call ReadCom( UnIn, FileName, 'ADI Init comment', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%NumTurbines_C, 'NumTurbines_C', 'NumTurbines_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%TransposeDCM, 'TransposeDCM', 'TransposeDCM', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%PointLoadOutput, 'PointLoadOutput', 'PointLoadOutput', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%ADI_gravity_C, 'ADI_gravity_C', 'ADI_gravity_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%ADI_defFldDens_C, 'ADI_defFldDens_C', 'ADI_defFldDens_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%ADI_defKinVisc_C, 'ADI_defKinVisc_C', 'ADI_defKinVisc_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%ADI_defSpdSound_C, 'ADI_defSpdSound_C', 'ADI_defSpdSound_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%ADI_defPatm_C, 'ADI_defPatm_C', 'ADI_defPatm_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%ADI_defPvap_C, 'ADI_defPvap_C', 'ADI_defPvap_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%ADI_WtrDpth_C, 'ADI_WtrDpth_C', 'ADI_WtrDpth_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%ADI_MSL2SWL_C, 'ADI_MSL2SWL_C', 'ADI_MSL2SWL_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%MHK, 'MHK', 'MHK', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%DebugLevel, 'DebugLevel', 'DebugLevel', ErrStat2, ErrMsg2); if(Failed()) return;
-   if (ErrStat >= AbortErrLev) return
+   ! Separator line skipped
+   call ParseVar( FileInfo_In, CurLine, 'NumTurbines_C',     InitInp%NumTurbines_C,     ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'TransposeDCM',      InitInp%TransposeDCM,      ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'PointLoadOutput',   InitInp%PointLoadOutput,   ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'ADI_gravity_C',     InitInp%ADI_gravity_C,     ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'ADI_defFldDens_C',  InitInp%ADI_defFldDens_C,  ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'ADI_defKinVisc_C',  InitInp%ADI_defKinVisc_C,  ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'ADI_defSpdSound_C', InitInp%ADI_defSpdSound_C, ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'ADI_defPatm_C',     InitInp%ADI_defPatm_C,     ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'ADI_defPvap_C',     InitInp%ADI_defPvap_C,     ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'ADI_WtrDpth_C',     InitInp%ADI_WtrDpth_C,     ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'ADI_MSL2SWL_C',     InitInp%ADI_MSL2SWL_C,     ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'MHK',               InitInp%MHK,               ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'DebugLevel',        InitInp%DebugLevel,        ErrStat2, ErrMsg2); if(Failed()) return;
 
-   call ReadVar( UnIn, FileName, InitInp%iWT_c, 'iWT_c', 'iWT_c', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%TurbineIsHAWT_c, 'TurbineIsHAWT_c', 'TurbineIsHAWT_c', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadAry( UnIn, FileName, InitInp%TurbOrigin_C, 3, 'TurbOrigin_C', 'TurbOrigin_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadAry( UnIn, FileName, InitInp%HubPos_C, 3, 'HubPos_C', 'HubPos_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadAry( UnIn, FileName, InitInp%HubOri_C, 9, 'HubOri_C', 'HubOri_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadAry( UnIn, FileName, InitInp%NacPos_C, 3, 'NacPos_C', 'NacPos_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadAry( UnIn, FileName, InitInp%NacOri_C, 9, 'NacOri_C', 'NacOri_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%NumBlades_C, 'NumBlades_C', 'NumBlades_C', ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'iWT_c',            InitInp%iWT_c,              ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'TurbineIsHAWT_c',  InitInp%TurbineIsHAWT_c,    ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseAry( FileInfo_In, CurLine, 'TurbOrigin_C',     InitInp%TurbOrigin_C,    3, ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseAry( FileInfo_In, CurLine, 'HubPos_C',         InitInp%HubPos_C,        3, ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseAry( FileInfo_In, CurLine, 'HubOri_C',         InitInp%HubOri_C,        9, ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseAry( FileInfo_In, CurLine, 'NacPos_C',         InitInp%NacPos_C,        3, ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseAry( FileInfo_In, CurLine, 'NacOri_C',         InitInp%NacOri_C,        9, ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'NumBlades_C',      InitInp%NumBlades_C,        ErrStat2, ErrMsg2); if(Failed()) return;
+
    call AllocAry(InitInp%BldRootPos_C, 3*InitInp%NumBlades_C, 'BldRootPos_C', ErrStat2, ErrMsg2); if(Failed()) return;
    call AllocAry(InitInp%BldRootOri_C, 9*InitInp%NumBlades_C, 'BldRootPos_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadAry( UnIn, FileName, InitInp%BldRootPos_C, 3*InitInp%NumBlades_C, 'BldRootPos_C', 'BldRootPos_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadAry( UnIn, FileName, InitInp%BldRootOri_C, 9*InitInp%NumBlades_C, 'BldRootOri_C', 'BldRootOri_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%NumMeshPts_C, 'NumMeshPts_C', 'NumMeshPts_C', ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseAry( FileInfo_In, CurLine, 'BldRootPos_C', InitInp%BldRootPos_C, 3*InitInp%NumBlades_C, ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseAry( FileInfo_In, CurLine, 'BldRootOri_C', InitInp%BldRootOri_C, 9*InitInp%NumBlades_C, ErrStat2, ErrMsg2); if(Failed()) return;
+
+   call ParseVar( FileInfo_In, CurLine, 'NumMeshPts_C',       InitInp%NumMeshPts_C,                                ErrStat2, ErrMsg2); if(Failed()) return;
    call AllocAry(InitInp%InitMeshPos_C, 3*InitInp%NumMeshPts_C, 'InitMeshPos_C', ErrStat2, ErrMsg2); if(Failed()) return;
    call AllocAry(InitInp%InitMeshOri_C, 9*InitInp%NumMeshPts_C, 'InitMeshOri_C', ErrStat2, ErrMsg2); if(Failed()) return;
    call AllocAry(InitInp%MeshPtToBladeNum_C, InitInp%NumMeshPts_C, 'MeshPtToBladeNum_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadAry( UnIn, FileName, InitInp%InitMeshPos_C, 3*InitInp%NumMeshPts_C, 'InitMeshPos_C', 'InitMeshPos_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadAry( UnIn, FileName, InitInp%InitMeshOri_C, 9*InitInp%NumMeshPts_C, 'InitMeshOri_C', 'InitMeshOri_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadAry( UnIn, FileName, InitInp%MeshPtToBladeNum_C, InitInp%NumMeshPts_C, 'MeshPtToBladeNum_C', 'MeshPtToBladeNum_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   if (ErrStat >= AbortErrLev) return
+   call ParseAry( FileInfo_In, CurLine, 'InitMeshPos_C',      InitInp%InitMeshPos_C,       3*InitInp%NumMeshPts_C, ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseAry( FileInfo_In, CurLine, 'InitMeshOri_C',      InitInp%InitMeshOri_C,       9*InitInp%NumMeshPts_C, ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseAry( FileInfo_In, CurLine, 'MeshPtToBladeNum_C', InitInp%MeshPtToBladeNum_C,  InitInp%NumMeshPts_C,   ErrStat2, ErrMsg2); if(Failed()) return;
 
-   call ReadVar( UnIn, FileName, TmpPath, 'ADI_OutRootName_C', 'ADI_OutRootName_C', ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'ADI_OutRootName_C', TmpPath, ErrStat2, ErrMsg2); if(Failed()) return;
    call StringConvert_F2C(TmpPath, InitInp%ADI_OutRootName_C)
-   call ReadVar( UnIn, FileName, TmpPath, 'ADI_OutVTKDir_C', 'ADI_OutVTKDir_C', ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'ADI_OutVTKDir_C',   TmpPath, ErrStat2, ErrMsg2); if(Failed()) return;
    call StringConvert_F2C(TmpPath, InitInp%ADI_OutVTKDir_C)
-   call ReadVar( UnIn, FileName, InitInp%ADI_InterpOrder_C, 'ADI_InterpOrder_C', 'ADI_InterpOrder_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%ADI_TMax_C, 'ADI_TMax_C', 'ADI_TMax_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%ADI_storeHHVel, 'ADI_storeHHVel', 'ADI_storeHHVel', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%ADI_WrVTK_in, 'ADI_WrVTK_in', 'ADI_WrVTK_in', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%ADI_WrVTK_inType, 'ADI_WrVTK_inType', 'ADI_WrVTK_inType', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%ADI_WrVTK_inDT, 'ADI_WrVTK_inDT', 'ADI_WrVTK_inDT', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadAry( UnIn, FileName, InitInp%ADI_VTKNacDim_in, 6, 'ADI_VTKNacDim_in', 'ADI_VTKNacDim_in', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%ADI_VTKHubrad_in, 'ADI_VTKHubrad_in', 'ADI_VTKHubrad_in', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%ADI_wrOuts_C, 'ADI_wrOuts_C', 'ADI_wrOuts_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ReadVar( UnIn, FileName, InitInp%ADI_DT_Outs_C, 'ADI_DT_Outs_C', 'ADI_DT_Outs_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   if (ErrStat >= AbortErrLev) return
-
-   if(UnIn>0) close( UnIn )
+   call ParseVar( FileInfo_In, CurLine, 'ADI_InterpOrder_C', InitInp%ADI_InterpOrder_C,   ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'ADI_TMax_C',        InitInp%ADI_TMax_C,          ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'ADI_storeHHVel',    InitInp%ADI_storeHHVel,      ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'ADI_WrVTK_in',      InitInp%ADI_WrVTK_in,        ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'ADI_WrVTK_inType',  InitInp%ADI_WrVTK_inType,    ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'ADI_WrVTK_inDT',    InitInp%ADI_WrVTK_inDT,      ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseAry( FileInfo_In, CurLine, 'ADI_VTKNacDim_in',  InitInp%ADI_VTKNacDim_in, 6, ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'ADI_VTKHubrad_in',  InitInp%ADI_VTKHubrad_in,    ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'ADI_wrOuts_C',      InitInp%ADI_wrOuts_C,        ErrStat2, ErrMsg2); if(Failed()) return;
+   call ParseVar( FileInfo_In, CurLine, 'ADI_DT_Outs_C',     InitInp%ADI_DT_Outs_C,       ErrStat2, ErrMsg2); if(Failed()) return;
 
 contains
    logical function Failed()
