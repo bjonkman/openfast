@@ -97,6 +97,10 @@ void Registry::gen_fortran_module(const Module &mod, const std::string &out_dir)
     // Write preamble
     w << std::regex_replace(FAST_preamble, std::regex("ModuleName"), mod.name);
 
+    // Output USE statements for literal passthroughs (i.e. ISO_C_BINDING)
+    if (this->use_isocbinding)
+        w << "USE ISO_C_BINDING\n";
+
     // Output USE statements for non-root modules
     for (auto const &mod : this->use_modules)
         if (tolower(mod).compare("nwtc_library") != 0)
