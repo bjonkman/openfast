@@ -46,10 +46,6 @@ class MotionData:
         position information for SeaState
     """
     position: npt.NDArray[np.float32]
-    #orientation: npt.NDArray[np.float64]
-    #velocity: npt.NDArray[np.float32]
-    #acceleration: npt.NDArray[np.float32]
-
 
 
 class SeaStateLib(OpenFASTInterfaceType):
@@ -72,7 +68,6 @@ class SeaStateLib(OpenFASTInterfaceType):
         self.ended = False                  # For error handling at end
 
         # Create buffers for class data
-        #self.abort_error_level = 4
         self.error_status_c = c_int(0)
         self.error_message_c = create_string_buffer(self.ERROR_MSG_C_LEN)
 

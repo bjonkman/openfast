@@ -60,6 +60,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import numpy.typing as npt
 
+from .interface_abc import OpenFASTInterfaceType
+
 #-------------------------------------------------------------------------------
 # Helper functions and classes
 #-------------------------------------------------------------------------------
@@ -144,35 +146,13 @@ class MotionData:
 #-------------------------------------------------------------------------------
 # C-interface library class for AeroDyn x InflowWind
 #-------------------------------------------------------------------------------
-class AeroDynInflowLib(CDLL):
+class AeroDynInflowLib(OpenFASTInterfaceType):
     """A Python interface to the AeroDyn/InflowWind library.
 
     This class provides a modern Python interface for calling and running AeroDyn
     and InflowWind together. It handles initialization, runtime operations, and cleanup
     of the underlying Fortran library.
     """
-
-    #--------------------------------------
-    # Error levels (from IfW)
-    #--------------------------------------
-    error_levels: Dict[int, str] = {
-        0: "None",
-        1: "Info",
-        2: "Warning",
-        3: "Severe Error",
-        4: "Fatal Error"
-    }
-
-    #--------------------------------------
-    # Constants
-    #--------------------------------------
-    # NOTE: The length of the error message in Fortran is determined by the
-    #       ErrMsgLen variable in the NWTC_Base.f90 file. If ErrMsgLen is modified,
-    #       the corresponding size here must also be updated to match.
-    ERROR_MESSAGE_LENGTH: int = 8197
-    DEFAULT_STRING_LENGTH: int = 1025
-    CHANNEL_NAME_LENGTH: int = 20
-    MAX_CHANNELS: int = 8000
 
     def __init__(self, library_path: Union[str, Path]) -> None:
         """Initializes the AeroDyn/InflowWind interface.
@@ -198,11 +178,6 @@ class AeroDynInflowLib(CDLL):
         # Input file handling configuration
         self.aerodyn_inputs_passed_as_string: bool = True  # Pass input file as string
         self.inflow_inputs_passed_as_string: bool = True   # Pass input file as string
-
-        # Error handling setup
-        self.abort_error_level = 4
-        self.error_status_c = c_int(0)
-        self.error_message_c = create_string_buffer(self.ERROR_MESSAGE_LENGTH)
 
         # Channel information buffers
         self._channel_names_c = create_string_buffer(
@@ -316,7 +291,7 @@ class AeroDynInflowLib(CDLL):
         message = f"AeroDyn/InflowWind {error_level}: {error_msg}"
 
         # If the error level is fatal, call adi_end() and raise an error
-        if self.error_status_c.value >= self.abort_error_level:
+        if self.error_status_c.value >= self.abort_error_level.value:
             try:
                 self.adi_end()
             except Exception as e:
