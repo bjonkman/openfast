@@ -127,6 +127,7 @@ MODULE AeroDyn_Inflow_C_BINDING
    !     in the OpenFAST glue code.
    integer(IntKi)                         :: n_Global             ! global timestep
    integer(IntKi)                         :: n_VTK                ! VTK timestep
+   character(IntfStrLen)                  :: OutVTKDir            !< Output directory for files (relative to current location)
    real(DbKi)                             :: InputTimePrev        ! input time of last UpdateStates call
    real(DbKi)                             :: InputTimePrev_Calc   ! input time of last CalcOutput call
    ! Note that we are including the previous state info here (not done in OF this way)
@@ -187,6 +188,9 @@ subroutine ADI_C_PreInit(                       &
    defSpdSound_in, defPatm_in, defPvap_in,      &
    WtrDpth_in, MSL2SWL_in,                      &
    MHK_in,                                      &
+   OutVTKDir_C,                                 &
+   WrVTK_in, WrVTK_inType, WrVTK_inDT,          &
+   VTKNacDim_in, VTKHubRad_in,                  &
    DebugLevel_in, ErrStat_C, ErrMsg_C           &
 ) BIND (C, NAME='ADI_C_PreInit')
    implicit none
@@ -194,24 +198,32 @@ subroutine ADI_C_PreInit(                       &
 !DEC$ ATTRIBUTES DLLEXPORT :: ADI_C_PreInit
 !GCC$ ATTRIBUTES DLLEXPORT :: ADI_C_PreInit
 #endif
-   integer(c_int),          intent(in   ) :: NumTurbines_C
-   integer(c_int),          intent(in   ) :: TransposeDCM_in        !< Transpose DCMs as they are passed i
-   integer(c_int),          intent(in   ) :: PointLoadOutput_in
-   real(c_float),           intent(in   ) :: gravity_in             !< Gravitational acceleration (m/s^2)
-   real(c_float),           intent(in   ) :: defFldDens_in          !< Air density (kg/m^3)
-   real(c_float),           intent(in   ) :: defKinVisc_in          !< Kinematic viscosity of working fluid (m^2/s)
-   real(c_float),           intent(in   ) :: defSpdSound_in         !< Speed of sound in working fluid (m/s)
-   real(c_float),           intent(in   ) :: defPatm_in             !< Atmospheric pressure (Pa) [used only for an MHK turbine cavitation check]
-   real(c_float),           intent(in   ) :: defPvap_in             !< Vapour pressure of working fluid (Pa) [used only for an MHK turbine cavitation check]
-   real(c_float),           intent(in   ) :: WtrDpth_in             !< Water depth (m) [used only for an MHK turbine]
-   real(c_float),           intent(in   ) :: MSL2SWL_in             !< Offset between still-water level and mean sea level (m) [positive upward, used only for an MHK turbine]
-   integer(c_int),          intent(in   ) :: MHK_in                 !< Marine hydrokinetic turbine [0: none; 1: fixed bottom MHK; 2: Floating MHK]
-   integer(c_int),          intent(in   ) :: DebugLevel_in
-   integer(c_int),          intent(  out) :: ErrStat_C
-   character(kind=c_char),  intent(  out) :: ErrMsg_C(ErrMsgLen_C)
+   integer(c_int),         intent(in   )  :: NumTurbines_C
+   integer(c_int),         intent(in   )  :: TransposeDCM_in        !< Transpose DCMs as they are passed in
+   integer(c_int),         intent(in   )  :: PointLoadOutput_in
+   real(c_float),          intent(in   )  :: gravity_in             !< Gravitational acceleration (m/s^2)
+   real(c_float),          intent(in   )  :: defFldDens_in          !< Air density (kg/m^3)
+   real(c_float),          intent(in   )  :: defKinVisc_in          !< Kinematic viscosity of working fluid (m^2/s)
+   real(c_float),          intent(in   )  :: defSpdSound_in         !< Speed of sound in working fluid (m/s)
+   real(c_float),          intent(in   )  :: defPatm_in             !< Atmospheric pressure (Pa) [used only for an MHK turbine cavitation check]
+   real(c_float),          intent(in   )  :: defPvap_in             !< Vapour pressure of working fluid (Pa) [used only for an MHK turbine cavitation check]
+   real(c_float),          intent(in   )  :: WtrDpth_in             !< Water depth (m) [used only for an MHK turbine]
+   real(c_float),          intent(in   )  :: MSL2SWL_in             !< Offset between still-water level and mean sea level (m) [positive upward, used only for an MHK turbine]
+   integer(c_int),         intent(in   )  :: MHK_in                 !< Marine hydrokinetic turbine [0: none; 1: fixed bottom MHK; 2: Floating MHK]
+   ! VTK
+   character(kind=c_char), intent(in   )  :: OutVTKDir_C(IntfStrLen)    !< Directory to put all vtk output
+   integer(c_int),         intent(in   )  :: WrVTK_in                   !< Write VTK outputs [0: none, 1: init only, 2: animation]
+   integer(c_int),         intent(in   )  :: WrVTK_inType               !< Write VTK outputs as [1: surface, 2: lines, 3: both]
+   real(c_double),         intent(in   )  :: WrVTK_inDT                 !< Timestep between VTK writes
+   real(c_float),          intent(in   )  :: VTKNacDim_in(6)            !< Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz] (m)
+   real(c_float),          intent(in   )  :: VTKHubrad_in               !< Hub radius for VTK surface rendering
+   integer(c_int),         intent(in   )  :: DebugLevel_in
+   integer(c_int),         intent(  out)  :: ErrStat_C
+   character(kind=c_char), intent(  out)  :: ErrMsg_C(ErrMsgLen_C)
 
    ! Local variables
    integer(IntKi)             :: iWT                              !< current turbine
+   integer(IntKi)             :: i                                !< generic index variables
    integer                    :: ErrStat_F                        !< aggregated error status
    character(ErrMsgLen)       :: ErrMsg_F                         !< aggregated error message
    integer                    :: ErrStat_F2                       !< temporary error status  from a call
@@ -326,6 +338,23 @@ subroutine ADI_C_PreInit(                       &
       end if
    enddo
 
+
+   ! Setup VTK
+   ! OutVTKDir -- output directory
+   OutVTKDir = TRANSFER( OutVTKDir_C, OutVTKDir )
+   i = INDEX(OutVTKDir,C_NULL_CHAR) - 1               ! if this has a c null character at the end...
+   if ( i > 0 ) OutVTKDir = OutVTKDir(1:I)            ! remove it
+
+   ! VTK writing
+   WrOutputsData%WrVTK        = int(WrVTK_in,     IntKi)
+   WrOutputsData%WrVTK_Type   = int(WrVTK_inType, IntKi)
+   WrOutputsData%VTK_dt       = real(WrVTK_inDT,   DbKi)
+   WrOutputsData%VTKNacDim    = real(VTKNacDim_in, SiKi)
+   WrOutputsData%VTKHubrad    = real(VTKHubrad_in, SiKi)
+   WrOutputsData%VTKRefPoint  = (/ 0.0_ReKi, 0.0_ReKi, 0.0_ReKi /)    !TODO: should this be an input?
+   WrOutputsData%n_VTKTime    = 1   ! output every timestep
+
+
    call SetErrStat_F2C(ErrStat_F,ErrMsg_F,ErrStat_C,ErrMsg_C)
 
 contains
@@ -375,6 +404,11 @@ contains
       call WrScr("       defPvap_C                      "//trim(Num2LStr( defPvap_in     )) )
       call WrScr("       WtrDpth_C                      "//trim(Num2LStr( WtrDpth_in     )) )
       call WrScr("       MSL2SWL_C                      "//trim(Num2LStr( MSL2SWL_in     )) )
+      call WrScr("   VTK visualization variables")
+      call WrScr("       OutVTKDir                      "//trim(OutVTKDir)   )
+      call WrScr("       WrVTK_in                       "//trim(Num2LStr( WrVTK_in      )) )
+      call WrScr("       WrVTK_inType                   "//trim(Num2LStr( WrVTK_inType  )) )
+      call WrScr("       WrVTK_inDT                     "//trim(Num2LStr( WrVTK_inDT    )) )
       call WrScr("-----------------------------------------------------------")
    end subroutine ShowPassedData
 
@@ -385,11 +419,8 @@ end subroutine ADI_C_PreInit
 !===============================================================================================================
 SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileStringLength_C, &
                IfWinputFilePassed, IfWinputFileString_C, IfWinputFileStringLength_C, OutRootName_C,  &
-               OutVTKDir_C,                                               &
                InterpOrder_C, DT_C, TMax_C,                               &
                storeHHVel,                                                &
-               WrVTK_in, WrVTK_inType, WrVTK_inDT,                        &
-               VTKNacDim_in, VTKHubRad_in,                                &
                wrOuts_C, DT_Outs_C,                                       &
                NumChannels_C, OutputChannelNames_C, OutputChannelUnits_C, &
                ErrStat_C, ErrMsg_C) BIND (C, NAME='ADI_C_Init')
@@ -406,7 +437,6 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
    type(c_ptr),               intent(in   )  :: IfWinputFileString_C                   !< Input file as a single string with lines delineated by C_NULL_CHAR
    integer(c_int),            intent(in   )  :: IfWinputFileStringLength_C             !< length of the input file string
    character(kind=c_char),    intent(in   )  :: OutRootName_C(IntfStrLen)              !< Root name to use for echo files and other
-   character(kind=c_char),    intent(in   )  :: OutVTKDir_C(IntfStrLen)                !< Directory to put all vtk output
    ! Interpolation
    integer(c_int),            intent(in   )  :: InterpOrder_C                          !< Interpolation order to use (must be 1 or 2)
    ! Time
@@ -414,12 +444,6 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
    real(c_double),            intent(in   )  :: TMax_C                                 !< Maximum time for simulation
    ! Flags
    integer(c_int),            intent(in   )  :: storeHHVel                             !< Store hub height time series from IfW
-   ! VTK
-   integer(c_int),            intent(in   )  :: WrVTK_in                               !< Write VTK outputs [0: none, 1: init only, 2: animation]
-   integer(c_int),            intent(in   )  :: WrVTK_inType                           !< Write VTK outputs as [1: surface, 2: lines, 3: both]
-   real(c_double),            intent(in   )  :: WrVTK_inDT                             !< Timestep between VTK writes
-   real(c_float),             intent(in   )  :: VTKNacDim_in(6)                        !< Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz] (m)
-   real(c_float),             intent(in   )  :: VTKHubrad_in                           !< Hub radius for VTK surface rendering
    integer(c_int),            intent(in   )  :: wrOuts_C                               !< Write ADI output file
    real(c_double),            intent(in   )  :: DT_Outs_C                              !< Timestep to write output file from ADI
    ! Output
@@ -439,7 +463,6 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
    character(ErrMsgLen)                                           :: ErrMsg_F          !< aggregated error message
    integer(IntKi)                                                 :: ErrStat_F2        !< temporary error status  from a call
    character(ErrMsgLen)                                           :: ErrMsg_F2         !< temporary error message from a call
-   character(IntfStrLen)                                          :: OutVTKDir         !< Output directory for files (relative to current location)
    integer(IntKi)                                                 :: i,j,k             !< generic index variables
    integer(IntKi)                                                 :: iWT               !< current turbine number (iterate through during setup for ADI_Init call)
    integer(IntKi)                                                 :: AeroProjMod       !< for checking that all turbines use the same AeroProjMod
@@ -489,11 +512,6 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
    OutRootName = TRANSFER( OutRootName_C, OutRootName )
    i = INDEX(OutRootName,C_NULL_CHAR) - 1             ! if this has a c null character at the end...
    if ( i > 0 ) OutRootName = OutRootName(1:I)        ! remove it
-
-   ! OutVTKDir -- output directory
-   OutVTKDir = TRANSFER( OutVTKDir_C, OutVTKDir )
-   i = INDEX(OutVTKDir,C_NULL_CHAR) - 1               ! if this has a c null character at the end...
-   if ( i > 0 ) OutVTKDir = OutVTKDir(1:I)            ! remove it
 
    ! For debugging the interface:
    if (DebugLevel > 0) then
@@ -558,15 +576,8 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
    ! Interpolation order
    InterpOrder             = int(InterpOrder_C, IntKi)
 
-   ! VTK outputs
-   WrOutputsData%WrVTK        = int(WrVTK_in,     IntKi)
-   WrOutputsData%WrVTK_Type   = int(WrVTK_inType, IntKi)
-   WrOutputsData%VTK_dt       = real(WrVTK_inDT,   DbKi)
-   WrOutputsData%VTKNacDim    = real(VTKNacDim_in, SiKi)
-   WrOutputsData%VTKHubrad    = real(VTKHubrad_in, SiKi)
-   WrOutputsData%VTKRefPoint  = (/ 0.0_ReKi, 0.0_ReKi, 0.0_ReKi /)    !TODO: should this be an input?
+   ! VTK output file
    WrOutputsData%root         = trim(OutRootName)
-   WrOutputsData%n_VTKTime        = 1   ! output every timestep
 
    ! Write outputs to file
    WrOutputsData%fileFmt = int(wrOuts_C, IntKi)
@@ -574,6 +585,7 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
 
    ! Validate and set some inputs (moved to subroutine to make cleaner to read
    call ValidateSetInputs(ErrStat_F2,ErrMsg_F2); if(Failed()) return
+   call ValidateSetVTK(ErrStat_F2,ErrMsg_F2); if(Failed()) return
 
    ! Linearization
    !     for now, set linearization to false. Pass this in later when interface supports it
@@ -628,7 +640,7 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
    ! Set the interface  meshes for motion inputs and loads output
    !-------------------------------------------------------------
    call SetupMotionLoadsInterfaceMeshes();    if (Failed())  return
-   ! setup meshes
+   ! setup VTK params
    if (WrOutputsData%WrVTK > 0_IntKi) then
       if (len_trim(OutVTKDir) <= 0) then
          OutVTKDir = 'vtk-ADI'
@@ -775,23 +787,6 @@ CONTAINS
          return
       endif
 
-      ! VTK outputs
-      if ( WrOutputsData%WrVTK < 0_IntKi .or. WrOutputsData%WrVTK > 2_IntKi ) then
-         call SetErrStat(ErrID_Fatal,"WrVTK option for writing VTK visualization files must be [0: none, 1: init only, 2: animation]",ErrStat3,ErrMsg3,RoutineName)
-         return
-      endif
-      if ( WrOutputsData%WrVTK_Type > 0_IntKi ) then
-         if ( WrOutputsData%WrVTK_Type < 1_IntKi .or. WrOutputsData%WrVTK_Type > 3_IntKi ) then
-            call SetErrStat(ErrID_Fatal,"WrVTK_Type option for writing VTK visualization files must be [1: surface, 2: lines, 3: both]",ErrStat3,ErrMsg3,RoutineName)
-            return
-         endif
-         if (WrOutputsData%VTKHubRad < 0.0_SiKi) then
-            call SetErrStat(ErrID_Warn,"VTKHubRad for surface visualization of hub less than zero.  Setting to zero.",ErrStat3,ErrMsg3,RoutineName)
-            WrOutputsData%VTKHubRad = 0.0_SiKi
-         endif
-      endif
-
-
       ! check fileFmt
       if ( WrOutputsData%fileFmt /= idFmtNone .and. WrOutputsData%fileFmt /= idFmtAscii .and. &
            WrOutputsData%fileFmt /= idFmtBinary .and. WrOutputsData%fileFmt /= idFmtBoth) then
@@ -811,6 +806,31 @@ CONTAINS
             call SetErrStat(ErrID_Warn,"Requested DT_Outs is not an integer multiple of DT.  Changing DT_Outs to "//trim(Num2LStr(WrOutputsData%DT_Outs))//".",ErrStat3,ErrMsg3,RoutineName)
          endif
       endif
+   end subroutine ValidateSetInputs
+   !> Validate and set some of the outputs (values must be stored before here as some might be changed)
+   subroutine ValidateSetVTK(ErrStat3,ErrMsg3)
+      integer(IntKi),         intent(  out)  :: ErrStat3    !< temporary error status
+      character(ErrMsgLen),   intent(  out)  :: ErrMsg3     !< temporary error message
+
+      ErrStat3 = ErrID_None
+      ErrMsg3  = ""
+
+      ! VTK outputs
+      if ( WrOutputsData%WrVTK < 0_IntKi .or. WrOutputsData%WrVTK > 2_IntKi ) then
+         call SetErrStat(ErrID_Fatal,"WrVTK option for writing VTK visualization files must be [0: none, 1: init only, 2: animation]",ErrStat3,ErrMsg3,RoutineName)
+         return
+      endif
+      if ( WrOutputsData%WrVTK_Type > 0_IntKi ) then
+         if ( WrOutputsData%WrVTK_Type < 1_IntKi .or. WrOutputsData%WrVTK_Type > 3_IntKi ) then
+            call SetErrStat(ErrID_Fatal,"WrVTK_Type option for writing VTK visualization files must be [1: surface, 2: lines, 3: both]",ErrStat3,ErrMsg3,RoutineName)
+            return
+         endif
+         if (WrOutputsData%VTKHubRad < 0.0_SiKi) then
+            call SetErrStat(ErrID_Warn,"VTKHubRad for surface visualization of hub less than zero.  Setting to zero.",ErrStat3,ErrMsg3,RoutineName)
+            WrOutputsData%VTKHubRad = 0.0_SiKi
+         endif
+      endif
+
       if (WrOutputsData%WrVTK > 1_IntKi) then   ! only if writing during simulation is requested (ignore init or no outputs)
          ! If a smaller timestep between outputs is requested than the simulation runs at, change to DT
          if (WrOutputsData%VTK_DT < Sim%dT) then
@@ -824,7 +844,7 @@ CONTAINS
             call SetErrStat(ErrID_Warn,"Requested VTK_DT is not an integer multiple of DT.  Changing VTK_DT to "//trim(Num2LStr(WrOutputsData%VTK_DT))//".",ErrStat3,ErrMsg3,RoutineName)
          endif
       endif
-   end subroutine ValidateSetInputs
+   end subroutine ValidateSetVTK
 
    !> allocate data storage for file outputs
    subroutine SetupFileOutputs()
@@ -871,7 +891,6 @@ CONTAINS
       call WrScr("       IfWinputFileString_C (ptr addr)"//trim(Num2LStr(LOC(IfWinputFileString_C))) )
       call WrScr("       IfWinputFileStringLength_C     "//trim(Num2LStr( IfWinputFileStringLength_C )) )
       call WrScr("       OutRootName                    "//trim(OutRootName) )
-      call WrScr("       OutVTKDir                      "//trim(OutVTKDir)   )
       call WrScr("   Interpolation")
       call WrScr("       InterpOrder_C                  "//trim(Num2LStr( InterpOrder_C )) )
       call WrScr("   Time variables")
@@ -883,9 +902,6 @@ CONTAINS
       call WrScr("   Flags")
       TmpFlag="F";   if (storeHHVel==1_c_int) TmpFlag="T"
       call WrScr("       storeHHVel                     "//TmpFlag )
-      call WrScr("       WrVTK_in                       "//trim(Num2LStr( WrVTK_in      )) )
-      call WrScr("       WrVTK_inType                   "//trim(Num2LStr( WrVTK_inType  )) )
-      call WrScr("       WrVTK_inDT                     "//trim(Num2LStr( WrVTK_inDT    )) )
       call WrScr("-----------------------------------------------------------")
    end subroutine ShowPassedData
 

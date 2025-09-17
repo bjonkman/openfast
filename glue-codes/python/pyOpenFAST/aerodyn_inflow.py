@@ -308,22 +308,36 @@ class AeroDynInflowLib(OpenFASTInterfaceType):
         Raises:
             RuntimeError: If pre-initialization fails
         """
+        # Prepare output file paths
+        vtk_output_dir_c = create_string_buffer(
+            self.output_vtk_dir.ljust(self.default_str_c_len).encode('utf-8')
+        )
+
+        # Convert VTK nacelle dimensions to C array
+        vtk_nac_dimension_c = to_c_array(self.vtk_nacelle_dimension, c_float)
+
         self.ADI_C_PreInit(
-            byref(c_int(self.num_turbines)),        # IN -> number of turbines
-            byref(c_int(self.transpose_dcm)),       # IN -> transpose_dcm flag (0=false, 1=true)
-            byref(c_int(self.point_load_output)),   # IN -> point_load_output flag (0=false, 1=true)
-            byref(c_float(self.gravity)),                        # IN -> gravity
-            byref(c_float(self.fluid_density)),                  # IN -> fluid density
-            byref(c_float(self.kinematic_viscosity)),            # IN -> kinematic viscosity
-            byref(c_float(self.sound_speed)),                    # IN -> speed of sound
-            byref(c_float(self.atmospheric_pressure)),           # IN -> atmospheric pressure
-            byref(c_float(self.vapor_pressure)),                 # IN -> vapor pressure
-            byref(c_float(self.water_depth)),                    # IN -> water depth
-            byref(c_float(self.mean_sea_level_offset)),          # IN -> MSL to SWL offset
-            byref(c_int(self.mhk)),                 # IN -> mhk flag (0=not MHK, 1=fixed bottom, 2=floating)
-            byref(c_int(self.debug_level)),         # IN -> debug level (0=None to 4=all meshes)
-            byref(self.error_status_c),             # OUT <- error status code
-            self.error_message_c                    # OUT <- error message buffer
+            byref(c_int(self.num_turbines)),            # IN -> number of turbines
+            byref(c_int(self.transpose_dcm)),           # IN -> transpose_dcm flag (0=false, 1=true)
+            byref(c_int(self.point_load_output)),       # IN -> point_load_output flag (0=false, 1=true)
+            byref(c_float(self.gravity)),               # IN -> gravity
+            byref(c_float(self.fluid_density)),         # IN -> fluid density
+            byref(c_float(self.kinematic_viscosity)),   # IN -> kinematic viscosity
+            byref(c_float(self.sound_speed)),           # IN -> speed of sound
+            byref(c_float(self.atmospheric_pressure)),  # IN -> atmospheric pressure
+            byref(c_float(self.vapor_pressure)),        # IN -> vapor pressure
+            byref(c_float(self.water_depth)),           # IN -> water depth
+            byref(c_float(self.mean_sea_level_offset)), # IN -> MSL to SWL offset
+            byref(c_int(self.mhk)),                     # IN -> mhk flag (0=not MHK, 1=fixed bottom, 2=floating)
+            vtk_output_dir_c,                           # IN -> directory for vtk output files
+            byref(c_int(self.write_vtk)),               # IN -> write VTK flag
+            byref(c_int(self.vtk_type)),                # IN -> VTK write type
+            byref(c_double(self.vtk_dt)),               # IN -> VTK output time step
+            vtk_nac_dimension_c,                        # IN -> VTK nacelle dimensions
+            byref(c_float(self.vtk_hub_radius)),        # IN -> VTK hub radius
+            byref(c_int(self.debug_level)),             # IN -> debug level (0=None to 4=all meshes)
+            byref(self.error_status_c),                 # OUT <- error status code
+            self.error_message_c                        # OUT <- error message buffer
         )
         self.check_error()
 
@@ -398,14 +412,8 @@ class AeroDynInflowLib(OpenFASTInterfaceType):
 
         # Prepare output file paths
         output_file_root_name_c = create_string_buffer(
-            self.output_root_name.ljust(self.DEFAULT_STRING_LENGTH).encode('utf-8')
+            self.output_root_name.ljust(self.default_str_c_len).encode('utf-8')
         )
-        vtk_output_dir_c = create_string_buffer(
-            self.output_vtk_dir.ljust(self.DEFAULT_STRING_LENGTH).encode('utf-8')
-        )
-
-        # Convert VTK nacelle dimensions to C array
-        vtk_nac_dimension_c = to_c_array(self.vtk_nacelle_dimension, c_float)
 
         self.ADI_C_Init(
             byref(c_int(self.aerodyn_inputs_passed_as_string)),  # IN -> AD input file is passed as string
@@ -415,16 +423,10 @@ class AeroDynInflowLib(OpenFASTInterfaceType):
             c_char_p(ifw_input_string),                          # IN -> IfW input file as string
             byref(c_int(ifw_input_string_length)),               # IN -> IfW input file string length
             output_file_root_name_c,                             # IN -> rootname for ADI file writing
-            vtk_output_dir_c,                                    # IN -> directory for vtk output files
             byref(c_int(self.interpolation_order)),              # IN -> interpolation order (1: linear, 2: quadratic)
             byref(c_double(self.dt)),                            # IN -> time step
             byref(c_double(self.t_max)),                         # IN -> maximum simulation time
             byref(c_int(self.store_hub_height_velocity)),        # IN -> store hub height velocity flag
-            byref(c_int(self.write_vtk)),                        # IN -> write VTK flag
-            byref(c_int(self.vtk_type)),                         # IN -> VTK write type
-            byref(c_double(self.vtk_dt)),                        # IN -> VTK output time step
-            vtk_nac_dimension_c,                                 # IN -> VTK nacelle dimensions
-            byref(c_float(self.vtk_hub_radius)),                 # IN -> VTK hub radius
             byref(c_int(self.write_outputs)),                    # IN -> write outputs flag
             byref(c_double(self.output_timestep)),               # IN -> output time step
             byref(self._num_channels_c),                         # OUT <- number of channels
@@ -683,6 +685,12 @@ class AeroDynInflowLib(OpenFASTInterfaceType):
             POINTER(c_float),                   # WtrDpth
             POINTER(c_float),                   # MSL2SWL
             POINTER(c_int),                     # MHK
+            POINTER(c_char),                    # OutVTKdir
+            POINTER(c_int),                     # WrVTK
+            POINTER(c_int),                     # WrVTK_Type
+            POINTER(c_double),                  # WrVTK_DT  -- 0 or negative to do every step
+            POINTER(c_float),                   # VTKNacDim
+            POINTER(c_float),                   # VTKHubRad
             POINTER(c_int),                     # debuglevel
             POINTER(c_int),                     # ErrStat_C
             POINTER(c_char)                     # ErrMsg_C
@@ -723,16 +731,10 @@ class AeroDynInflowLib(OpenFASTInterfaceType):
             POINTER(c_char_p),                  # IfW input file as string
             POINTER(c_int),                     # IfW input file string length
             POINTER(c_char),                    # OutRootName
-            POINTER(c_char),                    # OutVTKdir
             POINTER(c_int),                     # InterpOrder
             POINTER(c_double),                  # dt
             POINTER(c_double),                  # tmax
             POINTER(c_int),                     # storeHHVel
-            POINTER(c_int),                     # WrVTK
-            POINTER(c_int),                     # WrVTK_Type
-            POINTER(c_double),                  # WrVTK_DT  -- 0 or negative to do every step
-            POINTER(c_float),                   # VTKNacDim
-            POINTER(c_float),                   # VTKHubRad
             POINTER(c_int),                     # wrOuts -- file format for writing outputs
             POINTER(c_double),                  # DT_Outs -- timestep for outputs to file
             POINTER(c_int),                     # number of channels
