@@ -1,5 +1,6 @@
 # ...... Include files ..... 
 usefrom Current.txt
+usefrom GridInterp.txt
 #---------------------------------------------------------------------------------------------------------------------------------------------------------
 # Data structures for representing wave fields.
 #
@@ -47,7 +48,8 @@ typedef     ^                 ^                 SiKi                 PWaveVel0  
 typedef     ^                 ^                 SiKi                 WaveElev0       {:}              -        -        "Instantaneous elevation time-series of incident waves at the platform reference point (NOTE THAT THIS CAN GET MODIFIED IN WAMIT)" (m) 
 typedef     ^                 ^                 SiKi                 WaveElev1       {:}{:}{:}        -        -        "First order wave elevation"  (m)
 typedef     ^                 ^                 SiKi                 WaveElev2       {:}{:}{:}        -        -        "Second order wave elevation" (m)
-typedef     ^                 ^      SeaSt_WaveField_ParameterType   GridParams      -                -        -        "Parameters for grid spacing" (-)
+typedef     ^                 ^       GridInterp_ParameterType       SrfGridParams   -                -        -        "Parameters of the wave free surface grid needed for interpolation" -
+typedef     ^                 ^       GridInterp_ParameterType       VolGridParams   -                -        -        "Parameters of the wave field volume grid needed for interpolation" -
 typedef     ^                 ^                 IntKi                WaveStMod       -                -        -        "Wave stretching model"
 typedef     ^                 ^                 ReKi                 EffWtrDpth      -                -        -        "Water depth" (-)
 typedef     ^                 ^                 ReKi                 MSL2SWL         -                -        -        "Vertical distance from mean sea level to still water level" (m)
@@ -74,4 +76,5 @@ typedef     ^                 ^                 INTEGER              WaveMod    
 
 typedef     ^                 ^                 INTEGER              NStepWave         -              -        -        "Total number of frequency components = total number of time steps in the incident wave" -
 typedef     ^                 ^                 INTEGER              NStepWave2        -              -        -        "NStepWave / 2" -
+typedef     ^                 ^                 SiKi                 GridDepth         -              -        -        "Depth (>0) of wave grid below SWL" m
 typedef     ^                 ^            Current_InitInputType   Current_InitInput   -              -        -        "InitInputs in the Current Module. For coupling with MD." - 

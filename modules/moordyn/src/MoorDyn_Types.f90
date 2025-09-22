@@ -436,7 +436,7 @@ IMPLICIT NONE
     REAL(DbKi) , DIMENSION(:), ALLOCATABLE  :: BathGrid_Xs      !< array of x-coordinates in the bathymetry grid [-]
     REAL(DbKi) , DIMENSION(:), ALLOCATABLE  :: BathGrid_Ys      !< array of y-coordinates in the bathymetry grid [-]
     INTEGER(IntKi) , DIMENSION(:), ALLOCATABLE  :: BathGrid_npoints      !< number of grid points to describe the bathymetry grid [-]
-    TYPE(SeaSt_WaveField_MiscVarType)  :: WaveField_m      !< misc var information from the SeaState Interpolation module [-]
+    TYPE(GridInterp_MiscVarType)  :: WaveField_m      !< misc var information from the Grid Interpolation module [-]
     LOGICAL  :: IC_gen = .FALSE.      !< boolean to indicate dynamic relaxation occuring [-]
   END TYPE MD_MiscVarType
 ! =======================
@@ -3507,7 +3507,7 @@ subroutine MD_CopyMisc(SrcMiscData, DstMiscData, CtrlCode, ErrStat, ErrMsg)
       end if
       DstMiscData%BathGrid_npoints = SrcMiscData%BathGrid_npoints
    end if
-   call SeaSt_WaveField_CopyMisc(SrcMiscData%WaveField_m, DstMiscData%WaveField_m, CtrlCode, ErrStat2, ErrMsg2)
+   call GridInterp_CopyMisc(SrcMiscData%WaveField_m, DstMiscData%WaveField_m, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
    DstMiscData%IC_gen = SrcMiscData%IC_gen
@@ -3661,7 +3661,7 @@ subroutine MD_DestroyMisc(MiscData, ErrStat, ErrMsg)
    if (allocated(MiscData%BathGrid_npoints)) then
       deallocate(MiscData%BathGrid_npoints)
    end if
-   call SeaSt_WaveField_DestroyMisc(MiscData%WaveField_m, ErrStat2, ErrMsg2)
+   call GridInterp_DestroyMisc(MiscData%WaveField_m, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
 end subroutine
 
@@ -3773,7 +3773,7 @@ subroutine MD_PackMisc(RF, Indata)
    call RegPackAlloc(RF, InData%BathGrid_Xs)
    call RegPackAlloc(RF, InData%BathGrid_Ys)
    call RegPackAlloc(RF, InData%BathGrid_npoints)
-   call SeaSt_WaveField_PackMisc(RF, InData%WaveField_m) 
+   call GridInterp_PackMisc(RF, InData%WaveField_m) 
    call RegPack(RF, InData%IC_gen)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
@@ -3920,7 +3920,7 @@ subroutine MD_UnPackMisc(RF, OutData)
    call RegUnpackAlloc(RF, OutData%BathGrid_Xs); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%BathGrid_Ys); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%BathGrid_npoints); if (RegCheckErr(RF, RoutineName)) return
-   call SeaSt_WaveField_UnpackMisc(RF, OutData%WaveField_m) ! WaveField_m 
+   call GridInterp_UnpackMisc(RF, OutData%WaveField_m) ! WaveField_m 
    call RegUnpack(RF, OutData%IC_gen); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
