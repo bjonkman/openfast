@@ -102,8 +102,8 @@ Subroutine SetIndex(pIn,pZero,delta,nMax,IsPeriodic,Indx,isopc,Support,FirstWarn
    if ( nMax .EQ. 1_IntKi ) then ! Only one grid point, effectively ignore this dimension
       ! Construct a dummy linear interpolation for now
       Indx(1) = -1_IntKi
-      Indx(2) =  1_IntKi
-      Indx(3) =  1_IntKi
+      Indx(2) =  0_IntKi
+      Indx(3) =  0_IntKi
       Indx(4) = -1_IntKi
       isopc   = 0.5_ReKi
       Support = 0
@@ -179,7 +179,7 @@ Subroutine SetIndex(pIn,pZero,delta,nMax,IsPeriodic,Indx,isopc,Support,FirstWarn
    else
       support = 3 ! Cubic interpolation
    end if
-
+support = 0
 End Subroutine SetIndex
 
 Subroutine GetN1D(isopc, support, N1D)
