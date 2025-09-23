@@ -34,15 +34,16 @@ MODULE AeroDyn_Inflow_C_BINDING
    SAVE
 
    PUBLIC :: ADI_C_Init
-   !PUBLIC :: ADI_C_ReInit
    PUBLIC :: ADI_C_CalcOutput
    PUBLIC :: ADI_C_UpdateStates
    PUBLIC :: ADI_C_End
-   PUBLIC :: ADI_C_PreInit            ! Initial call to setup number of turbines
-   PUBLIC :: ADI_C_SetupRotor         ! Initial node positions etc for a rotor
-   PUBLIC :: ADI_C_SetRotorMotion     ! Set motions for a given rotor
-   PUBLIC :: ADI_C_GetRotorLoads      ! Retrieve loads for a given rotor
-   PUBLIC :: ADI_C_GetDiskAvgVel      ! Get the disk average velocity for the rotor
+   PUBLIC :: ADI_C_PreInit             ! Initial call to setup number of turbines
+   PUBLIC :: ADI_C_SetupRotor          ! Initial node positions etc for a rotor
+   PUBLIC :: ADI_C_SetRotorMotion      ! Set motions for a given rotor
+   PUBLIC :: ADI_C_GetRotorLoads       ! Retrieve loads for a given rotor
+   PUBLIC :: ADI_C_GetDiskAvgVel       ! Get the disk average velocity for the rotor
+   PUBLIC :: ADI_C_SetFlowFieldPointer ! Set the pointer to the flowfield data (from external IfW instance)
+   PUBLIC :: ADI_C_GetFlowFieldPointer ! Get the pointer to the flowfield data (to pass to external IfW instance)
 
    !------------------------------------------------------------------------------------
    !  Version info for display
@@ -180,6 +181,7 @@ CONTAINS
 !===============================================================================================================
 !--------------------------------------------- AeroDyn PreInit -------------------------------------------------
 !===============================================================================================================
+!FIXME: add way to indicate externally passed pointer for wind.  Propagate down to ADI
 !> Allocate all the arrays for data storage for all turbine rotors
 subroutine ADI_C_PreInit(                       &
    NumTurbines_C,                               &
@@ -237,6 +239,9 @@ subroutine ADI_C_PreInit(                       &
    CALL NWTC_Init( ProgNameIn=version%Name )
    CALL DispCopyrightLicense( version%Name )
    CALL DispCompileRuntimeInfo( version%Name )
+
+   ! clear out any memory that may be leftover from previous use of library without unloading
+   call ClearTmpStorage()
 
    ! Save flag for outputting point or distributed loads
    PointLoadOutput = PointLoadOutput_in /= 0
@@ -353,7 +358,6 @@ subroutine ADI_C_PreInit(                       &
    WrOutputsData%VTKHubrad    = real(VTKHubrad_in, SiKi)
    WrOutputsData%VTKRefPoint  = (/ 0.0_ReKi, 0.0_ReKi, 0.0_ReKi /)    !TODO: should this be an input?
    WrOutputsData%n_VTKTime    = 1   ! output every timestep
-
 
    call SetErrStat_F2C(ErrStat_F,ErrMsg_F,ErrStat_C,ErrMsg_C)
 
@@ -500,9 +504,6 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
          if (Failed()) return
       endif
    enddo
-
-   ! Setup temporary storage arrays for simpler transfers
-   call SetTempStorage(ErrStat_F2,ErrMsg_F2); if (Failed()) return
 
 
    !--------------------------
@@ -2536,34 +2537,6 @@ end subroutine WrVTK_Ground
 
 
 !--------------------------------------------------------------------
-!> Set some temporary data storage arrays to simplify data conversion
-subroutine SetTempStorage(ErrStat,ErrMsg)
-   INTEGER(IntKi),  intent(out)  :: errStat         !< Indicates whether an error occurred (see NWTC_Library)
-   character(*),    intent(out)  :: errMsg          !< Error message associated with the errStat
-   INTEGER(IntKi)                :: ErrStat_F2
-   CHARACTER(ErrMsgLen)          :: ErrMsg_F2
-   character(*), parameter       :: RoutineName = 'SetTempStorage'  !< for error handling
-   ErrStat = ErrID_None
-   ErrMsg  = ""
-   if (.not. allocated(NumMeshPts)) then
-      ErrStat = ErrID_Fatal
-      ErrMSg  = "Pre-Init has not been called yet"
-      return
-   endif
-   if (minval(NumMeshPts) < 0) then
-      ErrStat = ErrID_Fatal
-      ErrMSg  = "ADI_C_SetupRotor haven't been called for all rotors"
-      return
-   endif
-
-contains
-   logical function Failed()
-      CALL SetErrStat( ErrStat_F2, ErrMsg_F2, ErrStat, ErrMsg, RoutineName )
-      Failed = ErrStat >= AbortErrLev
-   end function Failed
-end subroutine SetTempStorage
-
-!--------------------------------------------------------------------
 !> Don't leave junk in memory.  So destroy meshes and mappings.
 subroutine ClearTmpStorage()
    INTEGER(IntKi)                :: ErrStat_F2, iWT
@@ -2588,7 +2561,6 @@ contains
       enddo
       deallocate(MeshName)
    end subroutine ClearMeshArr1
-
    subroutine ClearMeshMapArr2(MapName)
       type(MeshMapType), allocatable :: MapName(:,:)
       integer :: i,j
@@ -2599,8 +2571,78 @@ contains
       enddo
       deallocate(MapName)
    end subroutine ClearMeshMapArr2
-
 end subroutine ClearTmpStorage
+
+
+!> return the pointer to the WaveField data
+subroutine ADI_C_GetFlowFieldPointer(FlowFieldPointer_C,ErrStat_C,ErrMsg_C) BIND (C, NAME='ADI_C_GetFlowFieldPointer')
+#ifndef IMPLICIT_DLLEXPORT
+!DEC$ ATTRIBUTES DLLEXPORT :: ADI_C_GetFlowFieldPointer
+!GCC$ ATTRIBUTES DLLEXPORT :: ADI_C_GetFlowFieldPointer
+#endif
+   type(c_ptr),               intent(  out)  :: FlowFieldPointer_C
+   integer(c_int),            intent(  out)  :: ErrStat_C
+   character(kind=c_char),    intent(  out)  :: ErrMsg_C(ErrMsgLen_C)
+   integer                                   :: ErrStat
+   character(ErrMsgLen)                      :: ErrMsg
+   character(*),              parameter      :: RoutineName = 'ADI_C_GetFlowFieldPointer'
+   ErrStat = ErrID_None
+   ErrMSg = ""
+   if (associated(ADI%m%IW%p%FlowField)) then
+      FlowFieldPointer_C = C_LOC(ADI%m%IW%p%FlowField)
+   else
+      FlowFieldPointer_C = C_NULL_PTR
+      call SetErrStat(ErrID_Fatal,"Pointer to FlowField data not valid: data not initialized",ErrStat,ErrMsg,RoutineName)
+   endif
+   call SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )
+   if (DebugLevel > 1) call ShowPassedData()
+   return
+contains
+   subroutine ShowPassedData()
+      call WrScr("-----------------------------------------------------------")
+      call WrScr("Interface debugging:  ADI_C_GetFlowFieldPointer")
+      call WrScr("   --------------------------------------------------------")
+      call WrScr("   FlowFieldPointer_C       -> "//trim(Num2LStr(loc(ADI%m%IW%p%FlowField))))
+      call WrScr("-----------------------------------------------------------")
+   end subroutine ShowPassedData
+end subroutine
+
+
+!> set the pointer to the FlowField data
+subroutine ADI_C_SetFlowFieldPointer(FlowFieldPointer_C,ErrStat_C,ErrMsg_C) BIND (C, NAME='ADI_C_SetFlowFieldPointer')
+#ifndef IMPLICIT_DLLEXPORT
+!DEC$ ATTRIBUTES DLLEXPORT :: ADI_C_SetFlowFieldPointer
+!GCC$ ATTRIBUTES DLLEXPORT :: ADI_C_SetFlowFieldPointer
+#endif
+   type(c_ptr),               intent(in   )  :: FlowFieldPointer_C
+   integer(c_int),            intent(  out)  :: ErrStat_C
+   character(kind=c_char),    intent(  out)  :: ErrMsg_C(ErrMsgLen_C)
+   integer                                   :: ErrStat
+   character(ErrMsgLen)                      :: ErrMsg
+   character(*),              parameter      :: RoutineName = 'ADI_C_SetFlowFieldPointer'
+   ErrStat = ErrID_None
+   ErrMSg = ""
+   call C_F_POINTER(FlowFieldPointer_C, ADI%m%IW%p%FlowField)
+   if (associated(ADI%m%IW%p%FlowField)) then
+      ! basic sanity check
+      if (ADI%m%IW%p%FlowField%FieldType <= 0_IntKi) then
+         call SetErrStat(ErrID_Fatal,"Invalid pointer passed in, or FlowField not initialized",ErrStat,ErrMsg,RoutineName)
+      endif
+   else
+      call SetErrStat(ErrID_Fatal,"Invalid pointer passed in, or FlowField not initialized",ErrStat,ErrMsg,RoutineName)
+   endif
+   call SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )
+   if (DebugLevel > 1) call ShowPassedData()
+   return
+contains
+   subroutine ShowPassedData()
+      call WrScr("-----------------------------------------------------------")
+      call WrScr("Interface debugging:  ADI_C_SetFlowFieldPointer")
+      call WrScr("   --------------------------------------------------------")
+      call WrScr("   FlowFieldPointer_C       <- "//trim(Num2LStr(loc(ADI%m%IW%p%FlowField))))
+      call WrScr("-----------------------------------------------------------")
+   end subroutine ShowPassedData
+end subroutine
 
 
 END MODULE AeroDyn_Inflow_C_BINDING
