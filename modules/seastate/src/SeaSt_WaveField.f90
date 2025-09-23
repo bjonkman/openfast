@@ -119,8 +119,7 @@ SUBROUTINE WaveField_GetNodeWaveNormal( WaveField, WaveField_m, Time, pos, r, n,
    integer(IntKi),                     intent(  out) :: ErrStat ! Error status of the operation
    character(*),                       intent(  out) :: ErrMsg  ! Error message if errStat /= ErrID_None
 
-   real(SiKi)                                        :: ZetaP,ZetaM
-   real(ReKi)                                        :: r1,dZetadx,dZetady
+   real(SiKi)                                        :: slope(2)
    character(*),                       parameter     :: RoutineName = 'WaveField_GetNodeWaveNormal'
    integer(IntKi)                                    :: errStat2
    character(ErrMsgLen)                              :: errMsg2
@@ -128,18 +127,14 @@ SUBROUTINE WaveField_GetNodeWaveNormal( WaveField, WaveField_m, Time, pos, r, n,
    ErrStat   = ErrID_None
    ErrMsg    = ""
 
-   r1 = MAX(r,real(1.0e-6,ReKi)) ! In case r is zero
+   call GridInterpSetupN( (/Real(Time,ReKi),pos(1),pos(2)/), WaveField%SrfGridParams, WaveField_m, ErrStat2, ErrMsg2 )
+   slope = GridInterpS( WaveField%WaveElev1, WaveField%SrfGridParams, WaveField_m )
+   if (ALLOCATED(WaveField%WaveElev2)) then
+      slope = slope + GridInterpS( WaveField%WaveElev2, WaveField%SrfGridParams, WaveField_m )
+   end if
 
-   ZetaP = WaveField_GetNodeTotalWaveElev( WaveField, WaveField_m, Time, (/pos(1)+r1,pos(2)/), ErrStat2, ErrMsg2 ); if (Failed()) return;
-   ZetaM = WaveField_GetNodeTotalWaveElev( WaveField, WaveField_m, Time, (/pos(1)-r1,pos(2)/), ErrStat2, ErrMsg2 ); if (Failed()) return;
-   dZetadx = REAL(ZetaP-ZetaM,ReKi)/(2.0_ReKi*r1)
-
-   ZetaP = WaveField_GetNodeTotalWaveElev( WaveField, WaveField_m, Time, (/pos(1),pos(2)+r1/), ErrStat2, ErrMsg2 ); if (Failed()) return;
-   ZetaM = WaveField_GetNodeTotalWaveElev( WaveField, WaveField_m, Time, (/pos(1),pos(2)-r1/), ErrStat2, ErrMsg2 ); if (Failed()) return;
-   dZetady = REAL(ZetaP-ZetaM,ReKi)/(2.0_ReKi*r1)
-
-   n = (/-dZetadx,-dZetady,1.0_ReKi/)
-   n = n / SQRT(Dot_Product(n,n))
+   n = Real( (/-slope(1),-slope(2),1.0_SiKi/), ReKi)
+   n = n / TwoNorm(n)
 
 contains
    logical function Failed()

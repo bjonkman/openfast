@@ -6,10 +6,12 @@ IMPLICIT NONE
 
 PRIVATE SetIndex
 PRIVATE GetN1D
+PRIVATE GetN1Ddx
 
 PUBLIC GridInterp_SetParams
 PUBLIC GridInterpSetup3D
 PUBLIC GridInterpSetup4D
+PUBLIC GridInterpSetupN
 
 INTERFACE GridInterp3D
    MODULE PROCEDURE GridInterp3DR4
@@ -41,6 +43,15 @@ INTERFACE GridInterp4DVec6
    MODULE PROCEDURE GridInterp4DVec6R8
 END INTERFACE
 
+INTERFACE GridInterpN
+   MODULE PROCEDURE GridInterpNR4
+   MODULE PROCEDURE GridInterpNR8
+END INTERFACE
+
+INTERFACE GridInterpS
+   MODULE PROCEDURE GridInterpSR4
+   MODULE PROCEDURE GridInterpSR8
+END INTERFACE
 
 CONTAINS
 
@@ -179,7 +190,7 @@ Subroutine SetIndex(pIn,pZero,delta,nMax,IsPeriodic,Indx,isopc,Support,FirstWarn
    else
       support = 3 ! Cubic interpolation
    end if
-support = 0
+
 End Subroutine SetIndex
 
 Subroutine GetN1D(isopc, support, N1D)
@@ -227,6 +238,47 @@ Subroutine GetN1D(isopc, support, N1D)
    end if
 
 End Subroutine GetN1D
+
+Subroutine GetN1Ddx(isopc, support, N1D)
+
+   real(ReKi),           intent(in   )  :: isopc       ! isoparametric coordinates
+   integer(IntKi),       intent(in   )  :: support
+   real(ReKi),           intent(inout)  :: N1D(4)
+   real(ReKi)                           :: isopc2
+
+   if ( Support == 3 ) then  ! Cubic interpolation
+
+      isopc2 = isopc*isopc
+
+      N1D(1) = -1.5*isopc2 + 2.0*isopc - 0.5
+      N1D(2) =  4.5*isopc2 - 5.0*isopc
+      N1D(3) = -4.5*isopc2 + 4.0*isopc + 0.5
+      N1D(4) =  1.5*isopc2 -     isopc
+
+   else if ( Support == 1 ) then  ! Quadratic interpolation with only one node to the left
+
+      N1D(1) =              0.0
+      N1D(2) =      isopc - 1.5
+      N1D(3) = -2.0*isopc + 2.0
+      N1D(4) =      isopc - 0.5
+
+   else if ( Support == 2 ) then  ! Quadratic interpolation with only one node to the right
+
+      N1D(1) =      isopc - 0.5
+      N1D(2) = -2.0*isopc
+      N1D(3) =      isopc + 0.5
+      N1D(4) =              0.0
+
+   else ! if ( Support == 0 ) then  ! Linear interpolation
+
+      N1D(1) =  0.0
+      N1D(2) = -1.0
+      N1D(3) =  1.0
+      N1D(4) =  0.0
+
+   end if
+
+End Subroutine GetN1Ddx
 
 Subroutine GridInterpSetup3D( position, p, m, ErrStat, ErrMsg )
 
@@ -311,6 +363,54 @@ contains
    end function
 
 End Subroutine GridInterpSetup4D
+
+Subroutine GridInterpSetupN( position, p, m, ErrStat, ErrMsg )
+
+   real(ReKi),                          intent(in   )  :: Position(3)       !< Array of 3 coordinates
+   type(GridInterp_ParameterType),      intent(in   )  :: p                 !< Parameters
+   type(GridInterp_MiscVarType),        intent(inout)  :: m                 !< MiscVars
+   integer(IntKi),                      intent(  out)  :: ErrStat           !< Error status
+   character(*),                        intent(  out)  :: ErrMsg            !< Error message if ErrStat /= ErrID_None
+
+   character(*), parameter              :: RoutineName = 'GridInterpSetupN'
+   integer(IntKi)                       :: dim,i,j,k
+   integer(IntKi)                       :: support
+   real(ReKi)                           :: N1D(4,3)
+   real(ReKi)                           :: N1Ddx(4,2:3)
+   real(ReKi)                           :: isopc       ! isoparametric coordinates
+   integer(IntKi)                       :: ErrStat2
+   character(ErrMsgLen)                 :: ErrMsg2
+
+   ErrStat = ErrID_None
+   ErrMsg  = ""
+
+   do dim = 1,3
+      call SetIndex(Position(dim), p%pZero(dim), p%delta(dim), p%n(dim), p%IsPeriodic(dim), m%Indx(:,dim), isopc, Support, m%FirstWarn_Clamp, ErrStat2, ErrMsg2)
+         if (Failed()) return;
+      call GetN1D(isopc, Support, N1D(:,dim))
+      if (dim>1) then
+         call GetN1Ddx(isopc, Support, N1Ddx(:,dim))
+      end if
+   end do
+
+   ! Need two sets of weights for d(.)/dx and d(.)/dy. Borrow m%N4D for this.
+   do k = 1,4
+      do j = 1,4
+         do i = 1,4
+            m%N4D(i,j,k,1) = N1D(i,1)*N1Ddx(j,2)*N1D  (k,3)
+            m%N4D(i,j,k,2) = N1D(i,1)*N1D  (j,2)*N1Ddx(k,3)
+         end do
+      end do
+   end do
+
+contains
+   logical function Failed()
+      call SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+      Failed = ErrStat >= AbortErrLev
+   end function
+
+End Subroutine GridInterpSetupN
+
 
 !=============================================================================================================
 ! INTERFACE GridInterp3D
@@ -653,5 +753,133 @@ function GridInterp4DVec6R8( data, m )
    end do
 
 end function GridInterp4DVec6R8
+
+!=============================================================================================================
+! INTERFACE GridInterpN
+!              - GridInterpNR4
+!              - GridInterpNR8
+!=============================================================================================================
+function GridInterpNR4( data, p, m )
+   real(SiKi),                     intent(in   )  :: data(0:,0:,0:)   !< 3D grid of scalar data
+   type(GridInterp_ParameterType), intent(in   )  :: p                !< Parameters
+   type(GridInterp_MiscVarType),   intent(in   )  :: m                !< MiscVars
+
+   character(*), parameter                        :: RoutineName = 'GridInterpNR4'
+   real(SiKi)                                     :: GridInterpNR4(3)
+   real(SiKi)                                     :: dZetadx, dZetady
+   integer(IntKi)                                 :: i,j,k
+
+   ! interpolate slope
+   dZetadx = 0.0_SiKi
+   dZetady = 0.0_SiKi
+   do k = 1,4
+      do j = 1,4
+         do i = 1,4
+            if (.not.EqualRealNos(m%N4D(i,j,k,1),0.0_ReKi)) then
+               dZetadx = dZetadx + m%N4D(i,j,k,1) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
+            end if
+            if (.not.EqualRealNos(m%N4D(i,j,k,2),0.0_ReKi)) then
+               dZetady = dZetady + m%N4D(i,j,k,2) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
+            end if
+         end do
+      end do
+   end do
+   dZetadx = dZetadx / p%delta(2)
+   dZetady = dZetady / p%delta(3)
+
+   GridInterpNR4 = (/-dZetadx,-dZetady,1.0_SiKi/)
+   GridInterpNR4 = GridInterpNR4 / TwoNorm(GridInterpNR4)
+
+end function GridInterpNR4
+
+function GridInterpNR8( data, p, m )
+   real(DbKi),                     intent(in   )  :: data(0:,0:,0:)   !< 3D grid of scalar data
+   type(GridInterp_ParameterType), intent(in   )  :: p                !< Parameters
+   type(GridInterp_MiscVarType),   intent(in   )  :: m                !< MiscVars
+
+   character(*), parameter                        :: RoutineName = 'GridInterpNR8'
+   real(DbKi)                                     :: GridInterpNR8(3)
+   real(DbKi)                                     :: dZetadx, dZetady
+   integer(IntKi)                                 :: i,j,k
+
+   ! interpolate slope
+   dZetadx = 0.0_DbKi
+   dZetady = 0.0_DbKi
+   do k = 1,4
+      do j = 1,4
+         do i = 1,4
+            if (.not.EqualRealNos(m%N4D(i,j,k,1),0.0_ReKi)) then
+               dZetadx = dZetadx + m%N4D(i,j,k,1) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
+            end if
+            if (.not.EqualRealNos(m%N4D(i,j,k,2),0.0_ReKi)) then
+               dZetady = dZetady + m%N4D(i,j,k,2) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
+            end if
+         end do
+      end do
+   end do
+   dZetadx = dZetadx / p%delta(2)
+   dZetady = dZetady / p%delta(3)
+
+   GridInterpNR8 = (/-dZetadx,-dZetady,1.0_DbKi/)
+   GridInterpNR8 = GridInterpNR8 / TwoNorm(GridInterpNR8)
+
+end function GridInterpNR8
+
+!=============================================================================================================
+! INTERFACE GridInterpS
+!              - GridInterpSR4
+!              - GridInterpSR8
+!=============================================================================================================
+function GridInterpSR4( data, p, m )
+   real(SiKi),                     intent(in   )  :: data(0:,0:,0:)   !< 3D grid of scalar data
+   type(GridInterp_ParameterType), intent(in   )  :: p                !< Parameters
+   type(GridInterp_MiscVarType),   intent(in   )  :: m                !< MiscVars
+
+   character(*), parameter                        :: RoutineName = 'GridInterpSR4'
+   real(SiKi)                                     :: GridInterpSR4(2)
+   integer(IntKi)                                 :: i,j,k,dir
+
+   ! interpolate slope
+   GridInterpSR4 = 0.0_SiKi
+   do k = 1,4
+      do j = 1,4
+         do i = 1,4
+            do dir = 1,2
+               if (.not.EqualRealNos(m%N4D(i,j,k,dir),0.0_ReKi)) then
+                  GridInterpSR4(dir) = GridInterpSR4(dir) + m%N4D(i,j,k,dir) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
+               end if
+            end do
+         end do
+      end do
+   end do
+   GridInterpSR4 = GridInterpSR4 / p%delta(2:3)
+
+end function GridInterpSR4
+
+function GridInterpSR8( data, p, m )
+   real(DbKi),                     intent(in   )  :: data(0:,0:,0:)   !< 3D grid of scalar data
+   type(GridInterp_ParameterType), intent(in   )  :: p                !< Parameters
+   type(GridInterp_MiscVarType),   intent(in   )  :: m                !< MiscVars
+
+   character(*), parameter                        :: RoutineName = 'GridInterpSR8'
+   real(DbKi)                                     :: GridInterpSR8(2)
+   integer(IntKi)                                 :: i,j,k,dir
+
+   ! interpolate slope
+   GridInterpSR8 = 0.0_DbKi
+   do k = 1,4
+      do j = 1,4
+         do i = 1,4
+            do dir = 1,2
+               if (.not.EqualRealNos(m%N4D(i,j,k,dir),0.0_ReKi)) then
+                  GridInterpSR8(dir) = GridInterpSR8(dir) + m%N4D(i,j,k,dir) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
+               end if
+            end do
+         end do
+      end do
+   end do
+   GridInterpSR8 = GridInterpSR8 / p%delta(2:3)
+
+end function GridInterpSR8
 
 END MODULE GridInterp
