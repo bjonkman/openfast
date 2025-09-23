@@ -109,12 +109,11 @@ contains
 END FUNCTION WaveField_GetNodeTotalWaveElev
 
 
-SUBROUTINE WaveField_GetNodeWaveNormal( WaveField, WaveField_m, Time, pos, r, n, ErrStat, ErrMsg )
+SUBROUTINE WaveField_GetNodeWaveNormal( WaveField, WaveField_m, Time, pos, n, ErrStat, ErrMsg )
    type(SeaSt_WaveFieldType),          intent(in   ) :: WaveField
    type(GridInterp_MiscVarType),       intent(inout) :: WaveField_m
    real(DbKi),                         intent(in   ) :: Time
    real(ReKi),                         intent(in   ) :: pos(*)  ! Position at which free-surface normal is to be calculated. Third entry ignored if present.
-   real(ReKi),                         intent(in   ) :: r       ! Distance for central differencing
    real(ReKi),                         intent(  out) :: n(3)    ! Free-surface normal vector
    integer(IntKi),                     intent(  out) :: ErrStat ! Error status of the operation
    character(*),                       intent(  out) :: ErrMsg  ! Error message if errStat /= ErrID_None
