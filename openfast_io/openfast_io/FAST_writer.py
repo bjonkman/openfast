@@ -441,7 +441,8 @@ class InputWriter_OpenFAST(object):
         f.write('{:<22} {:<11} {:}'.format(self.fst_vt['ElastoDyn']['TipMass(2)'], 'TipMass(2)', '- Tip-brake mass, blade 2 (kg)\n'))
         f.write('{:<22} {:<11} {:}'.format(self.fst_vt['ElastoDyn']['TipMass(3)'], 'TipMass(3)', '- Tip-brake mass, blade 3 (kg) [unused for 2 blades]\n'))
         f.write('{:<22} {:<11} {:}'.format(self.fst_vt['ElastoDyn']['HubMass'], 'HubMass', '- Hub mass (kg)\n'))
-        f.write('{:<22} {:<11} {:}'.format(self.fst_vt['ElastoDyn']['HubIner'], 'HubIner', '- Hub inertia about rotor axis [3 blades] or teeter axis [2 blades] (kg m^2)\n'))
+        f.write('{:<22} {:<11} {:}'.format(self.fst_vt['ElastoDyn']['HubIner'], 'HubIner', 'Hub inertia about rotor axis (2 or 3-blades) (kg m^2)\n'))
+        f.write('{:<22} {:<11} {:}'.format(self.fst_vt['ElastoDyn']['HubIner_Teeter'], 'HubIner_Teeter', 'Hub inertia about teeter axis (2-blades) (kg m^2)\n'))
         f.write('{:<22} {:<11} {:}'.format(self.fst_vt['ElastoDyn']['GenIner'], 'GenIner', '- Generator inertia about HSS (kg m^2)\n'))
         f.write('{:<22} {:<11} {:}'.format(self.fst_vt['ElastoDyn']['NacMass'], 'NacMass', '- Nacelle mass (kg)\n'))
         f.write('{:<22} {:<11} {:}'.format(self.fst_vt['ElastoDyn']['NacYIner'], 'NacYIner', '- Nacelle inertia about yaw axis (kg m^2)\n'))
@@ -822,6 +823,9 @@ class InputWriter_OpenFAST(object):
             f.write('\n')
 
         f.write('\n')
+        f.flush()
+        os.fsync(f)
+        f.close()
 
     def write_InflowWind(self):
         self.fst_vt['Fst']['InflowFile'] = self.FAST_namingOut + '_InflowWind.dat'

@@ -33,7 +33,7 @@ class OpenFASTInterfaceType(CDLL):
     ERROR_MSG_C_LEN = 8197
 
     #   NOTE:   the length of the name used for any output file written by the
-    #           HD Fortran code is 1025.
+    #           Fortran code is 1025.
     default_str_c_len = 1025
 
     abort_error_level = c_int(4)

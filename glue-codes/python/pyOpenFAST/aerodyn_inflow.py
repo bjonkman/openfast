@@ -346,7 +346,7 @@ class AeroDynInflowLib(CDLL):
             byref(c_float(self.water_depth)),                    # IN -> water depth
             byref(c_float(self.mean_sea_level_offset)),          # IN -> MSL to SWL offset
             byref(c_int(self.mhk)),                 # IN -> mhk flag (0=not MHK, 1=fixed bottom, 2=floating)
-            byref(c_int(self.debug_level)),         # IN -> debug level (0=None to 4=Fatal)
+            byref(c_int(self.debug_level)),         # IN -> debug level (0=None to 4=all meshes)
             byref(self.error_status_c),             # OUT <- error status code
             self.error_message_c                    # OUT <- error message buffer
         )

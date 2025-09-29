@@ -520,6 +520,7 @@ class InputReader_OpenFAST(object):
         self.fst_vt['ElastoDyn']['TipMass(3)']   = float_read(f.readline().split()[0])
         self.fst_vt['ElastoDyn']['HubMass']    = float_read(f.readline().split()[0])
         self.fst_vt['ElastoDyn']['HubIner']    = float_read(f.readline().split()[0])
+        self.fst_vt['ElastoDyn']['HubIner_Teeter']    = float_read(f.readline().split()[0])
         self.fst_vt['ElastoDyn']['GenIner']    = float_read(f.readline().split()[0])
         self.fst_vt['ElastoDyn']['NacMass']    = float_read(f.readline().split()[0])
         self.fst_vt['ElastoDyn']['NacYIner']   = float_read(f.readline().split()[0])

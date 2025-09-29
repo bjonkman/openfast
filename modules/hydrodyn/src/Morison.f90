@@ -5956,6 +5956,7 @@ SUBROUTINE Morison_CalcOutput( Time, u, p, x, xd, z, OtherState, y, m, errStat, 
       Real(ReKi)                              :: posFC(3)         ! Position of face center
       Real(ReKi)                              :: SVFC(3)          ! Structure velocity at face center
       Real(SiKi)                              :: FVFC(3)          ! Flow velocity at face center
+      Real(SiKi)                              :: FAFC(3)          ! Flow acceleration at face center
       Real(ReKi)                              :: vrelFC           ! Relative (flow-structure) velocity at face centers
       Real(ReKi)                              :: vrelFCf          ! High-pass filtered relative (flow-structure) velocity at face centers
       Real(ReKi)                              :: STV(3)           ! Structure translational velocity at the current node/free-surface intersection
@@ -6070,7 +6071,7 @@ SUBROUTINE Morison_CalcOutput( Time, u, p, x, xd, z, OtherState, y, m, errStat, 
             SVFC  = STV + cross_product( SRV, rToFC(1:3,fNo) )
 
             ! Compute fluid velocity at face center
-            Call WaveField_GetNodeWaveVel( p%WaveField, m%WaveField_m, Time, posFC, .TRUE., tmpNodeInWater, FVFC, ErrStat2, ErrMsg2 ); CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+            Call WaveField_GetNodeWaveVelAcc( p%WaveField, m%WaveField_m, Time, posFC, .TRUE., tmpNodeInWater, FVFC, FAFC, ErrStat2, ErrMsg2 ); CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
             ! Note: We force each face center to also be wetted if the center node is wetted. Otherwise, the load-smoothing procedure might not work
 
             ! Compute the face-normal component of the relative fluid velocity (fluid-structure) at face center
@@ -6187,7 +6188,7 @@ SUBROUTINE Morison_UpdateDiscState( Time, u, p, x, xd, z, OtherState, m, errStat
    INTEGER(IntKi)                                    :: nodeInWater, tmpInt
    REAL(ReKi)                                        :: pos(3), vrel(3), FV(3), vmag, vmagf, An_End(3)
    REAL(ReKi)                                        :: posFC(3), SVFC(3), vrelFC, vrelFCf
-   REAL(SiKi)                                        :: FVTmp(3)
+   REAL(SiKi)                                        :: FVTmp(3),FATmp(3)
    TYPE(Morison_MemberType)                          :: mem         !< Current member
 
    INTEGER(IntKi)                                    :: errStat2
@@ -6208,7 +6209,7 @@ SUBROUTINE Morison_UpdateDiscState( Time, u, p, x, xd, z, OtherState, m, errStat
       pos = m%DispNodePosHdn(:,J)
 
       ! Get fluid velocity at the joint
-      CALL WaveField_GetNodeWaveVel( p%WaveField, m%WaveField_m, Time, pos, .FALSE., nodeInWater, FVTmp, ErrStat2, ErrMsg2 )
+      CALL WaveField_GetNodeWaveVelAcc( p%WaveField, m%WaveField_m, Time, pos, .FALSE., nodeInWater, FVTmp, FATmp, ErrStat2, ErrMsg2 )
           CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
       FV   = REAL(FVTmp, ReKi)
       vrel = ( FV - u%Mesh%TranslationVel(:,J) ) * nodeInWater
@@ -6238,7 +6239,7 @@ SUBROUTINE Morison_UpdateDiscState( Time, u, p, x, xd, z, OtherState, m, errStat
          DO I = mem%i_floor+1, N+1
 
             pos = m%DispNodePosHdn(:, mem%NodeIndx(I))
-            CALL WaveField_GetNodeWaveVel( p%WaveField, m%WaveField_m, Time, pos, .FALSE., nodeInWater, FVTmp, ErrStat2, ErrMsg2 )
+            CALL WaveField_GetNodeWaveVelAcc( p%WaveField, m%WaveField_m, Time, pos, .FALSE., nodeInWater, FVTmp, FATmp, ErrStat2, ErrMsg2 )
             CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
 
             IF (nodeInWater .EQ. 1_IntKi) THEN
@@ -6247,7 +6248,7 @@ SUBROUTINE Morison_UpdateDiscState( Time, u, p, x, xd, z, OtherState, m, errStat
               ! Side B - +x_hat side
               posFC = pos + mem%x_hat * 0.5 * mem%SaMG(i)
               SVFC  = u%Mesh%TranslationVel(:,mem%NodeIndx(i)) + cross_product( u%Mesh%RotationVel(:,mem%NodeIndx(i)),  mem%x_hat * 0.5 * mem%SaMG(i) )
-              call WaveField_GetNodeWaveVel( p%WaveField, m%WaveField_m, Time, posFC, .TRUE., tmpInt, FVTmp, ErrStat2, ErrMsg2 ); CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+              call WaveField_GetNodeWaveVelAcc( p%WaveField, m%WaveField_m, Time, posFC, .TRUE., tmpInt, FVTmp, FATmp, ErrStat2, ErrMsg2 ); CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
               vrelFC = dot_product( REAL(FVTmp,ReKi) - SVFC,  mem%x_hat )
               vrelFCf = mem%VRelNFiltConstB * ( vrelFC + xd%MV_rel_n_FiltStat(1,mem%NodeIndx(I)) )
               xd%MV_rel_n_FiltStat(1,mem%NodeIndx(I)) = vrelFCf - vrelFC
@@ -6255,7 +6256,7 @@ SUBROUTINE Morison_UpdateDiscState( Time, u, p, x, xd, z, OtherState, m, errStat
               ! Side B - -x_hat side
               posFC = pos - mem%x_hat * 0.5 * mem%SaMG(i)
               SVFC  = u%Mesh%TranslationVel(:,mem%NodeIndx(i)) + cross_product( u%Mesh%RotationVel(:,mem%NodeIndx(i)), -mem%x_hat * 0.5 * mem%SaMG(i) )
-              call WaveField_GetNodeWaveVel( p%WaveField, m%WaveField_m, Time, posFC, .TRUE., tmpInt, FVTmp, ErrStat2, ErrMsg2 ); CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+              call WaveField_GetNodeWaveVelAcc( p%WaveField, m%WaveField_m, Time, posFC, .TRUE., tmpInt, FVTmp, FATmp, ErrStat2, ErrMsg2 ); CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
               vrelFC = dot_product( REAL(FVTmp,ReKi) - SVFC, -mem%x_hat )
               vrelFCf = mem%VRelNFiltConstB * ( vrelFC + xd%MV_rel_n_FiltStat(2,mem%NodeIndx(I)) )
               xd%MV_rel_n_FiltStat(2,mem%NodeIndx(I)) = vrelFCf - vrelFC
@@ -6263,7 +6264,7 @@ SUBROUTINE Morison_UpdateDiscState( Time, u, p, x, xd, z, OtherState, m, errStat
               ! Side A - +y_hat side
               posFC = pos + mem%y_hat * 0.5 * mem%SbMG(i)
               SVFC  = u%Mesh%TranslationVel(:,mem%NodeIndx(i)) + cross_product( u%Mesh%RotationVel(:,mem%NodeIndx(i)),  mem%y_hat * 0.5 * mem%SbMG(i) )
-              call WaveField_GetNodeWaveVel( p%WaveField, m%WaveField_m, Time, posFC, .TRUE., tmpInt, FVTmp, ErrStat2, ErrMsg2 ); CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+              call WaveField_GetNodeWaveVelAcc( p%WaveField, m%WaveField_m, Time, posFC, .TRUE., tmpInt, FVTmp, FATmp, ErrStat2, ErrMsg2 ); CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
               vrelFC = dot_product( REAL(FVTmp,ReKi) - SVFC,  mem%y_hat )
               vrelFCf = mem%VRelNFiltConstA * ( vrelFC + xd%MV_rel_n_FiltStat(3,mem%NodeIndx(I)) )
               xd%MV_rel_n_FiltStat(3,mem%NodeIndx(I)) = vrelFCf - vrelFC
@@ -6271,7 +6272,7 @@ SUBROUTINE Morison_UpdateDiscState( Time, u, p, x, xd, z, OtherState, m, errStat
               ! Side A - -y_hat side
               posFC = pos - mem%y_hat * 0.5 * mem%SbMG(i)
               SVFC  = u%Mesh%TranslationVel(:,mem%NodeIndx(i)) + cross_product( u%Mesh%RotationVel(:,mem%NodeIndx(i)), -mem%y_hat * 0.5 * mem%SbMG(i) )
-              call WaveField_GetNodeWaveVel( p%WaveField, m%WaveField_m, Time, posFC, .TRUE., tmpInt, FVTmp, ErrStat2, ErrMsg2 ); CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+              call WaveField_GetNodeWaveVelAcc( p%WaveField, m%WaveField_m, Time, posFC, .TRUE., tmpInt, FVTmp, FATmp, ErrStat2, ErrMsg2 ); CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
               vrelFC = dot_product( REAL(FVTmp,ReKi) - SVFC, -mem%y_hat )
               vrelFCf = mem%VRelNFiltConstA * ( vrelFC + xd%MV_rel_n_FiltStat(4,mem%NodeIndx(I)) )
               xd%MV_rel_n_FiltStat(4,mem%NodeIndx(I)) = vrelFCf - vrelFC

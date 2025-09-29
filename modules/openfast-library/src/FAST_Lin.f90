@@ -3925,7 +3925,7 @@ SUBROUTINE Linear_MAP_InputSolve_dy( p_FAST, y_FAST, u_MAP, p_ED, y_ED, y_SD, Me
       call Linearize_Point_to_Point( SubstructureMotion, u_MAP%PtFairDisplacement, MeshMapData%Structure_2_Mooring, ErrStat2, ErrMsg2 )
       FieldMask = .false.
       FieldMask(MASKID_TRANSLATIONDISP) = .true.
-      call Assemble_dUdy_Motions(y_ED%PlatformPtMesh, u_MAP%PtFairDisplacement, MeshMapData%Structure_2_Mooring, MAP_Start, SubStructure_Out_Start, dUdy, FieldMask)
+      call Assemble_dUdy_Motions(SubstructureMotion, u_MAP%PtFairDisplacement, MeshMapData%Structure_2_Mooring, MAP_Start, SubStructure_Out_Start, dUdy, FieldMask)
 
    END IF
 END SUBROUTINE Linear_MAP_InputSolve_dy

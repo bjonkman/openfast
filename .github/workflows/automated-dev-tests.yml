@@ -372,6 +372,7 @@ jobs:
             ${{github.workspace}}/build/reg_tests/modules/moordyn
             ${{github.workspace}}/build/reg_tests/modules/inflowwind
             ${{github.workspace}}/build/reg_tests/modules/hydrodyn
+            ${{github.workspace}}/build/reg_tests/modules/seastate
             !${{github.workspace}}/build/reg_tests/glue-codes/openfast-cpp/5MW_Baseline
 
 

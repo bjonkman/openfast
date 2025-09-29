@@ -42,7 +42,11 @@ classifiers = [  # Optional
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python",
 ]
 
 dependencies = [
@@ -63,8 +67,8 @@ Issues = "https://github.com/OpenFAST/openfast/issues"
 [project.optional-dependencies]
 
 rosco = ["rosco>2.9.2"]
-xlrd = ["xlrd>2"]
-all = ["rosco>2.9.2", "xlrd>2"]
+xlrd = ["xlrd>2.0"]
+all = ["rosco>2.9.2", "xlrd>2.0"]
 
 [tool.hatch.version]
 source = "vcs"

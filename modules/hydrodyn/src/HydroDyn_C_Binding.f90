@@ -31,6 +31,7 @@ MODULE HydroDyn_C_BINDING
 
    PUBLIC :: HydroDyn_C_Init
    PUBLIC :: HydroDyn_C_CalcOutput
+   PUBLIC :: HydroDyn_C_CalcOutput_and_AddedMass
    PUBLIC :: HydroDyn_C_UpdateStates
    PUBLIC :: HydroDyn_C_End
 
@@ -304,6 +305,7 @@ SUBROUTINE HydroDyn_C_Init(                                                     
    call AllocAry( tmpNodeVel, 6, NumNodePts, "tmpNodeVel", ErrStat2, ErrMsg2 );     if (Failed())  return
    call AllocAry( tmpNodeAcc, 6, NumNodePts, "tmpNodeAcc", ErrStat2, ErrMsg2 );     if (Failed())  return
    call AllocAry( tmpNodeFrc, 6, NumNodePts, "tmpNodeFrc", ErrStat2, ErrMsg2 );     if (Failed())  return
+   ! structural mesh reference position
    tmpNodePos(1:6,1:NumNodePts)   = reshape( real(InitNodePositions_C(1:6*NumNodePts),ReKi), (/6,NumNodePts/) )
 
    !----------------------------------------------------
@@ -441,6 +443,10 @@ SUBROUTINE HydroDyn_C_Init(                                                     
    HD%InitInp%Gravity            = REAL(Gravity_C,    ReKi)
    HD%InitInp%TMax               = REAL(TMax_C,       DbKi)
 
+!FIXME: initial platform position does not work!!!
+   ! Initial platform position
+!   HD%InitInp%PlatformPos        = (/ REAL(PtfmRefPtPositionX_C, ReKi), REAL(PtfmRefPtPositionX_C, ReKi), 0 /)
+
    ! Transfer data from SeaState
    ! Need to set up other module's InitInput data here because we will also need to clean up SeaState data and would rather not defer that cleanup
    HD%InitInp%InvalidWithSSExctn = SeaSt%InitOutData%InvalidWithSSExctn
@@ -500,6 +506,7 @@ SUBROUTINE HydroDyn_C_Init(                                                     
 
    !--------------------------------------------------------------------------------------------------------------------------------
    ! Set the interface meshes and outputs
+   !  -- uses the InitNodePositions_C location/orientation to set the structural mesh reference location
    !--------------------------------------------------------------------------------------------------------------------------------
    call SetMotionLoadsInterfaceMeshes(ErrStat2,ErrMsg2);    if (Failed())  return
 
@@ -842,8 +849,11 @@ CONTAINS
    end function Failed
 END SUBROUTINE HydroDyn_C_CalcOutput
 
+
 !===============================================================================================================
 !-------------------------------------- HydroDyn CalcOutput_and_AddedMass --------------------------------------
+!> This routine is similar to the HydroDyn_C_CalcOutput, but splits the forces returned from HydroDyn_CalcOutput
+!! into the hydrodynamic forces without added mass, and a separate added mass matrix.
 !===============================================================================================================
 
 SUBROUTINE HydroDyn_C_CalcOutput_and_AddedMass(Time_C, NumNodePts_C, NodePos_C, NodeVel_C, &
