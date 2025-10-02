@@ -871,115 +871,110 @@ END SUBROUTINE H2Coeffs
 !=======================================================================
 !> This routine takes the Fourier coefficients and converts them to velocity
 !! note that the resulting time series has zero mean.
+!!
+!! OPENMP - The FFT_Data data structure is problematic for some Fortran compilers when used in
+!!    the `!$OMP PRIVATE(FFT_Data)` context.  Since this is contains work data with will be 
+!!    specific to a given ApplyFFT call, it must be kept private inside the `!$OMP PARALLEL DO`
+!!    construct.  So we must call `InitFFT` inside a given OMP thread.  This limits us to only
+!!    doing parallelization around the UVW directions, and not across the NPoints loop as well
+!!    where we could potentially see big gains in performance. If we did move the InitFFT call
+!!    inside the NPoint loop, we would likely see performance drop with all the extra allocations
+!!    as well as a full doubling of memory needed (which is already a big bottleneck).
+!!    It would be possible to limit the InitFFT calls in when OpenMP is not used with `#ifdef
+!!    _OPENMP`, but that was an unreadable mess when I tried it.
 SUBROUTINE Coeffs2TimeSeries( V, NumSteps, NPoints, NUsrPoints, ErrStat, ErrMsg )
-
-
-   !USE NWTC_FFTPACK
-
-   IMPLICIT NONE 
-   
-
-   ! passed variables
    INTEGER(IntKi),   INTENT(IN)     :: NumSteps                     !< Size of dimension 1 of V (number of time steps)
    INTEGER(IntKi),   INTENT(IN)     :: NPoints                      !< Size of dimension 2 of V (number of grid points)
    INTEGER(IntKi),   INTENT(IN)     :: NUsrPoints                   !< number of user-defined time series
-
    REAL(ReKi),       INTENT(INOUT)  :: V     (NumSteps,NPoints,3)   !< An array containing the summations of the rows of H (NumSteps,NPoints,3).
-
    INTEGER(IntKi),   intent(  out)  :: ErrStat                      !< Error level
    CHARACTER(*),     intent(  out)  :: ErrMsg                       !< Message describing error
    
-   
-   ! local variables
    TYPE(FFT_DataType)               :: FFT_Data                      ! data for applying FFT
    REAL(SiKi), ALLOCATABLE          :: Work ( : )                    ! working array to hold coefficients of fft  !bjj: made it allocatable so it doesn't take stack space
-
-   
-   INTEGER(IntKi)                   :: ITime                         ! loop counter for time step/frequency 
    INTEGER(IntKi)                   :: IVec                          ! loop counter for velocity components
    INTEGER(IntKi)                   :: IPoint                        ! loop counter for grid points
-   
+   logical                          :: ExitOMPlooping                ! flag to indicate skipping other loops
    INTEGER(IntKi)                   :: ErrStat2                      ! Error level (local)
-  !CHARACTER(MaxMsgLen)             :: ErrMsg2                       ! Message describing error (local)
    
 
-   ! initialize variables
-
- !ErrStat = ErrID_None
- !ErrMsg = ""
-   
    CALL AllocAry(Work, NumSteps, 'Work',ErrStat,ErrMsg)
    if (ErrStat >= AbortErrLev) return
    
-   !  Allocate the FFT working storage and initialize its variables
-
-CALL InitFFT( NumSteps, FFT_Data, ErrStat=ErrStat2 )
-   CALL SetErrStat(ErrStat2, 'Error in InitFFT', ErrStat, ErrMsg, 'Coeffs2TimeSeries' )
-   IF (ErrStat >= AbortErrLev) THEN
-      CALL Cleanup()
-      RETURN
-   END IF
-
-
    ! Get the stationary-point time series.
 
-CALL WrScr ( ' Generating time series for all points:' )
+   CALL WrScr ( ' Generating time series for all points:' )
 
-DO IVec=1,3
+   ! Since we are potentially using OpenMP here, we cannot
+   ExitOMPlooping = .false.
 
-   CALL WrScr ( '    '//Comp(IVec)//'-component' )
+   !$OMP PARALLEL DO &
+   !$OMP PRIVATE(iVec, IPoint, Work, FFT_Data, ErrStat2)&
+   !$OMP SHARED(NPoints, NumSteps, NUsrPoints, V, errStat, errMsg, AbortErrLev, ExitOMPlooping) DEFAULT(NONE)
+   DO IVec=1,3
 
-   DO IPoint=1,NPoints    !NTotB
+      ! make sure we didn't have a failure on prior OMP loop
+      if (ExitOMPlooping) cycle
 
-         ! Overwrite the first point with zero.  This sets the real (and 
-         ! imaginary) part of the steady-state value to zero so that we 
-         ! can add in the mean value later.
+      CALL WrScr ( '    '//Comp(IVec)//'-component' )
 
-      Work(1) = 0.0_ReKi
+      ! The FFT_Data is not thread safe with the allocation inside.
+      CALL InitFFT( NumSteps, FFT_Data, ErrStat=ErrStat2 )
+      !$OMP CRITICAL  ! Needed to avoid data race on ErrStat and ErrMsg
+      CALL SetErrStat(ErrStat2, 'Error in InitFFT', ErrStat, ErrMsg, 'Coeffs2TimeSeries' )
+      !$OMP END CRITICAL
 
-!      DO ITime = 2,NumSteps-1
-      DO ITime = 2,NumSteps
-         Work(ITime) = V(ITime-1, IPoint, IVec)
-      ENDDO ! ITime
-
-      IF (iPoint > NUsrPoints) THEN
-         ! BJJ: we can't override this for the user-input spectra or we don't get the correct time series out.
-         ! Per JMJ, I will keep this here for the other points, but I personally think it could be skipped, too.
+      ! Proceed only if the InitFFT worked.
+      ! NOTE: this is to allow for OpenMP - can't return from inside loop
+      if (ErrStat2 < AbortErrLev) then ! check ErrStat2 for this OMPthread
+         DO IPoint=1,NPoints    !NTotB
+            ! Overwrite the first point with zero.  This sets the real (and 
+            ! imaginary) part of the steady-state value to zero so that we 
+            ! can add in the mean value later.
+            Work(1) = 0.0_ReKi
+            Work(2:NumSteps) = V(1:NumSteps-1, IPoint, IVec)
          
-         ! Now, let's add a complex zero to the end to set the power in the Nyquist
-         ! frequency to zero.
+            IF (iPoint > NUsrPoints) THEN
+               ! BJJ: we can't override this for the user-input spectra or we don't get the correct time series out.
+               ! Per JMJ, I will keep this here for the other points, but I personally think it could be skipped, too.
+               
+               ! Now, let's add a complex zero to the end to set the power in the Nyquist
+               ! frequency to zero.
+               Work(NumSteps) = 0.0
+            END IF
          
-         Work(NumSteps) = 0.0
-      END IF
+            ! perform FFT
+            CALL ApplyFFT( Work, FFT_Data, ErrStat2 )
+               IF (ErrStat2 /= ErrID_None ) THEN
+                  !$OMP CRITICAL  ! Needed to avoid data race on ErrStat and ErrMsg
+                  CALL SetErrStat(ErrStat2, 'Error in ApplyFFT for point '//TRIM(Num2LStr(IPoint))//'.', ErrStat, ErrMsg, 'Coeffs2TimeSeries' )
+                  !$OMP END CRITICAL
+                  IF (ErrStat >= AbortErrLev) EXIT
+               END IF
+              
+            V(:,IPoint,IVec) = Work
+         ENDDO ! IPoint
       
-      
+         ! Clean up memory from FFT_Data.
+         CALL ExitFFT( FFT_Data, ErrStat2 )
+         !$OMP CRITICAL  ! Needed to avoid data race on ErrStat and ErrMsg
+         CALL SetErrStat(ErrStat2, 'Error in ExitFFT', ErrStat, ErrMsg, 'Coeffs2TimeSeries' )
+         !$OMP END CRITICAL
 
-         ! perform FFT
+         ! skip further OMP loops if any sequential (or if OMP not used).
+         ! NOTE: OMP doesn't allow return inside OMP thread
+         if (ErrStat2 >= AbortErrLev) ExitOMPlooping = .true.
+      endif
+   ENDDO ! IVec 
+   !$OMP END PARALLEL DO  
 
-      CALL ApplyFFT( Work, FFT_Data, ErrStat2 )
-         IF (ErrStat2 /= ErrID_None ) THEN
-            CALL SetErrStat(ErrStat2, 'Error in ApplyFFT for point '//TRIM(Num2LStr(IPoint))//'.', ErrStat, ErrMsg, 'Coeffs2TimeSeries' )
-            IF (ErrStat >= AbortErrLev) EXIT
-         END IF
-        
-      V(:,IPoint,IVec) = Work
+   CALL Cleanup()
 
-   ENDDO ! IPoint
-
-ENDDO ! IVec 
-
-CALL Cleanup()
-
-RETURN
-CONTAINS
-!...........................................
-SUBROUTINE Cleanup()
-   
-   CALL ExitFFT( FFT_Data, ErrStat2 )
-   CALL SetErrStat(ErrStat2, 'Error in ExitFFT', ErrStat, ErrMsg, 'Coeffs2TimeSeries' )
-
-   if (allocated(work)) deallocate(work)
-   
+   RETURN
+   CONTAINS
+   !...........................................
+   SUBROUTINE Cleanup()
+      if (allocated(work)) deallocate(work)
    END SUBROUTINE Cleanup
 END SUBROUTINE Coeffs2TimeSeries
 !=======================================================================
