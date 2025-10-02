@@ -19,6 +19,10 @@
 !**********************************************************************************************************************************
 MODULE TSSubs
 
+#ifdef _OPENMP
+   use omp_lib
+#endif
+
    USE ModifiedvKrm_mod
    
    use TS_Profiles  
@@ -39,14 +43,14 @@ CONTAINS
 !! real array) of the simulated velocity (wind/water speed). It returns
 !! values FOR ONLY the velocity components that use the IEC method for
 !! computing spatial coherence; i.e., for i where SCMod(i) == CohMod_IEC
-SUBROUTINE CalcFourierCoeffs_IEC( p, U, PhaseAngles, S, V, TRH, ErrStat, ErrMsg )
+SUBROUTINE CalcFourierCoeffs_IEC( p, U, PhaseAngles, S, V, TRH_in, ErrStat, ErrMsg )
 
 TYPE(TurbSim_ParameterType), INTENT(IN   )  :: p                            !< TurbSim parameters
 REAL(ReKi),                  INTENT(IN)     :: U           (:)              !< The steady u-component wind speeds for the grid (NPoints).
 REAL(ReKi),                  INTENT(IN)     :: PhaseAngles (:,:,:)          !< The array that holds the random phases [number of points, number of frequencies, number of wind components=3].
 REAL(ReKi),                  INTENT(IN)     :: S           (:,:,:)          !< The turbulence PSD array (NumFreq,NPoints,3).
 REAL(ReKi),                  INTENT(INOUT)  :: V           (:,:,:)          !< An array containing the summations of the rows of H (NumSteps,NPoints,3).
-REAL(ReKi),                  INTENT(INOUT)  :: TRH (:)                      !< The transfer function matrix.  just used as a work array
+REAL(ReKi), TARGET,          INTENT(INOUT)  :: TRH_in (:)                   !< The transfer function matrix.  just used as a work array
 INTEGER(IntKi),              INTENT(OUT)    :: ErrStat
 CHARACTER(*),                INTENT(OUT)    :: ErrMsg
 
@@ -61,10 +65,17 @@ INTEGER                       :: I
 INTEGER                       :: IFreq
 INTEGER                       :: Indx
 INTEGER                       :: IVec  ! wind component, 1=u, 2=v, 3=w
+integer                       :: OMP_threads
+logical                       :: OMPerr         ! error with OMP thread requiring abort
+real(ReKi), pointer             :: TRH(:)       ! temp transfer function matrix (work array)
+real(ReKi), allocatable, target :: TRH_lcl(:)   ! make local copy
                               
 INTEGER(IntKi)                :: ErrStat2
 CHARACTER(MaxMsgLen)          :: ErrMsg2
    
+#ifdef _OPENMP
+   OMP_threads = omp_get_max_threads()      ! limit number of threads to reasonable number (either set externally, or by hardware limit)
+#endif
 
    
    ErrStat = ErrID_None
@@ -115,7 +126,32 @@ CHARACTER(MaxMsgLen)          :: ErrMsg2
       ! Calculate the coherence, Veers' H matrix (CSDs), and the fourier coefficients
       !---------------------------------------------------------------------------------
 
+
+      OMPerr = .false.
+      !$OMP PARALLEL DO &
+      !$OMP NUM_THREADS(OMP_threads) &
+      !$OMP PRIVATE(IFREQ, Indx, I, J, TRH_lcl, ErrStat2, ErrMsg2, TRH) &
+      !$OMP SHARED(p,PhaseAngles,S,V,Dist,DistU,IVec,OMPerr,TRH_in,ErrStat,ErrMsg,AbortErrLev) &
+      !$OMP DEFAULT(None)
       DO IFREQ = 1,p%grid%NumFreq
+         ! if an aborting error happened in a prior thread, skip
+         if (OMPerr) cycle
+
+#ifndef _OPENMP
+         TRH => TRH_in
+#else
+         if (.not. allocated(TRH_lcl)) then
+            call AllocAry( TRH_lcl, p%grid%NPacked, 'TRH coherence array', ErrStat2, ErrMsg2 )
+            !$OMP CRITICAL
+            call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'CalcFourierCoeffs')
+            !$OMP END CRITICAL
+            if (ErrStat2 >= AbortErrLev) OMPerr = .true.
+            if (OMPerr) cycle
+            TRH => TRH_lcl
+         endif
+#endif
+
+
          ! -----------------------------------------------
          ! Create the coherence matrix for this frequency
          ! -----------------------------------------------
@@ -149,14 +185,28 @@ CHARACTER(MaxMsgLen)          :: ErrMsg2
          !   use H matrix to calculate coefficients
          ! -----------------------------------------------
          
-         CALL Coh2H(    p, IVec, IFreq, TRH, S, ErrStat2, ErrMsg2 )       
-            CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'CalcFourierCoeffs_IEC')
-            IF (ErrStat >= AbortErrLev) THEN
-               CALL Cleanup()
-               RETURN
-            END IF
-         CALL H2Coeffs( IVec, IFreq, TRH, PhaseAngles, V, p%grid%NPoints )
+         CALL Coh2H(    p, IVec, IFreq, TRH, S, ErrStat2, ErrMsg2 )
+         !$OMP CRITICAL 
+         CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'CalcFourierCoeffs_IEC')
+         !$OMP END CRITICAL
+         if (ErrStat2 >= AbortErrLev) then
+            OMPerr = .true.
+         else
+            CALL H2Coeffs( IVec, IFreq, TRH, PhaseAngles, V, p%grid%NPoints )
+         endif
+
+#ifdef _OPENMP
+         if (allocated(TRH_lcl)) deallocate(TRH_lcl)
+#endif
+
+
       END DO !IFreq
+      !$OMP END PARALLEL DO
+
+      if (OMPerr) then
+         call Cleanup()
+         return
+      endif
 
    END DO !IVec   
                
@@ -753,6 +803,11 @@ CHARACTER(*),                INTENT(OUT)    :: ErrMsg
 integer                          :: Indx, J, I, NPts
 
          
+#ifdef _OPENMP
+   call omp_set_max_active_levels(1)      ! disallow the LAPACK_pptrf to use OMP parallelization (this kills performance)
+#endif
+
+
       ! -------------------------------------------------------------
       ! Calculate the Cholesky factorization for the coherence matrix
       ! -------------------------------------------------------------      
@@ -2025,28 +2080,33 @@ SUBROUTINE AddMeanAndRotate(p, V, U, HWindDir, VWindDir)
    REAL(ReKi)                                  ::  v3(3)             ! temporary 3-component array containing velocity
    INTEGER(IntKi)                              ::  ITime             ! loop counter for time step 
    INTEGER(IntKi)                              ::  IPoint            ! loop counter for grid points
-                                                                     
-                                                                     
-                                                                     
-                                                                     
+   integer(IntKi)                              ::  OMP_threads       ! number of threads for OMP (if used)
+
+#ifdef _OPENMP
+   OMP_threads = omp_get_max_threads()      ! limit number of threads to reasonable number (either set externally, or by hardware limit)
+#endif
+
    !..............................................................................
-   ! Add mean wind to u' components and rotate to inertial reference  
+   ! Add mean wind to u' components and rotate to inertial reference
    !  frame coordinate system
-   !..............................................................................        
+   !..............................................................................
+!$OMP PARALLEL DO &
+!$OMP NUM_THREADS(OMP_threads) &
+!$OMP PRIVATE(IPoint,ITime,v3) &
+!$OMP SHARED(p, U, V, HWindDir, VWindDir) &
+!$OMP DEFAULT(None)
    DO IPoint=1,p%grid%Npoints   
       DO ITime=1,p%grid%NumSteps
 
-            ! Add mean wind speed to the streamwise component and
-            ! Rotate the wind to the X-Y-Z (inertial) reference frame coordinates:
-            
+         ! Add mean wind speed to the streamwise component and
+         ! Rotate the wind to the X-Y-Z (inertial) reference frame coordinates:
          v3 = V(ITime,IPoint,:) 
          CALL CalculateWindComponents( v3, U(IPoint), HWindDir(IPoint), VWindDir(IPoint), V(ITime,IPoint,:) )
                         
       ENDDO ! ITime
-         
    ENDDO ! IPoint   
-                                                                     
-                                                                     
+!$OMP END PARALLEL DO
+
 END SUBROUTINE AddMeanAndRotate
 !=======================================================================
 SUBROUTINE TS_ValidateInput(P, ErrStat, ErrMsg)
