@@ -43,6 +43,16 @@ CONTAINS
 !! real array) of the simulated velocity (wind/water speed). It returns
 !! values FOR ONLY the velocity components that use the IEC method for
 !! computing spatial coherence; i.e., for i where SCMod(i) == CohMod_IEC
+!!
+!! OpenMP:  This is a cludgy mess.  The TRH array ends up used as SHARED
+!!    despite declaring it as PRIVATE with some compilers.  So I have to
+!!    cheat the system a bit and do extra allocations of a temporary, then
+!!    point to it for OMP instances.  But all those allocations would kill
+!!    performance on single thread, so more crappy logic around that mess.
+!!    It's ugly, but maybe, just maybe it will work ok.
+!!    One other little issue though - if the MKL decides to go parallel
+!!    in the LAPACK routine, it could be amess.  So another statement to
+!!    stop that from happening (somehow).
 SUBROUTINE CalcFourierCoeffs_IEC( p, U, PhaseAngles, S, V, TRH_in, ErrStat, ErrMsg )
 
 TYPE(TurbSim_ParameterType), INTENT(IN   )  :: p                            !< TurbSim parameters
@@ -801,12 +811,8 @@ CHARACTER(*),                INTENT(OUT)    :: ErrMsg
 
 
 integer                          :: Indx, J, I, NPts
-
+integer                          :: old_max_levels    ! maximum nesting levels for OPENMP
          
-#ifdef _OPENMP
-   call omp_set_max_active_levels(1)      ! disallow the LAPACK_pptrf to use OMP parallelization (this kills performance)
-#endif
-
 
       ! -------------------------------------------------------------
       ! Calculate the Cholesky factorization for the coherence matrix
@@ -820,7 +826,14 @@ integer                          :: Indx, J, I, NPts
       NPts = p%grid%NPoints
    END IF
          
+#ifdef _OPENMP
+   old_max_levels = omp_get_max_active_levels()
+    call omp_set_max_active_levels(1)   ! don't allow additional OPENMP parallelization here
+#endif
    CALL LAPACK_pptrf( 'L', NPts, TRH(Indx:), ErrStat, ErrMsg )  ! 'L'ower triangular 'TRH' matrix (packed form), of order 'NPoints'; returns Stat
+#ifdef _OPENMP
+    call omp_set_max_active_levels(old_max_levels)
+#endif
 
    IF ( ErrStat /= ErrID_None ) THEN
       IF (ErrStat < AbortErrLev) then
