@@ -141,7 +141,7 @@ CHARACTER(MaxMsgLen)          :: ErrMsg2
       !$OMP PARALLEL DO &
       !$OMP NUM_THREADS(OMP_threads) &
       !$OMP PRIVATE(IFREQ, Indx, I, J, TRH_lcl, ErrStat2, ErrMsg2, TRH) &
-      !$OMP SHARED(p,PhaseAngles,S,V,Dist,DistU,IVec,OMPerr,TRH_in,ErrStat,ErrMsg,AbortErrLev) &
+      !$OMP SHARED(p,PhaseAngles,S,V,Dist,DistU,IVec,OMPerr,ErrStat,ErrMsg,AbortErrLev) &
       !$OMP DEFAULT(None)
       DO IFREQ = 1,p%grid%NumFreq
          ! if an aborting error happened in a prior thread, skip
