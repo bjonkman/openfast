@@ -780,18 +780,17 @@ integer                          :: Indx, J, I
       ! -----------------------------------------------------------------------------------
 
    Indx = 1
+   TRH = 0.0
    DO J = 1,NPoints ! The column number
 
          ! The diagonal entries of the matrix:
 
       TRH(Indx) = SQRT( ABS( S(IFreq,J,IVec) ) )
 
-         ! The off-diagonal values:
-      Indx = Indx + 1
-      DO I = J+1,NPoints ! The row number
-         TRH(Indx) = 0.0
-         Indx = Indx + 1
-      ENDDO ! I
+      ! skip rest of row (NPoints-1) -- these are off diagonal elements that are zero.
+      ! Then add 1 to get to next diagonal entry
+      Indx = Indx + (NPoints - J) + 1
+
    ENDDO ! J
 
 END SUBROUTINE EyeCoh2H
