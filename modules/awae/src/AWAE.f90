@@ -380,6 +380,7 @@ subroutine LowResGridCalcOutput(n, u, p, xd, y, m, errStat, errMsg)
    integer(IntKi)      :: maxN_wake
    integer(IntKi)      :: WAT_iT,WAT_iY,WAT_iZ  !< indexes for WAT point (Time interchangeable with X)
    integer(IntKi)      :: errStat2
+   character(ErrMsgLen):: errMsg2
    character(*), parameter   :: RoutineName = 'LowResGridCalcOutput'
    logical             :: within
    real(ReKi)     :: yHat_plane(3), zHat_plane(3)
@@ -507,15 +508,6 @@ subroutine LowResGridCalcOutput(n, u, p, xd, y, m, errStat, errMsg)
          ELSE                                           ! All subsequent calls to AWAE_CalcOutput
 
 
-      ! Warn our kind users if wake planes leave the low-resolution domain:
-            if ( u%p_plane(1,np,nt) < p%Grid_Low(1,            1) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the lowest-most X boundary of the low-resolution domain.', errStat, errMsg, RoutineName)
-            if ( u%p_plane(1,np,nt) > p%Grid_Low(1,p%NumGrid_low) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the upper-most X boundary of the low-resolution domain.' , errStat, errMsg, RoutineName)
-            if ( u%p_plane(2,np,nt) < p%Grid_Low(2,            1) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the lowest-most Y boundary of the low-resolution domain.', errStat, errMsg, RoutineName)
-            if ( u%p_plane(2,np,nt) > p%Grid_Low(2,p%NumGrid_low) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the upper-most Y boundary of the low-resolution domain.' , errStat, errMsg, RoutineName)
-            if ( u%p_plane(3,np,nt) < p%Grid_Low(3,            1) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the lowest-most Z boundary of the low-resolution domain.', errStat, errMsg, RoutineName)
-            if ( u%p_plane(3,np,nt) > p%Grid_Low(3,p%NumGrid_low) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the upper-most Z boundary of the low-resolution domain.' , errStat, errMsg, RoutineName)
-         
-         
              xplane_sq = u%xhat_plane(1,np,nt)**2.0_ReKi
              yplane_sq = u%xhat_plane(2,np,nt)**2.0_ReKi
              xysq_Z = (/0.0_ReKi, 0.0_ReKi, xplane_sq+yplane_sq/)
@@ -586,6 +578,19 @@ subroutine LowResGridCalcOutput(n, u, p, xd, y, m, errStat, errMsg)
              y%V_plane(:,np,nt) = 0.0_ReKi
              wsum_tmp = 0.0_ReKi
              n_r_polar = FLOOR((p%C_ScaleDiam*u%D_wake(np,nt))/p%dpol)
+
+             ! Warn our kind users if wake planes leave the low-resolution domain and skip the calculation of V_plane:
+             ! Aggregate messages from all checks, then cycle to skip rest of the loop over planes
+             errStat2 = ErrID_None
+             errMsg2  = ''
+             if ( u%p_plane(1,np,nt) < p%Grid_Low(1,            1) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the lowest-most X boundary of the low-resolution domain.', errStat2, errMsg2, '')
+             if ( u%p_plane(1,np,nt) > p%Grid_Low(1,p%NumGrid_low) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the upper-most X boundary of the low-resolution domain.' , errStat2, errMsg2, '')
+             if ( u%p_plane(2,np,nt) < p%Grid_Low(2,            1) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the lowest-most Y boundary of the low-resolution domain.', errStat2, errMsg2, '')
+             if ( u%p_plane(2,np,nt) > p%Grid_Low(2,p%NumGrid_low) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the upper-most Y boundary of the low-resolution domain.' , errStat2, errMsg2, '')
+             if ( u%p_plane(3,np,nt) < p%Grid_Low(3,            1) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the lowest-most Z boundary of the low-resolution domain.', errStat2, errMsg2, '')
+             if ( u%p_plane(3,np,nt) > p%Grid_Low(3,p%NumGrid_low) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the upper-most Z boundary of the low-resolution domain.' , errStat2, errMsg2, '')
+             call SetErrStat(errStat2,errMsg2,errStat,errMsg,RoutineName)   ! collect above warnings.  An extra ":" will appear in error message doing this.
+             if (errStat2 == ErrID_Warn) cycle ! skip calculation of V_plane since center left domain
 
              do nr = 0, n_r_polar
 
