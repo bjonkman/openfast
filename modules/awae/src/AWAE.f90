@@ -381,6 +381,7 @@ subroutine LowResGridCalcOutput(n, u, p, xd, y, m, errStat, errMsg)
    integer(IntKi)      :: WAT_iT,WAT_iY,WAT_iZ  !< indexes for WAT point (Time interchangeable with X)
    integer(IntKi)      :: errStat2
    character(ErrMsgLen):: errMsg2
+   character(12)       :: tmpStr12
    character(*), parameter   :: RoutineName = 'LowResGridCalcOutput'
    logical             :: within
    real(ReKi)     :: yHat_plane(3), zHat_plane(3)
@@ -579,18 +580,45 @@ subroutine LowResGridCalcOutput(n, u, p, xd, y, m, errStat, errMsg)
              wsum_tmp = 0.0_ReKi
              n_r_polar = FLOOR((p%C_ScaleDiam*u%D_wake(np,nt))/p%dpol)
 
-             ! Warn our kind users if wake planes leave the low-resolution domain and skip the calculation of V_plane:
-             ! Aggregate messages from all checks, then cycle to skip rest of the loop over planes
+             ! Check if the center of this wwake plane has left the domain.  If so, add a kick in the direction of that
+             ! boundary to push the entirety of the plane out of the domain (if this isn't done and the velocity is
+             ! just set to zero, there is a pileup effect at the edge of the domain that we don't want).  There may be
+             ! some streaking with this method, but it should not affect results or the propagation of further planes
+             ! (also simpler to implement than tracking the last velocity of the plane and maintaining it -- indexing
+             ! headaches with that which could be problematic).
+             ! After setting the velocity manually for exiting planes, cycle past the remaining calculations.
              errStat2 = ErrID_None
              errMsg2  = ''
-             if ( u%p_plane(1,np,nt) < p%Grid_Low(1,            1) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the lowest-most X boundary of the low-resolution domain.', errStat2, errMsg2, '')
-             if ( u%p_plane(1,np,nt) > p%Grid_Low(1,p%NumGrid_low) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the upper-most X boundary of the low-resolution domain.' , errStat2, errMsg2, '')
-             if ( u%p_plane(2,np,nt) < p%Grid_Low(2,            1) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the lowest-most Y boundary of the low-resolution domain.', errStat2, errMsg2, '')
-             if ( u%p_plane(2,np,nt) > p%Grid_Low(2,p%NumGrid_low) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the upper-most Y boundary of the low-resolution domain.' , errStat2, errMsg2, '')
-             if ( u%p_plane(3,np,nt) < p%Grid_Low(3,            1) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the lowest-most Z boundary of the low-resolution domain.', errStat2, errMsg2, '')
-             if ( u%p_plane(3,np,nt) > p%Grid_Low(3,p%NumGrid_low) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the upper-most Z boundary of the low-resolution domain.' , errStat2, errMsg2, '')
-             call SetErrStat(errStat2,errMsg2,errStat,errMsg,RoutineName)   ! collect above warnings.  An extra ":" will appear in error message doing this.
-             if (errStat2 == ErrID_Warn) cycle ! skip calculation of V_plane since center left domain
+             if ( u%p_plane(1,np,nt) < p%Grid_Low(1,            1) ) then                                ! lower x boundary
+                y%V_plane(:,np,nt) = (/ -u%D_wake(np,nt) / real(p%dt_low,ReKi), 0.0_ReKi, 0.0_ReKi /)    ! add velocity in -x direction
+                ErrStat2  = ErrID_Warn
+                tmpStr12 = 'lower-most X'
+             elseif ( u%p_plane(1,np,nt) > p%Grid_Low(1,p%NumGrid_low) ) then                            ! upper x boundary
+                y%V_plane(:,np,nt) = (/  u%D_wake(np,nt) / real(p%dt_low,ReKi), 0.0_ReKi, 0.0_ReKi /)    ! add velocity in +x direction
+                ErrStat2  = ErrID_Warn
+                tmpStr12 = 'upper-most X'
+             elseif ( u%p_plane(2,np,nt) < p%Grid_Low(2,            1) ) then                            ! lower y boundary
+                y%V_plane(:,np,nt) = (/ 0.0_ReKi, -u%D_wake(np,nt) / real(p%dt_low,ReKi), 0.0_ReKi /)    ! add velocity in -y direction
+                ErrStat2  = ErrID_Warn
+                tmpStr12 = 'lower-most Y'
+             elseif ( u%p_plane(2,np,nt) > p%Grid_Low(2,p%NumGrid_low) ) then                            ! upper y boundary
+                y%V_plane(:,np,nt) = (/ 0.0_ReKi,  u%D_wake(np,nt) / real(p%dt_low,ReKi), 0.0_ReKi /)    ! add velocity in +y direction
+                ErrStat2  = ErrID_Warn
+                tmpStr12 = 'upper-most Y'
+             elseif ( u%p_plane(3,np,nt) < p%Grid_Low(3,            1) ) then                            ! lower z boundary
+                y%V_plane(:,np,nt) = (/ 0.0_ReKi, 0.0_ReKi, -u%D_wake(np,nt) / real(p%dt_low,ReKi) /)    ! add velocity in -z direction
+                ErrStat2  = ErrID_Warn
+                tmpStr12 = 'lower-most Z'
+             elseif ( u%p_plane(3,np,nt) > p%Grid_Low(3,p%NumGrid_low) ) then                            ! upper z boundary
+                y%V_plane(:,np,nt) = (/ 0.0_ReKi, 0.0_ReKi,  u%D_wake(np,nt) / real(p%dt_low,ReKi) /)    ! add velocity in +z direction
+                ErrStat2  = ErrID_Warn
+                tmpStr12 = 'upper-most Z'
+             endif
+             if (errStat2 == ErrID_Warn) then
+                ! assemble the warning
+                call SetErrStat(errStat2,'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the '//tmpStr12//' boundary of the low-resolution domain.',errStat,errMsg,RoutineName)
+                cycle
+             endif
 
              do nr = 0, n_r_polar
 
