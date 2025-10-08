@@ -50,6 +50,13 @@ MODULE AeroDyn_Inflow_C_BINDING
    type(ProgDesc), parameter              :: version   = ProgDesc( 'AeroDyn-Inflow library', '', '' )
 
    !------------------------------------------------------------------------------------
+   !  Wind
+   !     externFlowField   - FlowField is handled externally to ADI, pointer must be set manually
+   !     FlowFieldPtr      - is the FlowField pointer set, either internal or external?
+   logical                                :: externFlowField = .false.
+   logical                                :: FlowFieldPtrSet = .false.
+
+   !------------------------------------------------------------------------------------
    !  Debugging: DebugLevel -- passed at PreInit
    !     0  - none
    !     1  - some summary info
@@ -190,6 +197,7 @@ subroutine ADI_C_PreInit(                       &
    defSpdSound_in, defPatm_in, defPvap_in,      &
    WtrDpth_in, MSL2SWL_in,                      &
    MHK_in,                                      &
+   externFlowField_in,                          &
    OutVTKDir_C,                                 &
    WrVTK_in, WrVTK_inType, WrVTK_inDT,          &
    VTKNacDim_in, VTKHubRad_in,                  &
@@ -212,6 +220,8 @@ subroutine ADI_C_PreInit(                       &
    real(c_float),          intent(in   )  :: WtrDpth_in             !< Water depth (m) [used only for an MHK turbine]
    real(c_float),          intent(in   )  :: MSL2SWL_in             !< Offset between still-water level and mean sea level (m) [positive upward, used only for an MHK turbine]
    integer(c_int),         intent(in   )  :: MHK_in                 !< Marine hydrokinetic turbine [0: none; 1: fixed bottom MHK; 2: Floating MHK]
+   ! inflow
+   integer(c_int),         intent(in   )  :: externFlowField_in     !< skip IfW setup and use external module with pointer
    ! VTK
    character(kind=c_char), intent(in   )  :: OutVTKDir_C(IntfStrLen)    !< Directory to put all vtk output
    integer(c_int),         intent(in   )  :: WrVTK_in                   !< Write VTK outputs [0: none, 1: init only, 2: animation]
@@ -344,6 +354,15 @@ subroutine ADI_C_PreInit(                       &
    enddo
 
 
+   !----------------------------------------------------
+   ! ADI settings
+   !----------------------------------------------------
+   ! FlowField - internal to ADI library, or external
+   if (externFlowField_in==1_c_int) then
+      externFlowField = .true.
+      InitInp%FlowFieldPtr => 
+   endif
+
    ! Setup VTK
    ! OutVTKDir -- output directory
    OutVTKDir = TRANSFER( OutVTKDir_C, OutVTKDir )
@@ -408,6 +427,9 @@ contains
       call WrScr("       defPvap_C                      "//trim(Num2LStr( defPvap_in     )) )
       call WrScr("       WtrDpth_C                      "//trim(Num2LStr( WtrDpth_in     )) )
       call WrScr("       MSL2SWL_C                      "//trim(Num2LStr( MSL2SWL_in     )) )
+      call WrScr("   Wind from external IfW instance")
+      TmpFlag="F";   if (externFlowField_in==1_c_int) TmpFlag="T"
+      call WrScr("       externFlowField_in             "//TmpFlag )
       call WrScr("   VTK visualization variables")
       call WrScr("       OutVTKDir                      "//trim(OutVTKDir)   )
       call WrScr("       WrVTK_in                       "//trim(Num2LStr( WrVTK_in      )) )
@@ -905,6 +927,8 @@ CONTAINS
       call WrScr("       storeHHVel                     "//TmpFlag )
       call WrScr("-----------------------------------------------------------")
    end subroutine ShowPassedData
+FIXME: add a ShowReturnData here!
+
 
    !> This subroutine sets the interface meshes to map to the input motions to the AD
    !! meshes
@@ -1092,6 +1116,7 @@ CONTAINS
          call SetErrStat_F2C(ErrStat_F,ErrMsg_F,ErrStat_C,ErrMsg_C)
       endif
    end function Failed
+!FIXME: add a showpassed/return routine
 END SUBROUTINE ADI_C_CalcOutput
 
 !===============================================================================================================
@@ -1770,15 +1795,13 @@ subroutine ADI_C_SetRotorMotion( iWT_c,                             &
    enddo
 
    ! Transfer motions to input meshes
-   do iWT=1,Sim%NumTurbines
-      call Set_MotionMesh(iWT, ErrStat_F2, ErrMsg_F2);    if (Failed())  return
-      call AD_SetInputMotion( iWT, ADI_u, &
-               HubPos_C,   HubOri_C,   HubVel_C,   HubAcc_C,      &
-               NacPos_C,   NacOri_C,   NacVel_C,   NacAcc_C,      &
-               BldRootPos_C, BldRootOri_C, BldRootVel_C,   BldRootAcc_C,   &
-               ErrStat_F2, ErrMsg_F2 )  ! transfer input motion mesh to u(1) meshes
-         if (Failed())  return
-   enddo
+   call Set_MotionMesh(iWT, ErrStat_F2, ErrMsg_F2);    if (Failed())  return
+   call AD_SetInputMotion( iWT, ADI_u, &
+            HubPos_C,   HubOri_C,   HubVel_C,   HubAcc_C,      &
+            NacPos_C,   NacOri_C,   NacVel_C,   NacAcc_C,      &
+            BldRootPos_C, BldRootOri_C, BldRootVel_C,   BldRootAcc_C,   &
+            ErrStat_F2, ErrMsg_F2 )  ! transfer input motion mesh to u(1) meshes
+      if (Failed())  return
 
    ! Set error status
    call SetErrStat_F2C(ErrStat_F,ErrMsg_F,ErrStat_C,ErrMsg_C)

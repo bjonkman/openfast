@@ -251,7 +251,6 @@ end subroutine ADI_UpdateStates
 !----------------------------------------------------------------------------------------------------------------------------------
 !> Routine for computing outputs, used in both loose and tight coupling.
 subroutine ADI_CalcOutput(t, u, p, x, xd, z, OtherState, y, m, errStat, errMsg)
-   use IfW_FlowField, only: IfW_FlowField_GetVelAcc
    real(DbKi),                      intent(in   )  :: t           !< Current simulation time in seconds
    type(ADI_InputType),             intent(inout)  :: u           !< Inputs at Time t  ! NOTE: set as in-out since "Inflow" needs to be set
    type(ADI_ParameterType),         intent(in   )  :: p           !< Parameters
