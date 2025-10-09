@@ -76,6 +76,7 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
 
    TYPE(FAST_ExternInitType)                       :: ExternInitData 
    INTEGER(IntKi)                                  :: j,k,nb      
+   REAL(ReKi)                                      :: p0(3)       ! hub location (in FAST with 0,0,0 as turbine reference)
    
    INTEGER(IntKi)                                  :: ErrStat2    ! local error status
    CHARACTER(ErrMsgLen)                            :: ErrMsg2     ! local error message
@@ -196,10 +197,14 @@ SUBROUTINE FWrap_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
                          )
             if (Failed()) return;
             
-            ! set node initial position/orientation
-         ! shortcut for 
-         ! call MeshPositionNode(m%ADRotorDisk(k), j, [0,0,r(j)], errStat2, errMsg2)
-         m%ADRotorDisk(k)%Position(3,:) = p%r ! this will get overwritten later, but we check that we have no zero-length elements in MeshCommit()
+         ! set node initial position/orientation
+         ! NOTE:  the mesh data for ADRotorDisk gets overwritten later, but should be aligned somewhat with
+         !        the blade during initialization to avoid mesh mapping errors. This puts it aligned with
+         !        the blade pitch axis now, but no calculations will be done until after it is reset properly
+         !        later.
+         do j=1,size(p%r)
+            m%ADRotorDisk(k)%Position(1:3,j) = m%Turbine%AD%u%rotors(1)%BladeRootMotion(k)%Position(1:3,1) + m%Turbine%AD%u%rotors(1)%BladeRootMotion(k)%TranslationDisp(1:3,1) + m%Turbine%AD%u%rotors(1)%BladeRootMotion(k)%Orientation(3,1:3,1) * p%r(j)
+         enddo
          m%ADRotorDisk(k)%TranslationDisp = 0.0_R8Ki ! this happens by default, anyway....
          
             ! create line2 elements
