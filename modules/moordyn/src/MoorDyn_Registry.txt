@@ -16,6 +16,10 @@
 include Registry_NWTC_Library.txt
 usefrom SeaSt_WaveField.txt
 
+
+## ====== parameters =======
+param     MoorDyn/MD  -                IntKi              MD_MaxNCoef    -    30    -   "maximum number of entries to allow in nonlinear coefficient lookup tables" -
+
 ## ====== some data read from the input file, but not needed after init ======
 typedef   MoorDyn/MD  MD_InputFileType DbKi               DTIC           -    0.5   -   "convergence check time step for IC generation"              "[s]"
 typedef   ^           ^                DbKi               TMaxIC         -    120   -   "maximum time to allow for getting converged ICs"              "[s]"
@@ -68,14 +72,14 @@ typedef  ^            ^                DbKi               dF             -      
 typedef  ^            ^                DbKi               cF             -       -  -   "Center VIV synchronization in non-dimensional frequency"
 typedef  ^            ^                IntKi              ElasticMod     -       -  -   "Which elasticity model to use: {1 basic, 2 viscoelastic, 3 viscoelastic+meanload} "     -
 typedef  ^            ^                IntKi              nEApoints      -       -  -   "number of values in stress-strain lookup table (0 means using constant E)"
-typedef  ^            ^                DbKi               stiffXs        {30}    -  -   "x array for stress-strain lookup table (up to nCoef)"
-typedef  ^            ^                DbKi               stiffYs        {30}    -  -   "y array for stress-strain lookup table"
+typedef  ^            ^                DbKi               stiffXs  {MD_MaxNCoef} -  -   "x array for stress-strain lookup table (up to MD_MaxNCoef)"
+typedef  ^            ^                DbKi               stiffYs  {MD_MaxNCoef} -  -   "y array for stress-strain lookup table"
 typedef  ^            ^                IntKi              nBApoints      -       -  -   "number of values in stress-strainrate lookup table (0 means using constant c)"
-typedef  ^            ^                DbKi               dampXs         {30}    -  -   "x array for stress-strainrate lookup table (up to nCoef)"
-typedef  ^            ^                DbKi               dampYs         {30}    -  -   "y array for stress-strainrate lookup table"
+typedef  ^            ^                DbKi               dampXs   {MD_MaxNCoef} -  -   "x array for stress-strainrate lookup table (up to MD_MaxNCoef)"
+typedef  ^            ^                DbKi               dampYs   {MD_MaxNCoef} -  -   "y array for stress-strainrate lookup table"
 typedef  ^            ^                IntKi              nEIpoints      -       -  -   "number of values in bending stress-strain lookup table (0 means using constant E)"
-typedef  ^            ^                DbKi               bstiffXs       {30}    -  -   "x array for stress-strain lookup table (up to nCoef)"
-typedef  ^            ^                DbKi               bstiffYs       {30}    -  -   "y array for stress-strain lookup table"
+typedef  ^            ^                DbKi               bstiffXs {MD_MaxNCoef} -  -   "x array for stress-strain lookup table (up to MD_MaxNCoef)"
+typedef  ^            ^                DbKi               bstiffYs {MD_MaxNCoef} -  -   "y array for stress-strain lookup table"
 
 # rod properties from rod dictionary input
 typedef  ^            MD_RodProp       IntKi              IdNum          -       -  -   "integer identifier of this set of rod properties"
@@ -249,14 +253,14 @@ typedef  ^            ^                DbKi               Cl             -      
 typedef  ^            ^                DbKi               dF             -       -  -   "+- range of VIV synchronization in non-dimensional frequency"
 typedef  ^            ^                DbKi               cF             -       -  -   "Center VIV synchronization in non-dimensional frequency"
 typedef  ^            ^                IntKi              nEApoints     -        -  -   "number of values in stress-strain lookup table (0 means using constant E)"
-typedef  ^            ^                DbKi               stiffXs       {30}     -  -   "x array for stress-strain lookup table (up to nCoef)"
-typedef  ^            ^                DbKi               stiffYs       {30}     -  -   "y array for stress-strain lookup table"
+typedef  ^            ^                DbKi               stiffXs  {MD_MaxNCoef} -  -   "x array for stress-strain lookup table (up to MD_MaxNCoef)"
+typedef  ^            ^                DbKi               stiffYs  {MD_MaxNCoef} -  -   "y array for stress-strain lookup table"
 typedef  ^            ^                IntKi              nBApoints     -        -  -   "number of values in stress-strainrate lookup table (0 means using constant c)"
-typedef  ^            ^                DbKi               dampXs        {30}     -  -   "x array for stress-strainrate lookup table (up to nCoef)"
-typedef  ^            ^                DbKi               dampYs        {30}     -  -   "y array for stress-strainrate lookup table"
+typedef  ^            ^                DbKi               dampXs   {MD_MaxNCoef} -  -   "x array for stress-strainrate lookup table (up to MD_MaxNCoef)"
+typedef  ^            ^                DbKi               dampYs   {MD_MaxNCoef} -  -   "y array for stress-strainrate lookup table"
 typedef  ^            ^                IntKi              nEIpoints     -        -  -   "number of values in bending stress-strain lookup table (0 means using constant E)"
-typedef  ^            ^                DbKi               bstiffXs      {30}     -  -   "x array for stress-strain lookup table (up to nCoef)"
-typedef  ^            ^                DbKi               bstiffYs      {30}     -  -   "y array for stress-strain lookup table"
+typedef  ^            ^                DbKi               bstiffXs {MD_MaxNCoef} -  -   "x array for stress-strain lookup table (up to MD_MaxNCoef)"
+typedef  ^            ^                DbKi               bstiffYs {MD_MaxNCoef} -  -   "y array for stress-strain lookup table"
 typedef  ^            ^                DbKi               time           -       -  -   "current time"         "[s]"
 typedef  ^            ^                DbKi               r            {:}{:}    -  -   "node positions"    -
 typedef  ^            ^                DbKi               rd           {:}{:}    -  -   "node velocities"  -

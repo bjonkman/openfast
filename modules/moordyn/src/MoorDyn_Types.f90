@@ -34,6 +34,7 @@ MODULE MoorDyn_Types
 USE SeaSt_WaveField_Types
 USE NWTC_Library
 IMPLICIT NONE
+    INTEGER(IntKi), PUBLIC, PARAMETER  :: MD_MaxNCoef = 30      ! maximum number of entries to allow in nonlinear coefficient lookup tables [-]
 ! =========  MD_InputFileType  =======
   TYPE, PUBLIC :: MD_InputFileType
     REAL(DbKi)  :: DTIC = 0.5      !< convergence check time step for IC generation [[s]]
@@ -84,14 +85,14 @@ IMPLICIT NONE
     REAL(DbKi)  :: cF = 0.0_R8Ki      !< Center VIV synchronization in non-dimensional frequency [-]
     INTEGER(IntKi)  :: ElasticMod = 0_IntKi      !< Which elasticity model to use: {1 basic, 2 viscoelastic, 3 viscoelastic+meanload}  [-]
     INTEGER(IntKi)  :: nEApoints = 0_IntKi      !< number of values in stress-strain lookup table (0 means using constant E) [-]
-    REAL(DbKi) , DIMENSION(1:30)  :: stiffXs = 0.0_R8Ki      !< x array for stress-strain lookup table (up to nCoef) [-]
-    REAL(DbKi) , DIMENSION(1:30)  :: stiffYs = 0.0_R8Ki      !< y array for stress-strain lookup table [-]
+    REAL(DbKi) , DIMENSION(1:MD_MaxNCoef)  :: stiffXs = 0.0_R8Ki      !< x array for stress-strain lookup table (up to MD_MaxNCoef) [-]
+    REAL(DbKi) , DIMENSION(1:MD_MaxNCoef)  :: stiffYs = 0.0_R8Ki      !< y array for stress-strain lookup table [-]
     INTEGER(IntKi)  :: nBApoints = 0_IntKi      !< number of values in stress-strainrate lookup table (0 means using constant c) [-]
-    REAL(DbKi) , DIMENSION(1:30)  :: dampXs = 0.0_R8Ki      !< x array for stress-strainrate lookup table (up to nCoef) [-]
-    REAL(DbKi) , DIMENSION(1:30)  :: dampYs = 0.0_R8Ki      !< y array for stress-strainrate lookup table [-]
+    REAL(DbKi) , DIMENSION(1:MD_MaxNCoef)  :: dampXs = 0.0_R8Ki      !< x array for stress-strainrate lookup table (up to MD_MaxNCoef) [-]
+    REAL(DbKi) , DIMENSION(1:MD_MaxNCoef)  :: dampYs = 0.0_R8Ki      !< y array for stress-strainrate lookup table [-]
     INTEGER(IntKi)  :: nEIpoints = 0_IntKi      !< number of values in bending stress-strain lookup table (0 means using constant E) [-]
-    REAL(DbKi) , DIMENSION(1:30)  :: bstiffXs = 0.0_R8Ki      !< x array for stress-strain lookup table (up to nCoef) [-]
-    REAL(DbKi) , DIMENSION(1:30)  :: bstiffYs = 0.0_R8Ki      !< y array for stress-strain lookup table [-]
+    REAL(DbKi) , DIMENSION(1:MD_MaxNCoef)  :: bstiffXs = 0.0_R8Ki      !< x array for stress-strain lookup table (up to MD_MaxNCoef) [-]
+    REAL(DbKi) , DIMENSION(1:MD_MaxNCoef)  :: bstiffYs = 0.0_R8Ki      !< y array for stress-strain lookup table [-]
   END TYPE MD_LineProp
 ! =======================
 ! =========  MD_RodProp  =======
@@ -273,14 +274,14 @@ IMPLICIT NONE
     REAL(DbKi)  :: dF = 0.0_R8Ki      !< +- range of VIV synchronization in non-dimensional frequency [-]
     REAL(DbKi)  :: cF = 0.0_R8Ki      !< Center VIV synchronization in non-dimensional frequency [-]
     INTEGER(IntKi)  :: nEApoints = 0_IntKi      !< number of values in stress-strain lookup table (0 means using constant E) [-]
-    REAL(DbKi) , DIMENSION(1:30)  :: stiffXs = 0.0_R8Ki      !< x array for stress-strain lookup table (up to nCoef) [-]
-    REAL(DbKi) , DIMENSION(1:30)  :: stiffYs = 0.0_R8Ki      !< y array for stress-strain lookup table [-]
+    REAL(DbKi) , DIMENSION(1:MD_MaxNCoef)  :: stiffXs = 0.0_R8Ki      !< x array for stress-strain lookup table (up to MD_MaxNCoef) [-]
+    REAL(DbKi) , DIMENSION(1:MD_MaxNCoef)  :: stiffYs = 0.0_R8Ki      !< y array for stress-strain lookup table [-]
     INTEGER(IntKi)  :: nBApoints = 0_IntKi      !< number of values in stress-strainrate lookup table (0 means using constant c) [-]
-    REAL(DbKi) , DIMENSION(1:30)  :: dampXs = 0.0_R8Ki      !< x array for stress-strainrate lookup table (up to nCoef) [-]
-    REAL(DbKi) , DIMENSION(1:30)  :: dampYs = 0.0_R8Ki      !< y array for stress-strainrate lookup table [-]
+    REAL(DbKi) , DIMENSION(1:MD_MaxNCoef)  :: dampXs = 0.0_R8Ki      !< x array for stress-strainrate lookup table (up to MD_MaxNCoef) [-]
+    REAL(DbKi) , DIMENSION(1:MD_MaxNCoef)  :: dampYs = 0.0_R8Ki      !< y array for stress-strainrate lookup table [-]
     INTEGER(IntKi)  :: nEIpoints = 0_IntKi      !< number of values in bending stress-strain lookup table (0 means using constant E) [-]
-    REAL(DbKi) , DIMENSION(1:30)  :: bstiffXs = 0.0_R8Ki      !< x array for stress-strain lookup table (up to nCoef) [-]
-    REAL(DbKi) , DIMENSION(1:30)  :: bstiffYs = 0.0_R8Ki      !< y array for stress-strain lookup table [-]
+    REAL(DbKi) , DIMENSION(1:MD_MaxNCoef)  :: bstiffXs = 0.0_R8Ki      !< x array for stress-strain lookup table (up to MD_MaxNCoef) [-]
+    REAL(DbKi) , DIMENSION(1:MD_MaxNCoef)  :: bstiffYs = 0.0_R8Ki      !< y array for stress-strain lookup table [-]
     REAL(DbKi)  :: time = 0.0_R8Ki      !< current time [[s]]
     REAL(DbKi) , DIMENSION(:,:), ALLOCATABLE  :: r      !< node positions [-]
     REAL(DbKi) , DIMENSION(:,:), ALLOCATABLE  :: rd      !< node velocities [-]

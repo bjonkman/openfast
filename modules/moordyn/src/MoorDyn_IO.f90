@@ -31,9 +31,6 @@ MODULE MoorDyn_IO
 
    INTEGER(IntKi), PARAMETER            :: wordy = 0   ! verbosity level. >1 = more console output
 
-  INTEGER, PARAMETER :: nCoef = 30  ! maximum number of entries to allow in nonlinear coefficient lookup tables
-  ! it would be nice if the above worked for everything, but I think it needs to also be matched in the Registry
-
   ! --------------------------- Output definitions -----------------------------------------
 
   ! The following are some definitions for use with the output options in MoorDyn.
@@ -249,8 +246,8 @@ CONTAINS
       CHARACTER(40),    INTENT(IN   )  :: inputString
       REAL(DbKi),       INTENT(INOUT)  :: LineProp_c
       INTEGER(IntKi),   INTENT(  OUT)  :: LineProp_nPoints
-      REAL(DbKi),       INTENT(  OUT)  :: LineProp_Xs (nCoef)
-      REAL(DbKi),       INTENT(  OUT)  :: LineProp_Ys (nCoef)
+      REAL(DbKi),       INTENT(  OUT)  :: LineProp_Xs (MD_MaxNCoef)  ! MD_MaxNCoef set in registry
+      REAL(DbKi),       INTENT(  OUT)  :: LineProp_Ys (MD_MaxNCoef)  ! MD_MaxNCoef set in registry
       
       INTEGER(IntKi),   INTENT( OUT)   :: ErrStat3 ! Error status of the operation
       CHARACTER(*),     INTENT( OUT)   :: ErrMsg3  ! Error message if ErrStat /= ErrID_None
@@ -289,7 +286,7 @@ CONTAINS
          READ(UnCoef,'(A)',IOSTAT=ErrStat4) Line2
          READ(UnCoef,'(A)',IOSTAT=ErrStat4) Line2
             
-         DO I = 1, nCoef
+         DO I = 1, MD_MaxNCoef
             
             READ(UnCoef,'(A)',IOSTAT=ErrStat4) Line2      !read into a line
 
