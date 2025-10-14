@@ -12,7 +12,7 @@ PUBLIC WaveField_GetNodeWaveElev2
 PUBLIC WaveField_GetNodeTotalWaveElev
 PUBLIC WaveField_GetNodeWaveNormal
 PUBLIC WaveField_GetNodeWaveKin
-PUBLIC WaveField_GetNodeWaveVel
+PUBLIC WaveField_GetNodeWaveVelAcc
 
 PUBLIC WaveField_GetWaveKin
 
@@ -129,7 +129,7 @@ SUBROUTINE WaveField_GetNodeWaveNormal( WaveField, WaveField_m, Time, pos, r, n,
    ErrStat   = ErrID_None
    ErrMsg    = ""
 
-   r1 = MAX(r,real(1.0e-6,ReKi)) ! In case r is zero
+   r1 = MAX(r,real(5.0e-3,ReKi)) ! In case r is zero
 
    ZetaP = WaveField_GetNodeTotalWaveElev( WaveField, WaveField_m, Time, (/pos(1)+r1,pos(2)/), ErrStat2, ErrMsg2 ); if (Failed()) return;
    ZetaM = WaveField_GetNodeTotalWaveElev( WaveField, WaveField_m, Time, (/pos(1)-r1,pos(2)/), ErrStat2, ErrMsg2 ); if (Failed()) return;
@@ -286,7 +286,7 @@ END SUBROUTINE WaveField_GetNodeWaveKin
 
 
 !-------------------- Subroutine for wave field velocity only --------------------!
-SUBROUTINE WaveField_GetNodeWaveVel( WaveField, WaveField_m, Time, pos, forceNodeInWater, nodeInWater, FV, ErrStat, ErrMsg )
+SUBROUTINE WaveField_GetNodeWaveVelAcc( WaveField, WaveField_m, Time, pos, forceNodeInWater, nodeInWater, FV, FA, ErrStat, ErrMsg )
    type(SeaSt_WaveFieldType),          intent(in   ) :: WaveField
    type(SeaSt_WaveField_MiscVarType),  intent(inout) :: WaveField_m
    real(DbKi),                         intent(in   ) :: Time
@@ -294,6 +294,7 @@ SUBROUTINE WaveField_GetNodeWaveVel( WaveField, WaveField_m, Time, pos, forceNod
    logical,                            intent(in   ) :: forceNodeInWater
    integer(IntKi),                     intent(  out) :: nodeInWater
    real(SiKi),                         intent(  out) :: FV(3)
+   real(SiKi),                         intent(  out) :: FA(3)
    integer(IntKi),                     intent(  out) :: ErrStat ! Error status of the operation
    character(*),                       intent(  out) :: ErrMsg  ! Error message if errStat /= ErrID_None
 
@@ -319,9 +320,11 @@ SUBROUTINE WaveField_GetNodeWaveVel( WaveField, WaveField_m, Time, pos, forceNod
          ! Use location to obtain interpolated values of kinematics
          CALL WaveField_Interp_Setup4D( Time, pos, WaveField%GridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
          FV(:) = WaveField_Interp_4D_Vec( WaveField%WaveVel,  WaveField_m )
+         FA(:) = WaveField_Interp_4D_Vec( WaveField%WaveAcc,  WaveField_m )
       ELSE ! Node is above the SWL
          nodeInWater = 0_IntKi
          FV(:)       = 0.0
+         FA(:)       = 0.0
       END IF
 
    ELSE ! Wave stretching enabled
@@ -337,17 +340,20 @@ SUBROUTINE WaveField_GetNodeWaveVel( WaveField, WaveField_m, Time, pos, forceNod
                ! Use location to obtain interpolated values of kinematics
                CALL WaveField_Interp_Setup4D( Time, pos, WaveField%GridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
                FV(:) = WaveField_Interp_4D_Vec( WaveField%WaveVel,  WaveField_m )
+               FA(:) = WaveField_Interp_4D_Vec( WaveField%WaveAcc,  WaveField_m )
 
             ELSE ! Node is above SWL - need wave stretching
 
                ! Vertical wave stretching
                CALL WaveField_Interp_Setup4D( Time, posXY0, WaveField%GridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
                FV(:) = WaveField_Interp_4D_vec( WaveField%WaveVel,  WaveField_m )
+               FA(:) = WaveField_Interp_4D_vec( WaveField%WaveAcc,  WaveField_m )
 
                ! Extrapoled wave stretching
                IF (WaveField%WaveStMod == 2) THEN
                   CALL WaveField_Interp_Setup3D( Time, posXY, WaveField%GridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
                   FV(:) = FV(:) + WaveField_Interp_3D_vec( WaveField%PWaveVel0, WaveField_m ) * pos(3)
+                  FA(:) = FA(:) + WaveField_Interp_3D_vec( WaveField%PWaveAcc0, WaveField_m ) * pos(3)
                END IF
 
             END IF ! Node is submerged
@@ -362,6 +368,7 @@ SUBROUTINE WaveField_GetNodeWaveVel( WaveField, WaveField_m, Time, pos, forceNod
             ! Obtain the wave-field variables by interpolation with the mapped position.
             CALL WaveField_Interp_Setup4D( Time, posPrime, WaveField%GridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
             FV(:) = WaveField_Interp_4D_Vec( WaveField%WaveVel,  WaveField_m )
+            FA(:) = WaveField_Interp_4D_Vec( WaveField%WaveAcc,  WaveField_m )
 
          END IF
 
@@ -369,6 +376,7 @@ SUBROUTINE WaveField_GetNodeWaveVel( WaveField, WaveField_m, Time, pos, forceNod
 
          nodeInWater = 0_IntKi
          FV(:)       = 0.0
+         FA(:)       = 0.0
 
       END IF ! If node is in or out of water
 
@@ -379,7 +387,7 @@ contains
       call SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
       Failed = ErrStat >= AbortErrLev
    end function
-END SUBROUTINE WaveField_GetNodeWaveVel
+END SUBROUTINE WaveField_GetNodeWaveVelAcc
 
 
 SUBROUTINE WaveField_GetWaveKin( WaveField, WaveField_m, Time, pos, forceNodeInWater, nodeInWater, WaveElev1, WaveElev2, WaveElev, FDynP, FV, FA, FAMCF, ErrStat, ErrMsg )
