@@ -35,8 +35,8 @@ USE SeaSt_WaveField_Types
 USE NWTC_Library
 IMPLICIT NONE
     INTEGER(IntKi), PUBLIC, PARAMETER  :: MD_MaxNCoef = 30      ! maximum number of entries to allow in nonlinear coefficient lookup tables [-]
-    INTEGER(IntKi), PUBLIC, PARAMETER  :: MD_MaxBdAtch = 30      ! maximum number of attachments to a body [-]
-    INTEGER(IntKi), PUBLIC, PARAMETER  :: MD_MaxPtAtch = 10      ! maximum number of attachments to a point [-]
+    INTEGER(IntKi), PUBLIC, PARAMETER  :: MD_MaxBdAtch = 100      ! maximum number of attachments to a body [-]
+    INTEGER(IntKi), PUBLIC, PARAMETER  :: MD_MaxPtAtch = 100      ! maximum number of attachments to a point [-]
     INTEGER(IntKi), PUBLIC, PARAMETER  :: MD_MaxFailLines = 30      ! maximum number of line failures that can be simulated [-]
 ! =========  MD_InputFileType  =======
   TYPE, PUBLIC :: MD_InputFileType
