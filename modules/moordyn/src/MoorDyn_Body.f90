@@ -622,7 +622,7 @@ CONTAINS
 
       IF (wordy > 0) Print*, "P", pointID, "->B", Body%IdNum
       
-      IF(Body%nAttachedP < 30) THEN                ! this is currently just a maximum imposed by a fixed array size.  could be improved.
+      IF(Body%nAttachedP < MD_MaxBdAtch) THEN      ! this is currently just a maximum imposed by a fixed array size.  could be improved.
          Body%nAttachedP = Body%nAttachedP + 1     ! increment the number pointed
          Body%AttachedC(Body%nAttachedP) = pointID
          Body%rPointRel(:,Body%nAttachedP) = coords  ! store relative position of point on body
@@ -646,7 +646,7 @@ CONTAINS
 
       IF (wordy > 0) Print*, "R", rodID, "->B", Body%IdNum
       
-      IF(Body%nAttachedR < 30) THEN                ! this is currently just a maximum imposed by a fixed array size.  could be improved.
+      IF(Body%nAttachedR < MD_MaxBdAtch) THEN      ! this is currently just a maximum imposed by a fixed array size.  could be improved.
          Body%nAttachedR = Body%nAttachedR + 1     ! increment the number connected
          
          ! store rod ID
