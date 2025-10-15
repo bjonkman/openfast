@@ -44,7 +44,8 @@ typedef  ^                    ^              ^                 PtfmRef          
 typedef  ^                    TurbOpPoint    c_float           RotSpeed             -  -  -  "Rotor speed" (RPM)
 typedef  ^                    ^              ^                 BldPitch             -  -  -  "Fixed blade pitch for full simulation" (deg)
 
-typedef  ^                    Output         c_int             OutFile              -  -  -  "0: no output file of channels, 1: output file in text format (at DT)" (-)
+typedef  ^                    Output         logical           SendScreenToFile     -  -  -  "send to file <OutRootName>.screen.log if true" (-)
+typedef  ^                    ^              c_int             OutFile              -  -  -  "0: no output file of channels, 1: output file in text format (at DT)" (-)
 typedef  ^                    ^              character(20)     OutFmt               -  -  -  "Format used for text tabular output, excluding the time channel. (quoted string)" (-)
 
 typedef  ^                    Viz            c_int             WrVTK                -  -  -  "Write VTK?" -

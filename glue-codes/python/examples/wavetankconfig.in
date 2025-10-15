@@ -2,21 +2,21 @@
 !  NOTE: this assumes a floating MHK turbine
 !  This is read by WaveTank.f90 after it is initialized from LabView
 ! -------- Sim control ----------------
-        0.1    DT             - timestep (unused)
-        600    TMax           - Max sim time (unused)
-          2    MHK            - MHK turbine type (switch) {0=Not an MHK turbine; 1=Fixed MHK turbine; 2=Floating MHK turbine} -- only works for MHK floating at present
-          1    InterpOrd      - Interpolation order (unused)
-          4    DebugLevel     - 0: none, 1: I/O summary, 2: +positions/orientations passed, 3:, 4: +all meshes
-"RM1_tank_test" OutRootName   - Root name for any summary or other files
+        0.1    DT               - timestep (unused)
+        600    TMax             - Max sim time (unused)
+          2    MHK              - MHK turbine type (switch) {0=Not an MHK turbine; 1=Fixed MHK turbine; 2=Floating MHK turbine} -- only works for MHK floating at present
+          1    InterpOrd        - Interpolation order (unused)
+          4    DebugLevel       - 0: none, 1: I/O summary, 2: +positions/orientations passed, 3:, 4: +all meshes
+"RM1_tank_test" OutRootName     - Root name for any summary or other files
 ! -------- Environment ----------------
-    9.80665    Gravity        - Gravitational acceleration (m/s^2)
-       1025    WtrDens        - Water density (kg/m^3)
-   1.06E-06    WtrVisc        - Kinematic viscosity of working fluid (m^2/s)
-       1500    SpdSound       - Speed of sound in working fluid (m/s)
-     101325    Patm           - Atmospheric pressure (Pa) [used only for an MHK turbine cavitation check]
-       2500    Pvap           - Vapour pressure of working fluid (Pa) [used only for an MHK turbine cavitation check]
-         50    WtrDpth        - Water depth (m)
-          0    MSL2SWL        - Offset between still-water level and mean sea level (m) [positive upward]
+    9.80665    Gravity          - Gravitational acceleration (m/s^2)
+       1025    WtrDens          - Water density (kg/m^3)
+   1.06E-06    WtrVisc          - Kinematic viscosity of working fluid (m^2/s)
+       1500    SpdSound         - Speed of sound in working fluid (m/s)
+     101325    Patm             - Atmospheric pressure (Pa) [used only for an MHK turbine cavitation check]
+       2500    Pvap             - Vapour pressure of working fluid (Pa) [used only for an MHK turbine cavitation check]
+         50    WtrDpth          - Water depth (m)
+          0    MSL2SWL          - Offset between still-water level and mean sea level (m) [positive upward]
 ! -------- SeaState -------------------
 ! SS input file should probably go here instead of being passed
 ! -------- MoorDyn --------------------
@@ -25,26 +25,27 @@
 ! AD input file should probably go here instead of being passed
 ! IfW input file should probably go here instead of being passed
 ! -------- Turbine Configuration ------
-          2    NumBl          - Number of blades (-)
-         10    TipRad         - The distance from the rotor apex to the blade tip (meters)
-          1    HubRad         - The distance from the rotor apex to the blade root (meters)
-          0    PreCone        - Blade cone angle (degrees)
-      -4.91    OverHang       - Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades] (meters)
-          0    ShftGagL       - Distance from rotor apex [3 blades] or teeter pin [2 blades] to shaft strain gages [positive for upwind rotors] (meters)
-          0    ShftTilt       - Rotor shaft tilt angle (degrees)
-       -1.2    Twr2Shft       - Vertical distance from the tower-top to the rotor shaft (meters)
-        -24    TowerHt        - Height of tower relative MSL
-         -9    TowerBsHt      - Height of tower base relative to ground level [onshore], MSL [floating MHK] (meters)
-      0,0,0    PtfmRef        - Location of platform reference point, relative to MSL.  Motions and loads all connect to this point
+          2    NumBl            - Number of blades (-)
+         10    TipRad           - The distance from the rotor apex to the blade tip (meters)
+          1    HubRad           - The distance from the rotor apex to the blade root (meters)
+          0    PreCone          - Blade cone angle (degrees)
+      -4.91    OverHang         - Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades] (meters)
+          0    ShftGagL         - Distance from rotor apex [3 blades] or teeter pin [2 blades] to shaft strain gages [positive for upwind rotors] (meters)
+          0    ShftTilt         - Rotor shaft tilt angle (degrees)
+       -1.2    Twr2Shft         - Vertical distance from the tower-top to the rotor shaft (meters)
+        -24    TowerHt          - Height of tower relative MSL
+         -9    TowerBsHt        - Height of tower base relative to ground level [onshore], MSL [floating MHK] (meters)
+      0,0,0    PtfmRef          - Location of platform reference point, relative to MSL.  Motions and loads all connect to this point
 ! -------- Turbine Operating Point ----
-      11.5     RotSpeed       - Rotational speed of rotor in rotor coordinates (rpm)
-         0     BldPitch       - Blade 1 pitch (deg)
+      11.5     RotSpeed         - Rotational speed of rotor in rotor coordinates (rpm)
+         0     BldPitch         - Blade 1 pitch (deg)
 ! -------- Output ---------------------
-      3        OutFile        - 0: no output file of channels, 1: output file in text format (at default DT) 
-"ES10.3E2"     OutFmt         - Format used for text tabular output, excluding the time channel. (quoted string)
+     false     SendScreenToFile - send to file <OutRootName>.screen.log if true
+         3     OutFile          - 0: no output file of channels, 1: output file in text format (at default DT) 
+"ES10.3E2"     OutFmt           - Format used for text tabular output, excluding the time channel. (quoted string)
 ! -------- VTK output -----------------
-"vtk"          WrVTK_Dir      - output directory for visualization
-        0      WrVTK          - VTK visualization data output: (switch) {0=none; 1=initialization data only; 2=animation; 3=mode shapes}
-        1      WrVTK_type     - Type of VTK visualization data: (switch) {1=surfaces; 2=basic meshes (lines/points); 3=all meshes (debug)} [unused if WrVTK=0]
-      0.1      WrVTK_DT       - DT for writing VTK files
--3,-.5,0,5,.5,2 VTKNacDim      - Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz] (m)
+"vtk"          WrVTK_Dir        - output directory for visualization
+        0      WrVTK            - VTK visualization data output: (switch) {0=none; 1=initialization data only; 2=animation; 3=mode shapes}
+        1      WrVTK_type       - Type of VTK visualization data: (switch) {1=surfaces; 2=basic meshes (lines/points); 3=all meshes (debug)} [unused if WrVTK=0]
+      0.1      WrVTK_DT         - DT for writing VTK files
+-3,-.5,0,5,.5,2 VTKNacDim       - Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz] (m)

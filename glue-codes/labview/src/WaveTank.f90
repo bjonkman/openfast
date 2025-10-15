@@ -46,18 +46,16 @@ MODULE WaveTankTesting
    public :: WaveTank_Init
    public :: WaveTank_CalcOutput
    public :: WaveTank_End
-!   public :: WaveTank_SetWaveFieldPointer
-!   public :: WaveTank_Sizes
 
    INTEGER(C_INT) :: SS_NumChannels_C
    INTEGER(C_INT) :: MD_NumChannels_C
    INTEGER(C_INT) :: ADI_NumChannels_C
 
-   INTEGER(C_INT) :: iWT_C
    INTEGER(C_INT) :: NumBlades_C
    INTEGER(C_INT) :: NumMeshPts_C
 
-   REAL(C_DOUBLE) :: DT
+   integer(IntKi) :: ScreenLogOutput_Un = -1
+   character(1024):: ScreenLogOutput_File
 
 !FIXME: replace all this with meshes
 !   REAL(C_FLOAT), DIMENSION(3,3) :: FloaterPositions = 0.0_C_FLOAT
@@ -144,13 +142,21 @@ SUBROUTINE WaveTank_Init(   &
 
    call ValidateInputFile(SimSettings, ErrStat_F2, ErrMsg_F2); if (Failed()) return
 
+!FIXME: this doesn't work for SS or MD??????
+   ! If SendScreenToFile - send to file <OutRootName>.screen.log if true
+   if (SimSettings%Outs%SendScreenToFile) then
+      call GetNewUnit(ScreenLogOutput_Un, ErrStat_F2, ErrMsg_F2); if (Failed()) return
+      ScreenLogOutput_File = trim(SimSettings%Sim%OutRootName)//'.screen.log'
+      call OpenFOutFile(ScreenLogOutput_Un, ScreenLogOutput_File, ErrStat_F2, ErrMsg_F2); if (Failed()) return
+      call SetConsoleUnit(ScreenLogOutput_Un)   ! this will redirect all screen output to a file instead
+   endif
+
    ! debugging
    if (SimSettings%Sim%DebugLevel > 0_c_int) call ShowPassedData()
 
    ! VTK directory - this may leave the c_null_char, but it will get corrected after passed into other code
    WrVTK_Dir_C = transfer( SimSettings%Viz%WrVTK_Dir, WrVTK_Dir_C )
 
-!FIXME: add sanity checks (underwater etc)
 
 !FIXME: build struct model
 
@@ -304,12 +310,13 @@ tmpInitMeshOri = tmpBldRootOri      !FIXME: blade pitch
 
 contains
    logical function Failed()
-      CALL SetErrStat_F2C(ErrStat_F2, ErrMsg_F2, ErrStat_C, ErrMsg_C)
+      call SetErrStat_F2C(ErrStat_F2, ErrMsg_F2, ErrStat_C, ErrMsg_C)
       Failed = ErrStat_C >= AbortErrLev_C
       if (Failed)    call Cleanup()
    end function Failed
    subroutine Cleanup()
-      CALL NWTC_Library_Destroyfileinfotype(FileInfo_In, ErrStat_F2, ErrMsg_F2)  ! ignore error from this
+      call NWTC_Library_Destroyfileinfotype(FileInfo_In, ErrStat_F2, ErrMsg_F2)  ! ignore error from this
+      if (ScreenLogOutput_Un > 0)   close(ScreenLogOutput_Un)
 !      if (ErrStat_C >= AbortErrLev_C) call DeallocEverything()
    end subroutine Cleanup
    subroutine ShowPassedData()
@@ -618,6 +625,9 @@ SUBROUTINE WaveTank_End(ErrStat_C, ErrMsg_C) bind (C, NAME="WaveTank_End")
 
    ErrStat_C = ErrID_None
    ErrMsg_C  = " "//C_NULL_CHAR
+
+   ! in case we were writing to a file instead of the screen
+   if (ScreenLogOutput_Un > 0)   close(ScreenLogOutput_Un)
 
 !FIXME: fix MD_C_END so it doesn't segfault if no init occured
 ErrMsg_F2  = "WaveTank_End is broken!!!!"

@@ -79,6 +79,7 @@ IMPLICIT NONE
 ! =======================
 ! =========  Output  =======
   TYPE, PUBLIC :: Output
+    LOGICAL  :: SendScreenToFile = .false.      !< send to file <OutRootName>.screen.log if true [(-)]
     INTEGER(c_int)  :: OutFile = 0_IntKi      !< 0: no output file of channels, 1: output file in text format (at DT) [(-)]
     character(20)  :: OutFmt      !< Format used for text tabular output, excluding the time channel. (quoted string) [(-)]
   END TYPE Output
@@ -360,6 +361,7 @@ subroutine WT_CopyOutput(SrcOutputData, DstOutputData, CtrlCode, ErrStat, ErrMsg
    character(*), parameter        :: RoutineName = 'WT_CopyOutput'
    ErrStat = ErrID_None
    ErrMsg  = ''
+   DstOutputData%SendScreenToFile = SrcOutputData%SendScreenToFile
    DstOutputData%OutFile = SrcOutputData%OutFile
    DstOutputData%OutFmt = SrcOutputData%OutFmt
 end subroutine
@@ -378,6 +380,7 @@ subroutine WT_PackOutput(RF, Indata)
    type(Output), intent(in) :: InData
    character(*), parameter         :: RoutineName = 'WT_PackOutput'
    if (RF%ErrStat >= AbortErrLev) return
+   call RegPack(RF, InData%SendScreenToFile)
    call RegPack(RF, InData%OutFile)
    call RegPack(RF, InData%OutFmt)
    if (RegCheckErr(RF, RoutineName)) return
@@ -388,6 +391,7 @@ subroutine WT_UnPackOutput(RF, OutData)
    type(Output), intent(inout) :: OutData
    character(*), parameter            :: RoutineName = 'WT_UnPackOutput'
    if (RF%ErrStat /= ErrID_None) return
+   call RegUnpack(RF, OutData%SendScreenToFile); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%OutFile); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%OutFmt); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
