@@ -13,45 +13,68 @@
 include    Registry_NWTC_Library.txt
 #
 
-typedef  WaveTank/WaveTank    Sim            c_double          DT                   -  -  -  "timestep" -
-typedef  ^                    ^              c_float           RPM                  -  -  -  "RPM of rotor" -
+typedef  WaveTank/WT          Sim            c_double          DT                   -  -  -  "timestep" -
 typedef  ^                    ^              c_double          TMax                 -  -  -  "Max sim time" -
+typedef  ^                    ^              c_int             MHK                  -  -  -  "MHK turbine type (switch) {0=Not an MHK turbine; 1=Fixed MHK turbine; 2=Floating MHK turbine}" (-)
 typedef  ^                    ^              c_int             InterpOrd            -  1  -  "Interpolation order" -
 typedef  ^                    ^              c_int             DebugLevel           -  -  -  "Debug level for outputs" -
 typedef  ^                    ^              character(1024)   OutRootName          -  -  -  "Rootname for outputs" -
 
-typedef  ^                    Env            c_float           Gravity_C            -  -  -  "gravitational constant (positive for down)" (m/s^2)
-typedef  ^                    ^              ^                 WtrDens_C            -  -  -  "Water density" (kg/m^3)
-typedef  ^                    ^              ^                 WtrDepth_C           -  -  -  "Water depth" (m)
-typedef  ^                    ^              ^                 WtrViscosity         -  -  -  "fluid viscosity" (m^2/s)
-typedef  ^                    ^              ^                 MSL2SWL_C            -  -  -  "Mean sea level to still water level" (m)
+typedef  ^                    Env            c_float           Gravity              -  -  -  "gravitational constant (positive for down)" (m/s^2)
+typedef  ^                    ^              ^                 WtrDens              -  -  -  "Water density" (kg/m^3)
+typedef  ^                    ^              ^                 WtrVisc              -  -  -  "fluid viscosity" (m^2/s)
+typedef  ^                    ^              ^                 SpdSound             -  -  -  "Speed of sound in working fluid" (m/s)
+typedef  ^                    ^              ^                 Patm                 -  -  -  "Atmospheric pressure  [used only for an MHK turbine cavitation check]" (Pa)
+typedef  ^                    ^              ^                 Pvap                 -  -  -  "Vapour pressure of working fluid [used only for an MHK turbine cavitation check]" (Pa)
+typedef  ^                    ^              ^                 WtrDpth              -  -  -  "Water depth" (m)
+typedef  ^                    ^              ^                 MSL2SWL              -  -  -  "Mean sea level to still water level" (m)
 
-typedef  ^                    Geom           c_float           PRP_loc              3  -  -  "location of PRP" (m)
-typedef  ^                    ^              ^                 PRP_Ori              3  -  -  "orientation of PRP" (m)
-typedef  ^                    ^              ^                 Nac_loc              3  -  -  "location of nacelle, relative to PRP.  used to set tower" (m)
-typedef  ^                    ^              ^                 Nac_Ori              3  -  -  "orientation of nacelle, relative to PRP.  used to set tower" (m)
-typedef  ^                    ^              ^                 Hub_loc              3  -  -  "location of hub, relative to nacelle" (m)
-typedef  ^                    ^              ^                 Hub_Ori              3  -  -  "orientation of hub, relative to nacelle" (m)
+typedef  ^                    TurbConfig     c_int             NumBl                -  -  -  "Number of blades" (-)
+typedef  ^                    ^              c_float           TipRad               -  -  -  "The distance from the rotor apex to the blade tip" (m)
+typedef  ^                    ^              ^                 HubRad               -  -  -  "The distance from the rotor apex to the blade root" (m)
+typedef  ^                    ^              ^                 PreCone              -  -  -  "Blade cone angle" (deg)
+typedef  ^                    ^              ^                 OverHang             -  -  -  "Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades]" (m)
+typedef  ^                    ^              ^                 ShftGagL             -  -  -  "Distance from rotor apex [3 blades] or teeter pin [2 blades] to shaft strain gages [positive for upwind rotors]" (m)
+typedef  ^                    ^              ^                 ShftTilt             -  -  -  "Rotor shaft tilt angle" (deg)
+typedef  ^                    ^              ^                 Twr2Shft             -  -  -  "Vertical distance from the tower-top to the rotor shaft" (m)
+typedef  ^                    ^              ^                 TowerHt              -  -  -  "Height of tower relative MSL" (m)
+typedef  ^                    ^              ^                 TowerBsHt            -  -  -  "Height of tower base relative to ground level [onshore], MSL [floating MHK]" (m)
+typedef  ^                    ^              ^                 PtfmRef              3  -  -  "Location of platform reference point, relative to MSL.  Motions and loads all connect to this point" (m)
+
+typedef  ^                    TurbOpPoint    c_float           RotSpeed             -  -  -  "Rotor speed" (RPM)
 typedef  ^                    ^              ^                 BldPitch             -  -  -  "Fixed blade pitch for full simulation" (deg)
-typedef  ^                    ^              ^                 NumBlades            -  -  -  "number of blades" -
-typedef  ^                    ^              ^                 ShftTilt             -  -  -  "Shaft tilt angle" (deg)
+
+typedef  ^                    Output         c_int             OutFile              -  -  -  "0: no output file of channels, 1: output file in text format (at DT)" (-)
+typedef  ^                    ^              character(20)     OutFmt               -  -  -  "Format used for text tabular output, excluding the time channel. (quoted string)" (-)
 
 typedef  ^                    Viz            c_int             WrVTK                -  -  -  "Write VTK?" -
 typedef  ^                    ^              ^                 WrVTK_type           -  -  -  "Write VTK outputs as [1: surface, 2: lines, 3: both]" -
 typedef  ^                    ^              c_double          WrVTK_DT             -  -  -  "Time step between VTK writes" -
-typedef  ^                    ^              character(1024)   VTK_dir              -  -  -  "Directory for VTK writing" -
+typedef  ^                    ^              character(1024)   WrVTK_dir            -  -  -  "Directory for VTK writing" -
+typedef  ^                    ^              c_float           VTKNacDim            6  -  -  "Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz]" (m)
+
+typedef  ^                 SimSettingsType   Sim               Sim                  -  -  -  "Simulation settings" -
+typedef  ^                    ^              Env               Env                  -  -  -  "Environment settings" -
+typedef  ^                    ^              TurbConfig        TCfg                 -  -  -  "Turbine configuration" -
+typedef  ^                    ^              TurbOpPoint       TOp                  -  -  -  "Turbine operating point" -
+typedef  ^                    ^              Output            Outs                 -  -  -  "Output settings" -
+typedef  ^                    ^              Viz               Viz                  -  -  -  "Vizualization settings" -
+
+
 
 # Input settings specific to modules
-typedef  ^                    AD_Setup       c_int       NumTurbines                -  1  -  "Number of turbines" -
-typedef  ^                    ^              ^           TransposeDCM               -  -  -  "Transpose the DCM for ADI?" -
-typedef  ^                    ^              ^           PointLoadOutput            -  1  -  "Point loads, or distributed loads (use pointload since mapping to root)" -
-typedef  ^                    ^              ^           TurbineIsHAWT_c            -  1  -  "true for HAWT, false for VAWT" -
-typedef  ^                    ^              ^           MHK                        -  1  -  "MHK turbine, set to 1" -
-#typedef  ^                    MD_Setup  
-typedef  ^                    SS_Setup       c_int       NSteps                     -  -  -  "Number of timesteps" -
-typedef  ^                    ^              c_double    WaveDT                     -  -  -  "Wave DT for calcs" -
-typedef  ^                    ^              c_int       WaveElevSeriesFlag         -  0  -  "Output the wave elevation series info (unused)" -
-typedef  ^                    ^              c_int       WrWvKinMod                 -  0  -  "Write the wave kin mod files" -
+#typedef  ^                    AD_Setup       c_int       NumTurbines                -  1  -  "Number of turbines" -
+#typedef  ^                    ^              ^           TransposeDCM               -  -  -  "Transpose the DCM for ADI?" -
+#typedef  ^                    ^              ^           PointLoadOutput            -  1  -  "Point loads, or distributed loads (use pointload since mapping to root)" -
+#typedef  ^                    ^              ^           TurbineIsHAWT_c            -  1  -  "true for HAWT, false for VAWT" -
+#typedef  ^                    ^              ^           MHK                        -  1  -  "MHK turbine, set to 1" -
+##typedef  ^                    MD_Setup  
+#typedef  ^                    SS_Setup       c_int       NSteps                     -  -  -  "Number of timesteps" -
+#typedef  ^                    ^              c_double    WaveDT                     -  -  -  "Wave DT for calcs" -
+#typedef  ^                    ^              c_int       WaveElevSeriesFlag         -  0  -  "Output the wave elevation series info (unused)" -
+#typedef  ^                    ^              c_int       WrWvKinMod                 -  0  -  "Write the wave kin mod files" -
+
+
 
 
 # Mesh structures and mappings

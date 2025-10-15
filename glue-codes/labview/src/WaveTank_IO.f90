@@ -36,98 +36,68 @@ MODULE WaveTank_IO
 
 contains
 
-subroutine ParseInputFile(FileInfo_In, InitInp, ErrStat, ErrMsg)
-   type(FileInfoType),         intent(in   )  :: FileInfo_In       !< The derived type for holding the file information.
-   type(WaveTank_InitInput),   intent(  out)  :: InitInp
-   integer(IntKi),             intent(  out)  :: ErrStat
-   character(*),               intent(  out)  :: ErrMsg
+subroutine ParseInputFile(FileInfo_In, SimSettings, ErrStat, ErrMsg)
+   type(FileInfoType),        intent(in   )  :: FileInfo_In       !< The derived type for holding the file information.
+   type(SimSettingsType),     intent(  out)  :: SimSettings
+   integer(IntKi),            intent(  out)  :: ErrStat
+   character(*),              intent(  out)  :: ErrMsg
 
    ! Local variables
-   integer                                    :: CurLine
-   character(1024), target                    :: TmpPath
-   character(1024)                            :: FileName
-
-   integer(IntKi)                             :: ErrStat2             ! local status of error message
-   character(ErrMsgLen)                       :: ErrMsg2              ! local error message if errStat /= ErrID_None
-
-   character(*), parameter                    :: RoutineName = 'WaveTankTesting.ParseInputFile'
+   integer                                   :: CurLine
+   character(1024), target                   :: TmpPath
+   character(1024)                           :: FileName
+   integer(IntKi)                            :: ErrStat2             ! local status of error message
+   character(ErrMsgLen)                      :: ErrMsg2              ! local error message if errStat /= ErrID_None
+   character(*), parameter                   :: RoutineName = 'WaveTankTesting.ParseInputFile'
 
    ErrStat = ErrID_None
    ErrMsg  = " "
 
    CurLine = 1
-   ! Separator line skipped
-   call ParseVar( FileInfo_In, CurLine, 'DT', InitInp%DT, ErrStat2, ErrMsg2); 
-
-   call ParseVar( FileInfo_In, CurLine, 'SS_OutRootName_C', TmpPath, ErrStat2, ErrMsg2); if(Failed()) return;
-   InitInp%SS_OutRootName_C = transfer(TmpPath, InitInp%SS_OutRootName_C)
-   call ParseVar( FileInfo_In, CurLine, 'SS_Gravity_C', InitInp%SS_Gravity_C, ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'SS_WtrDens_C', InitInp%SS_WtrDens_C, ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'SS_WtrDpth_C', InitInp%SS_WtrDpth_C, ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'SS_MSL2SWL_C', InitInp%SS_MSL2SWL_C, ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'SS_NSteps_C',  InitInp%SS_NSteps_C,  ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'SS_TimeInterval_C',       InitInp%SS_TimeInterval_C,       ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'SS_WaveElevSeriesFlag_C', InitInp%SS_WaveElevSeriesFlag_C, ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'SS_WrWvKinMod_C',         InitInp%SS_WrWvKinMod_C,         ErrStat2, ErrMsg2); if(Failed()) return;
-
-   ! Separator line skipped
-   call ParseVar( FileInfo_In, CurLine, 'MD_G_C',            InitInp%MD_G_C,              ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'MD_RHO_C',          InitInp%MD_RHO_C,            ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'MD_DEPTH_C',        InitInp%MD_DEPTH_C,          ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseAry( FileInfo_In, CurLine, 'MD_PtfmInit_C',     InitInp%MD_PtfmInit_C,    6, ErrStat2,  ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'MD_InterpOrder_C',  InitInp%MD_InterpOrder_C,    ErrStat2, ErrMsg2); if(Failed()) return;
-
-   ! Separator line skipped
-   call ParseVar( FileInfo_In, CurLine, 'NumTurbines_C',     InitInp%NumTurbines_C,     ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'TransposeDCM',      InitInp%TransposeDCM,      ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'PointLoadOutput',   InitInp%PointLoadOutput,   ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'ADI_gravity_C',     InitInp%ADI_gravity_C,     ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'ADI_defFldDens_C',  InitInp%ADI_defFldDens_C,  ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'ADI_defKinVisc_C',  InitInp%ADI_defKinVisc_C,  ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'ADI_defSpdSound_C', InitInp%ADI_defSpdSound_C, ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'ADI_defPatm_C',     InitInp%ADI_defPatm_C,     ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'ADI_defPvap_C',     InitInp%ADI_defPvap_C,     ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'ADI_WtrDpth_C',     InitInp%ADI_WtrDpth_C,     ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'ADI_MSL2SWL_C',     InitInp%ADI_MSL2SWL_C,     ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'MHK',               InitInp%MHK,               ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'DebugLevel',        InitInp%DebugLevel,        ErrStat2, ErrMsg2); if(Failed()) return;
-
-   call ParseVar( FileInfo_In, CurLine, 'iWT_c',            InitInp%iWT_c,              ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'TurbineIsHAWT_c',  InitInp%TurbineIsHAWT_c,    ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseAry( FileInfo_In, CurLine, 'TurbOrigin_C',     InitInp%TurbOrigin_C,    3, ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseAry( FileInfo_In, CurLine, 'HubPos_C',         InitInp%HubPos_C,        3, ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseAry( FileInfo_In, CurLine, 'HubOri_C',         InitInp%HubOri_C,        9, ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseAry( FileInfo_In, CurLine, 'NacPos_C',         InitInp%NacPos_C,        3, ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseAry( FileInfo_In, CurLine, 'NacOri_C',         InitInp%NacOri_C,        9, ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'NumBlades_C',      InitInp%NumBlades_C,        ErrStat2, ErrMsg2); if(Failed()) return;
-
-   call AllocAry(InitInp%BldRootPos_C, 3*InitInp%NumBlades_C, 'BldRootPos_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call AllocAry(InitInp%BldRootOri_C, 9*InitInp%NumBlades_C, 'BldRootPos_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseAry( FileInfo_In, CurLine, 'BldRootPos_C', InitInp%BldRootPos_C, 3*InitInp%NumBlades_C, ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseAry( FileInfo_In, CurLine, 'BldRootOri_C', InitInp%BldRootOri_C, 9*InitInp%NumBlades_C, ErrStat2, ErrMsg2); if(Failed()) return;
-
-   call ParseVar( FileInfo_In, CurLine, 'NumMeshPts_C',       InitInp%NumMeshPts_C,                                ErrStat2, ErrMsg2); if(Failed()) return;
-   call AllocAry(InitInp%InitMeshPos_C, 3*InitInp%NumMeshPts_C, 'InitMeshPos_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call AllocAry(InitInp%InitMeshOri_C, 9*InitInp%NumMeshPts_C, 'InitMeshOri_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call AllocAry(InitInp%MeshPtToBladeNum_C, InitInp%NumMeshPts_C, 'MeshPtToBladeNum_C', ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseAry( FileInfo_In, CurLine, 'InitMeshPos_C',      InitInp%InitMeshPos_C,       3*InitInp%NumMeshPts_C, ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseAry( FileInfo_In, CurLine, 'InitMeshOri_C',      InitInp%InitMeshOri_C,       9*InitInp%NumMeshPts_C, ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseAry( FileInfo_In, CurLine, 'MeshPtToBladeNum_C', InitInp%MeshPtToBladeNum_C,  InitInp%NumMeshPts_C,   ErrStat2, ErrMsg2); if(Failed()) return;
-
-   call ParseVar( FileInfo_In, CurLine, 'ADI_OutRootName_C', TmpPath, ErrStat2, ErrMsg2); if(Failed()) return;
-   call StringConvert_F2C(TmpPath, InitInp%ADI_OutRootName_C)
-   call ParseVar( FileInfo_In, CurLine, 'ADI_OutVTKDir_C',   TmpPath, ErrStat2, ErrMsg2); if(Failed()) return;
-   call StringConvert_F2C(TmpPath, InitInp%ADI_OutVTKDir_C)
-   call ParseVar( FileInfo_In, CurLine, 'ADI_InterpOrder_C', InitInp%ADI_InterpOrder_C,   ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'ADI_TMax_C',        InitInp%ADI_TMax_C,          ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'ADI_storeHHVel',    InitInp%ADI_storeHHVel,      ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'ADI_WrVTK_in',      InitInp%ADI_WrVTK_in,        ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'ADI_WrVTK_inType',  InitInp%ADI_WrVTK_inType,    ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'ADI_WrVTK_inDT',    InitInp%ADI_WrVTK_inDT,      ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseAry( FileInfo_In, CurLine, 'ADI_VTKNacDim_in',  InitInp%ADI_VTKNacDim_in, 6, ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'ADI_VTKHubrad_in',  InitInp%ADI_VTKHubrad_in,    ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'ADI_wrOuts_C',      InitInp%ADI_wrOuts_C,        ErrStat2, ErrMsg2); if(Failed()) return;
-   call ParseVar( FileInfo_In, CurLine, 'ADI_DT_Outs_C',     InitInp%ADI_DT_Outs_C,       ErrStat2, ErrMsg2); if(Failed()) return;
+   ! Separator/header line skipped automatically
+   ! ----- Simulation control -------------
+   call ParseVar( FileInfo_In, CurLine, 'DT',          SimSettings%Sim%DT,          ErrStat2, ErrMsg2); if(Failed()) return;  ! timestep (unused)
+   call ParseVar( FileInfo_In, CurLine, 'TMax',        SimSettings%Sim%TMax,        ErrStat2, ErrMsg2); if(Failed()) return;  ! Max sim time (unused)
+   call ParseVar( FileInfo_In, CurLine, 'MHK',         SimSettings%Sim%MHK,         ErrStat2, ErrMsg2); if(Failed()) return;  ! MHK turbine type (switch) {0=Not an MHK turbine; 1=Fixed MHK turbine; 2=Floating MHK turbine}
+   call ParseVar( FileInfo_In, CurLine, 'InterpOrd',   SimSettings%Sim%InterpOrd,   ErrStat2, ErrMsg2); if(Failed()) return;  ! Interpolation order (unused)
+   call ParseVar( FileInfo_In, CurLine, 'DebugLevel',  SimSettings%Sim%DebugLevel,  ErrStat2, ErrMsg2); if(Failed()) return;  ! 0: none, 1: I/O summary, 2: +positions/orientations passed, 3:, 4: +all meshes
+   call ParseVar( FileInfo_In, CurLine, 'OutRootName', SimSettings%Sim%OutRootName, ErrStat2, ErrMsg2); if(Failed()) return;  ! Root name for any summary or other files
+! -------- Environment ----------------
+   call ParseVar( FileInfo_In, CurLine, 'Gravity',     SimSettings%Env%Gravity,     ErrStat2, ErrMsg2); if(Failed()) return;  ! Gravitational acceleration (m/s^2)
+   call ParseVar( FileInfo_In, CurLine, 'WtrDens',     SimSettings%Env%WtrDens,     ErrStat2, ErrMsg2); if(Failed()) return;  ! Water density (kg/m^3)
+   call ParseVar( FileInfo_In, CurLine, 'WtrVisc',     SimSettings%Env%WtrVisc,     ErrStat2, ErrMsg2); if(Failed()) return;  ! Kinematic viscosity of working fluid (m^2/s)
+   call ParseVar( FileInfo_In, CurLine, 'SpdSound',    SimSettings%Env%SpdSound,    ErrStat2, ErrMsg2); if(Failed()) return;  ! Speed of sound in working fluid (m/s)
+   call ParseVar( FileInfo_In, CurLine, 'Patm',        SimSettings%Env%Patm,        ErrStat2, ErrMsg2); if(Failed()) return;  ! Atmospheric pressure (Pa) [used only for an MHK turbine cavitation check]
+   call ParseVar( FileInfo_In, CurLine, 'Pvap',        SimSettings%Env%Pvap,        ErrStat2, ErrMsg2); if(Failed()) return;  !  Vapour pressure of working fluid (Pa) [used only for an MHK turbine cavitation check]
+   call ParseVar( FileInfo_In, CurLine, 'WtrDpth',     SimSettings%Env%WtrDpth,     ErrStat2, ErrMsg2); if(Failed()) return;  ! Water depth (m)
+   call ParseVar( FileInfo_In, CurLine, 'MSL2SWL',     SimSettings%Env%MSL2SWL,     ErrStat2, ErrMsg2); if(Failed()) return;  ! Offset between still-water level and mean sea level (m) [positive upward]
+! -------- SeaState -------------------
+! -------- MoorDyn --------------------
+! -------- AeroDyn + InflowWind -------
+! -------- Turbine Configuration ------
+   call ParseVar( FileInfo_In, CurLine, 'NumBl',       SimSettings%TCfg%NumBl,      ErrStat2, ErrMsg2); if(Failed()) return;  ! Number of blades (-)
+   call ParseVar( FileInfo_In, CurLine, 'TipRad',      SimSettings%TCfg%TipRad,     ErrStat2, ErrMsg2); if(Failed()) return;  ! The distance from the rotor apex to the blade tip (meters)
+   call ParseVar( FileInfo_In, CurLine, 'HubRad',      SimSettings%TCfg%HubRad,     ErrStat2, ErrMsg2); if(Failed()) return;  ! The distance from the rotor apex to the blade root (meters)
+   call ParseVar( FileInfo_In, CurLine, 'PreCone',     SimSettings%TCfg%PreCone,    ErrStat2, ErrMsg2); if(Failed()) return;  ! Blade cone angle (degrees)
+   call ParseVar( FileInfo_In, CurLine, 'OverHang',    SimSettings%TCfg%OverHang,   ErrStat2, ErrMsg2); if(Failed()) return;  ! Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades] (meters)
+   call ParseVar( FileInfo_In, CurLine, 'ShftGagL',    SimSettings%TCfg%ShftGagL,   ErrStat2, ErrMsg2); if(Failed()) return;  ! Distance from rotor apex [3 blades] or teeter pin [2 blades] to shaft strain gages [positive for upwind rotors] (meters)
+   call ParseVar( FileInfo_In, CurLine, 'ShftTilt',    SimSettings%TCfg%ShftTilt,   ErrStat2, ErrMsg2); if(Failed()) return;  ! Rotor shaft tilt angle (degrees)
+   call ParseVar( FileInfo_In, CurLine, 'Twr2Shft',    SimSettings%TCfg%Twr2Shft,   ErrStat2, ErrMsg2); if(Failed()) return;  ! Vertical distance from the tower-top to the rotor shaft (meters)
+   call ParseVar( FileInfo_In, CurLine, 'TowerHt',     SimSettings%TCfg%TowerHt,    ErrStat2, ErrMsg2); if(Failed()) return;  ! Height of tower relative MSL
+   call ParseVar( FileInfo_In, CurLine, 'TowerBsHt',   SimSettings%TCfg%TowerBsHt,  ErrStat2, ErrMsg2); if(Failed()) return;  ! Height of tower base relative to ground level [onshore], MSL [floating MHK] (meters)
+   call ParseAry( FileInfo_In, CurLine, 'PtfmRef',     SimSettings%TCfg%PtfmRef, 3, ErrStat2, ErrMsg2); if(Failed()) return;  ! Location of platform reference point, relative to MSL.  Motions and loads all connect to this point
+! -------- Turbine Operating Point ----
+   call ParseVar( FileInfo_In, CurLine, 'RotSpeed',    SimSettings%TOp%RotSpeed,    ErrStat2, ErrMsg2); if(Failed()) return;  ! Rotational speed of rotor in rotor coordinates (rpm)
+   call ParseVar( FileInfo_In, CurLine, 'BldPitch',    SimSettings%TOp%BldPitch,    ErrStat2, ErrMsg2); if(Failed()) return;  ! Blade 1 pitch (deg)
+! -------- Output ---------------------
+   call ParseVar( FileInfo_In, CurLine, 'OutFile',     SimSettings%Outs%OutFile,    ErrStat2, ErrMsg2); if(Failed()) return;  ! 0: no output file of channels, 1: output file in text format (at default DT) 
+   call ParseVar( FileInfo_In, CurLine, 'OutFmt',      SimSettings%Outs%OutFmt,     ErrStat2, ErrMsg2); if(Failed()) return;  ! Format used for text tabular output, excluding the time channel. (quoted string)
+! -------- VTK output -----------------
+   call ParseVar( FileInfo_In, CurLine, 'WrVTK_Dir',   SimSettings%Viz%WrVTK_Dir,   ErrStat2, ErrMsg2); if(Failed()) return;  ! output directory for visualization
+   call ParseVar( FileInfo_In, CurLine, 'WrVTK',       SimSettings%Viz%WrVTK,       ErrStat2, ErrMsg2); if(Failed()) return;  ! VTK visualization data output: (switch) {0=none; 1=initialization data only; 2=animation; 3=mode shapes}
+   call ParseVar( FileInfo_In, CurLine, 'WrVTK_type',  SimSettings%Viz%WrVTK_type,  ErrStat2, ErrMsg2); if(Failed()) return;  ! Type of VTK visualization data: (switch) {1=surfaces; 2=basic meshes (lines/points); 3=all meshes (debug)} [unused if WrVTK=0]
+   call ParseVar( FileInfo_In, CurLine, 'WrVTK_DT',    SimSettings%Viz%WrVTK_DT,    ErrStat2, ErrMsg2); if(Failed()) return;  ! DT for writing VTK files
+   call ParseAry( FileInfo_In, CurLine, 'VTKNacDim',   SimSettings%Viz%VTKNacDim,6, ErrStat2, ErrMsg2); if(Failed()) return;  !  Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz] (m)
 
 contains
    logical function Failed()
@@ -136,5 +106,29 @@ contains
    end function Failed
 end subroutine
 
+
+
+subroutine ValidateInputFile(SimSettings, ErrStat, ErrMsg)
+   type(SimSettingsType),     intent(inout)  :: SimSettings
+   integer(IntKi),            intent(  out)  :: ErrStat
+   character(*),              intent(  out)  :: ErrMsg
+   integer(IntKi)                            :: ErrStat2
+   character(ErrMsgLen)                      :: ErrMsg2
+   character(*), parameter                   :: RoutineName = 'WaveTankTesting.ValidateInputFile'
+
+   ! only valid for floating MHK turbines
+   if (SimSettings%Sim%MHK /= 2_c_int) then
+      ErrStat2 = ErrID_Fatal
+      ErrMsg2  = "WaveTank module only works for floating MHK turbines at present (MHK=2)."
+      if (Failed()) return
+   endif
+
+
+contains
+   logical function Failed()
+      call SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+      Failed = ErrStat >= AbortErrLev
+   end function Failed
+end subroutine
 
 END MODULE WaveTank_IO

@@ -14,9 +14,9 @@
 # limitations under the License.
 #
 
-#if (GENERATE_TYPES)
-#  generate_f90_types(src/WaveTank_Registry.txt ${CMAKE_CURRENT_LIST_DIR}/src/WaveTank_Types.f90 -noextrap)
-#endif()
+if (GENERATE_TYPES)
+  generate_f90_types(src/WaveTank_Registry.txt ${CMAKE_CURRENT_LIST_DIR}/src/WaveTank_Types.f90 -noextrap)
+endif()
 
 add_library(wavetanktestinglib SHARED 
     src/WaveTank_Types.f90

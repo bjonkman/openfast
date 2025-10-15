@@ -131,6 +131,7 @@ CONTAINS
 !===============================================================================================================
 !---------------------------------------------- MD INIT --------------------------------------------------------
 !===============================================================================================================
+!FIXME: add ShowPassed and DebugLevel
 SUBROUTINE MD_C_Init(                                             &
    InputFilePassed, InputFileString_C, InputFileStringLength_C,   &
    DT_C, G_C, RHO_C, DEPTH_C, PtfmInit_C,                         &
@@ -149,6 +150,7 @@ SUBROUTINE MD_C_Init(                                             &
    REAL(C_FLOAT)                                  , INTENT(IN   )   :: G_C
    REAL(C_FLOAT)                                  , INTENT(IN   )   :: RHO_C
    REAL(C_FLOAT)                                  , INTENT(IN   )   :: DEPTH_C
+!FIXME: PtfmInit_C should be resized for N nodes (6xN position), but can stay as euler angle for angles
    REAL(C_FLOAT)                                  , INTENT(IN   )   :: PtfmInit_C(6) ! TODO: make this more flexible, can we not have 6 DOF only coupling?
    INTEGER(C_INT)                                 , INTENT(IN   )   :: InterpOrder_C
    INTEGER(C_INT)                                 , INTENT(  OUT)   :: NumChannels_C

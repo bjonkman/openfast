@@ -60,21 +60,30 @@ MODULE WaveTankTesting
    REAL(C_DOUBLE) :: DT
 
 !FIXME: replace all this with meshes
-    REAL(C_FLOAT), DIMENSION(3,3) :: FloaterPositions = 0.0_C_FLOAT
-    REAL(C_FLOAT), DIMENSION(2,6) :: FloaterVelocities = 0.0_C_FLOAT
-    REAL(C_FLOAT), DIMENSION(1,6) :: FloaterAccelerations = 0.0_C_FLOAT
+!   REAL(C_FLOAT), DIMENSION(3,3) :: FloaterPositions = 0.0_C_FLOAT
+!   REAL(C_FLOAT), DIMENSION(2,6) :: FloaterVelocities = 0.0_C_FLOAT
+!   REAL(C_FLOAT), DIMENSION(1,6) :: FloaterAccelerations = 0.0_C_FLOAT
 
-    REAL(C_FLOAT), DIMENSION(3,3) :: NacellePositions = 0.0_C_FLOAT
-    REAL(C_FLOAT), DIMENSION(2,6) :: NacelleVelocities = 0.0_C_FLOAT
-    REAL(C_FLOAT), DIMENSION(1,6) :: NacelleAccelerations = 0.0_C_FLOAT
+!   REAL(C_FLOAT), DIMENSION(3,3) :: NacellePositions = 0.0_C_FLOAT
+!   REAL(C_FLOAT), DIMENSION(2,6) :: NacelleVelocities = 0.0_C_FLOAT
+!   REAL(C_FLOAT), DIMENSION(1,6) :: NacelleAccelerations = 0.0_C_FLOAT
 
-    REAL(C_FLOAT), ALLOCATABLE :: BladeRootPositions(:,:)
-    REAL(C_FLOAT), ALLOCATABLE :: BladeRootVelocities(:,:)
-    REAL(C_FLOAT), ALLOCATABLE :: BladeRootAccelerations(:,:)
-    
-    REAL(C_FLOAT), ALLOCATABLE :: BladeMeshPositions(:,:)
-    REAL(C_FLOAT), ALLOCATABLE :: BladeMeshVelocities(:,:)
-    REAL(C_FLOAT), ALLOCATABLE :: BladeMeshAccelerations(:,:)
+!   REAL(C_FLOAT), ALLOCATABLE :: BladeRootPositions(:,:)
+!   REAL(C_FLOAT), ALLOCATABLE :: BladeRootVelocities(:,:)
+!   REAL(C_FLOAT), ALLOCATABLE :: BladeRootAccelerations(:,:)
+!   
+!   REAL(C_FLOAT), ALLOCATABLE :: BladeMeshPositions(:,:)
+!   REAL(C_FLOAT), ALLOCATABLE :: BladeMeshVelocities(:,:)
+!   REAL(C_FLOAT), ALLOCATABLE :: BladeMeshAccelerations(:,:)
+
+!FIXME: this is temporary until meshes are properly setup.  Move all this to some temporary storage that gets allocated on init
+real(c_double) :: tmpIdent9(9) = (/ 1.0_c_float, 0.0_c_float, 0.0_c_float,  0.0_c_float, 1.0_c_float, 0.0_c_float,  0.0_c_float, 0.0_c_float, 1.0_c_float /)
+real(c_double) :: tmpBldRootOri(18) = (/ 1.0_c_float, 0.0_c_float, 0.0_c_float,  0.0_c_float, 1.0_c_float, 0.0_c_float,  0.0_c_float, 0.0_c_float, 1.0_c_float, &
+                                         1.0_c_float, 0.0_c_float, 0.0_c_float,  0.0_c_float, 1.0_c_float, 0.0_c_float,  0.0_c_float, 0.0_c_float, 1.0_c_float /)
+real(c_double) :: tmpInitMeshOri(18)
+real(c_float)  :: tmpBldRootPos(6), tmpHubPos(3), tmpNacPos(3), tmpInitMeshPos(6)
+integer(c_int) :: tmpNumMeshPts = 2
+integer(c_int) :: tmpMeshPtToBladeNum(2) = (/ 1_c_int, 2_c_int /)
 
 CONTAINS
 
@@ -94,7 +103,7 @@ SUBROUTINE WaveTank_Init(   &
 
    character(c_char),          intent(in   ) :: WT_InputFile_C(IntfStrLen)
    character(c_char), target,  intent(in   ) :: MD_InputFile_C(IntfStrLen)
-   character(c_char), target,  intent(in   ) :: SS_InputFile_C(IntfStrLen)
+   character(c_char),          intent(in   ) :: SS_InputFile_C(IntfStrLen)
    character(c_char), target,  intent(in   ) :: AD_InputFile_C(IntfStrLen)
    character(c_char), target,  intent(in   ) :: IfW_InputFile_C(IntfStrLen)
    integer(c_int),             intent(  out) :: ErrStat_C
@@ -105,10 +114,14 @@ SUBROUTINE WaveTank_Init(   &
    character(kind=c_char, len=ErrMsgLen_C) :: ErrMsg_C2
    integer(IntKi)                          :: ErrStat_F2
    character(ErrMsgLen)                    :: ErrMsg_F2
-   type(WaveTank_InitInput), target        :: WT_InitInp
+   type(SimSettingsType), target           :: SimSettings
    character(1024)                         :: InputFile
    integer(IntKi)                          :: i
    type(FileInfoType)                      :: FileInfo_In   !< The derived type for holding the full input file for parsing -- we may pass this in the future
+   real(c_float)                           :: InitPtfmPosOri(6)
+   ! local C variables for transferring names
+   character(kind=c_char) :: WrVTK_Dir_C(IntfStrLen)
+   character(kind=c_char) :: OutRootName_C(IntfStrLen)
 
    ! The length of these arrays much match what is set in the corresponding C binding modules
    character(kind=c_char) :: SS_OutputChannelNames_C(ChanLen*MaxOutPts+1)
@@ -117,11 +130,6 @@ SUBROUTINE WaveTank_Init(   &
    character(kind=c_char) :: MD_OutputChannelUnits_C(100000)
    character(kind=c_char) :: ADI_OutputChannelNames_C(ChanLen*MaxADIOutputs+1)
    character(kind=c_char) :: ADI_OutputChannelUnits_C(ChanLen*MaxADIOutputs+1)
-
-!FIXME: placeholder for now
-   character(kind=c_char) :: OutVTKDir_C(IntfStrLen)
-
-   OutVTKDir_C = ' '//C_NULL_CHAR
 
 
    ! Initialize error handling
@@ -132,169 +140,164 @@ SUBROUTINE WaveTank_Init(   &
    i = index(InputFile, char(0))
    InputFile = InputFile(1:i)
    call ProcessComFile(InputFile,  FileInfo_In, ErrStat_F2, ErrMsg_F2); if (Failed()) return
-   call ParseInputFile(FileInfo_In, WT_InitInp, ErrStat_F2, ErrMsg_F2); if (Failed()) return
+   call ParseInputFile(FileInfo_In, SimSettings, ErrStat_F2, ErrMsg_F2); if (Failed()) return
 
-   ! Store to global variable for use in other routines
-   DT = WT_InitInp%DT
-   iWT_C = WT_InitInp%iWT_C
-   NumBlades_C = WT_InitInp%NumBlades_C
-   NumMeshPts_C = WT_InitInp%NumMeshPts_C
+   call ValidateInputFile(SimSettings, ErrStat_F2, ErrMsg_F2); if (Failed()) return
 
-   ! Initialize hub and nacelle position to input HubPos_C and NacPos_C
-   DO I=1,3
-       FloaterPositions(I,:) = WT_InitInp%HubPos_C
-       NacellePositions(I,:) = WT_InitInp%NacPos_C
-   END DO
+   ! debugging
+   if (SimSettings%Sim%DebugLevel > 0_c_int) call ShowPassedData()
 
-   ! Allocate the blade root and blade mesh arrays since they're based on the number of blades and mesh points
-   IF (.NOT. ALLOCATED(BladeRootPositions)) THEN
-       ALLOCATE( BladeRootPositions(3,3*NumBlades_C) )
-   ENDIF
-   IF (.NOT. ALLOCATED(BladeRootVelocities)) THEN
-       ALLOCATE( BladeRootVelocities(2,6*NumBlades_C) )
-   ENDIF
-   IF (.NOT. ALLOCATED(BladeRootAccelerations)) THEN
-       ALLOCATE( BladeRootAccelerations(1,6*NumBlades_C) )
-   ENDIF
-   DO I=1,3
-       BladeRootPositions(I,:) = WT_InitInp%BldRootPos_C
-   END DO
-   BladeRootVelocities = 0.0_C_FLOAT
-   BladeRootAccelerations = 0.0_C_FLOAT
+   ! VTK directory - this may leave the c_null_char, but it will get corrected after passed into other code
+   WrVTK_Dir_C = transfer( SimSettings%Viz%WrVTK_Dir, WrVTK_Dir_C )
 
-   IF (.NOT. ALLOCATED(BladeMeshPositions)) THEN
-       ALLOCATE( BladeMeshPositions(3,3*NumMeshPts_C) )
-   ENDIF
+!FIXME: add sanity checks (underwater etc)
 
-   IF (.NOT. ALLOCATED(BladeMeshVelocities)) THEN
-       ALLOCATE( BladeMeshVelocities(2,6*NumMeshPts_C) )
-   ENDIF
+!FIXME: build struct model
 
-   IF (.NOT. ALLOCATED(BladeMeshAccelerations)) THEN
-       ALLOCATE( BladeMeshAccelerations(1,6*NumMeshPts_C) )
-   ENDIF
-   DO I=1,3
-       BladeMeshPositions(I,:) = WT_InitInp%InitMeshPos_C
-   END DO
-   BladeMeshVelocities = 0.0_C_FLOAT
-   BladeMeshAccelerations = 0.0_C_FLOAT
 
-!FIXME: Fix the VTK stuff!!!!!
-   call SeaSt_C_PreInit(                        &
-      WT_InitInp%SS_Gravity_C,                  &
-      WT_InitInp%SS_WtrDens_C,                  &
-      WT_InitInp%SS_WtrDpth_C,                  &
-      WT_InitInp%SS_MSL2SWL_C,                  &
-      WT_InitInp%DebugLevel,                    &
-      OutVTKDir_C,                              &  ! OutVTKDir_C
-      1_c_int,                                  &  ! WrVTK_in
-      0.0_R8Ki,                                 &  ! WrVTK_inDT
-      ErrStat_C2, ErrMsg_C2                     &
+   !------------------------------
+   ! Setup and initialize SeaState
+   !------------------------------
+   call SeaSt_C_PreInit(            &
+      SimSettings%Env%Gravity,      &
+      SimSettings%Env%WtrDens,      &
+      SimSettings%Env%WtrDpth,      &
+      SimSettings%Env%MSL2SWL,      &
+      SimSettings%Sim%DebugLevel,   &
+      WrVTK_Dir_C,                  &
+      SimSettings%Viz%WrVTK,        &
+      SimSettings%Viz%WrVTK_DT,     &
+      ErrStat_C2, ErrMsg_C2         &
    )
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'SeaSt_C_PreInit')
    if (ErrStat_C >= AbortErrLev_C) return
 
-   call SeaSt_C_Init(                         &    
-      c_loc(SS_InputFile_C(1)),               &
-      c_loc(WT_InitInp%SS_OutRootName_C(1)),  &
-      WT_InitInp%SS_NSteps_C,                 &
-      WT_InitInp%SS_TimeInterval_C,           &
-      SS_NumChannels_C,                       &
-      SS_OutputChannelNames_C,                &
-      SS_OutputChannelUnits_C,                &
-      ErrStat_C2, ErrMsg_C2                   &
+   OutRootName_C = transfer(trim(SimSettings%Sim%OutRootName)//'.SeaSt'//c_null_char, OutRootName_C)
+   call SeaSt_C_Init(            &    
+      SS_InputFile_C,            &
+      OutRootName_C,             &
+      1000_c_int,                & !FIXME: do we need the number of timesteps???
+      SimSettings%Sim%DT,        &
+      SS_NumChannels_C,          &
+      SS_OutputChannelNames_C,   &
+      SS_OutputChannelUnits_C,   &
+      ErrStat_C2, ErrMsg_C2      &
    )
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'SeaSt_C_Init')
    if (ErrStat_C >= AbortErrLev_C) return
 
+   !------------------------------
    ! Set the SeaState Wave Field pointer onto MoorDyn
+   !------------------------------
    call WaveTank_SetWaveFieldPointer(ErrStat_C2, ErrMsg_C2)
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'WaveTank_SetWaveFieldPointer')
    if (ErrStat_C >= AbortErrLev_C) return
 
-!FIXME: this interface will change!!!
-   call MD_C_Init(                             &
-       0,                                      &   !< InputFilePassed: 0 for file, 1 for string
-       c_loc(MD_InputFile_C(1)),               &
-       IntfStrLen,                             &   !< InputFileStringLength_C
-       DT,                                     &
-       WT_InitInp%MD_G_C,                      &
-       WT_InitInp%MD_RHO_C,                    &
-       WT_InitInp%MD_DEPTH_C,                  &
-       WT_InitInp%MD_PtfmInit_C,               &
-       WT_InitInp%MD_InterpOrder_C,            &
-       MD_NumChannels_C,                       &
-       MD_OutputChannelNames_C,                &
-       MD_OutputChannelUnits_C,                &
-       ErrStat_C2,                             &
-       ErrMsg_C2                               &
+   !------------------------------
+   ! Setup and initialize MoorDyn
+   !------------------------------
+!FIXME: this interface will change!!! -- Split with PreInit
+!FIXME: add WrVTK_Dir_C,  SimSettings%Viz%WrVTK, SimSettings%Viz%WrVTK_DT
+   !SimSettings%TCfg%PtfmRef
+!FIXME: 6 DOF with 3xPos, 3xEulerAngle
+   InitPtfmPosOri = 0.0_c_float
+   OutRootName_C = transfer(trim(SimSettings%Sim%OutRootName)//'.MD'//c_null_char, OutRootName_C)
+   call MD_C_Init(                           &
+      0_c_int,                               &   !< InputFilePassed: 0 for file, 1 for string
+      c_loc(MD_InputFile_C(1)),              &
+      int(IntfStrLen,c_int),                 &   !< InputFileStringLength_C
+      SimSettings%Sim%DT,                    &
+      SimSettings%Env%Gravity,               &
+      SimSettings%Env%WtrDens,               &
+      SimSettings%Env%WtrDpth,               &
+      InitPtfmPosOri,                        &
+      SimSettings%Sim%InterpOrd,             &
+      MD_NumChannels_C,                      &
+      MD_OutputChannelNames_C,               &
+      MD_OutputChannelUnits_C,               &
+      ErrStat_C2, ErrMsg_C2                  &
    )
-   CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'MD_C_Init')
-   IF (ErrStat_C >= AbortErrLev_C) RETURN
+   call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'MD_C_Init')
+   if (ErrStat_C >= AbortErrLev_C) return
 
-   CALL ADI_C_PreInit(                         &
-       WT_InitInp%NumTurbines_C,               &
-       WT_InitInp%TransposeDCM,                &
-       WT_InitInp%PointLoadOutput,             &
-       WT_InitInp%ADI_gravity_C,               &
-       WT_InitInp%ADI_defFldDens_C,            &
-       WT_InitInp%ADI_defKinVisc_C,            &
-       WT_InitInp%ADI_defSpdSound_C,           &
-       WT_InitInp%ADI_defPatm_C,               &
-       WT_InitInp%ADI_defPvap_C,               &
-       WT_InitInp%ADI_WtrDpth_C,               &
-       WT_InitInp%ADI_MSL2SWL_C,               &
-       WT_InitInp%MHK,                         &
-       WT_InitInp%DebugLevel,                  &
-       ErrStat_C2, ErrMsg_C2                   &
+   !------------------------------
+   ! Setup and initialize MoorDyn
+   !------------------------------
+   call ADI_C_PreInit(                       &
+      1_c_int,                               &     ! only one turbine
+      1_c_int,                               &     ! transpose DCM inside ADI (true)
+      1_c_int,                               &     ! PointLoadOutput - use line to point load mapping -- necessary for mapping to blade root without an actual blade structure
+      SimSettings%Env%Gravity,               &
+      SimSettings%Env%WtrDens,               &
+      SimSettings%Env%WtrVisc,               &
+      SimSettings%Env%SpdSound,              &
+      SimSettings%Env%Patm,                  &
+      SimSettings%Env%Pvap,                  &
+      SimSettings%Env%WtrDpth,               &
+      SimSettings%Env%MSL2SWL,               &
+      SimSettings%Sim%MHK,                   &
+      SimSettings%Sim%DebugLevel,            &
+      ErrStat_C2, ErrMsg_C2                  &
    )
-   CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_PreInit')
-   IF (ErrStat_C >= AbortErrLev_C) RETURN
+   call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_PreInit')
+   if (ErrStat_C >= AbortErrLev_C) return
 
-   CALL ADI_C_SetupRotor(                      &
-       WT_InitInp%iWT_c,                       &
-       WT_InitInp%TurbineIsHAWT_c,             &
-       WT_InitInp%TurbOrigin_C,                &
-       WT_InitInp%HubPos_C,                    &
-       WT_InitInp%HubOri_C,                    &
-       WT_InitInp%NacPos_C,                    &
-       WT_InitInp%NacOri_C,                    &
-       WT_InitInp%NumBlades_C,                 &
-       WT_InitInp%BldRootPos_C,                &
-       WT_InitInp%BldRootOri_C,                &
-       WT_InitInp%NumMeshPts_C,                &
-       WT_InitInp%InitMeshPos_C,               &
-       WT_InitInp%InitMeshOri_C,               &
-       WT_InitInp%MeshPtToBladeNum_C,          &
-       ErrStat_C2, ErrMsg_C2                   &
+
+   !------------------------------
+   ! Setup and initialize MoorDyn
+   !------------------------------
+!FIXME: temporary location info until meshes set up
+tmpNacPos = SimSettings%TCfg%TowerHt
+tmpHubPos = tmpNacPos + SimSettings%TCfg%OverHang + SimSettings%TCfg%Twr2Shft     ! missing angles
+tmpBldRootPos(1:3) = tmpHubPos   ! blade 1
+tmpBldRootPos(4:6) = tmpHubPos   ! blade 2
+tmpInitMeshPos = tmpBldRootPos
+tmpInitMeshOri = tmpBldRootOri      !FIXME: blade pitch
+   call ADI_C_SetupRotor(                    &
+      1_c_int,                               &  ! iWT  -- turbine number (only one allowed)
+      1_c_int,                               &  ! TurbineIsHAWT = true
+      InitPtfmPosOri,                        &  ! TurbOrigin - FIXME: is this at the platform reference point? or tower base height?
+      tmpHubPos          ,     &  ! HubPos
+      tmpIdent9          ,     &  ! HubOri
+      tmpNacPos          ,     &  ! NacPos
+      tmpIdent9          ,     &  ! NacOri
+      SimSettings%TCfg%NumBl,                &  ! NumBlades
+      tmpBldRootPos      ,     &  ! BldRootPos
+      tmpBldRootOri      ,     &  ! BldRootOri
+      tmpNumMeshPts      ,     &  ! NumMeshPts
+      tmpInitMeshPos     ,     &  ! InitMeshPos
+      tmpInitMeshOri     ,     &  ! InitMeshOri
+      tmpMeshPtToBladeNum,     &  ! MeshPtToBladeNum
+      ErrStat_C2, ErrMsg_C2                   &
    )
-   CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_SetupRotor')
-   IF (ErrStat_C >= AbortErrLev_C) RETURN
+   call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_SetupRotor')
+   if (ErrStat_C >= AbortErrLev_C) return
 
-   CALL ADI_C_Init(                            &
-       0,                                      &   !< ADinputFilePassed; 0 for file, 1 for string
-       c_loc(AD_InputFile_C(1)),               &   !< ADinputFileString_C; Input file as a single string with lines delineated by C_NULL_CHAR
-       IntfStrLen,                             &   !< ADinputFileStringLength_C; length of the input file string
-       0,                                      &   !< IfWinputFilePassed; 0 for file, 1 for string
-       c_loc(IfW_InputFile_C(1)),              &   !< IfWinputFileString_C; Input file as a single string with lines delineated by C_NULL_CHAR
-       IntfStrLen,                             &   !< IfWinputFileStringLength_C; length of the input file string
-       WT_InitInp%ADI_OutRootName_C,           &   !< Root name to use for echo files and other
-       WT_InitInp%ADI_OutVTKDir_C,             &   !< Directory to put all vtk output
-       WT_InitInp%ADI_InterpOrder_C,           &   !< Interpolation order to use (must be 1 or 2)
-       DT,                                     &   !< Timestep used with AD for stepping forward from t to t+dt.  Must be constant.
-       WT_InitInp%ADI_TMax_C,                  &   !< Maximum time for simulation
-       WT_InitInp%ADI_storeHHVel,              &   !< Store hub height time series from IfW
-       WT_InitInp%ADI_WrVTK_in,                &   !< Write VTK outputs [0: none, 1: init only, 2: animation]
-       WT_InitInp%ADI_WrVTK_inType,            &   !< Write VTK outputs as [1: surface, 2: lines, 3: both]
-       WT_InitInp%ADI_WrVTK_inDT,              &   !< Timestep between VTK writes
-       WT_InitInp%ADI_VTKNacDim_in,            &   !< Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz] (m)
-       WT_InitInp%ADI_VTKHubRad_in,            &   !< Hub radius for VTK surface rendering
-       WT_InitInp%ADI_wrOuts_C,                &
-       WT_InitInp%ADI_DT_Outs_C,               &
-       ADI_NumChannels_C,                      &
-       ADI_OutputChannelNames_C,               &
-       ADI_OutputChannelUnits_C,               &
-       ErrStat_C2, ErrMsg_C2                   &
+   OutRootName_C = transfer(trim(SimSettings%Sim%OutRootName)//'.ADI'//c_null_char, OutRootName_C)
+   call ADI_C_Init(                          &
+      0,                                     &  ! ADinputFilePassed; 0 for file, 1 for string
+      c_loc(AD_InputFile_C(1)),              &  ! ADinputFileString_C; Input file as a single string with lines delineated by C_NULL_CHAR
+      IntfStrLen,                            &  ! ADinputFileStringLength_C; length of the input file string
+      0,                                     &  ! IfWinputFilePassed; 0 for file, 1 for string
+      c_loc(IfW_InputFile_C(1)),             &  ! IfWinputFileString_C; Input file as a single string with lines delineated by C_NULL_CHAR
+      IntfStrLen,                            &  ! IfWinputFileStringLength_C; length of the input file string
+      OutRootName_C,                         &  ! Root name to use for echo files and other
+      WrVTK_Dir_C,                           &  ! vtk directory to use
+      SimSettings%Sim%InterpOrd,             &  ! interpolation order for extrap/interp
+      SimSettings%Sim%DT,                    &  ! DT for simulation (used in checks only)
+      SimSettings%Sim%TMax,                  &  ! Max time for simulation (not used here)
+      0_c_int,                               &  ! storeHHVel - Store hub height time series from IfW -- set to false since not used here
+      SimSettings%Viz%WrVTK,                 &  ! VTK visualization data output: (switch) {0=none; 1=initialization data only; 2=animation; 3=mode shapes}
+      SimSettings%Viz%WrVTK_Type,            &  ! Type of VTK visualization data: (switch) {1=surfaces; 2=basic meshes (lines/points); 3=all meshes (debug)} [unused if WrVTK=0]
+      SimSettings%Viz%WrVTK_DT,              &  ! timestep of VTK writing
+      SimSettings%Viz%VTKNacDim,             &  ! Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz] (m)
+      SimSettings%TCfg%HubRad,               &  ! Hub radius for VTK surface rendering
+      1_c_int,                               &  ! wrOuts_C -- Write ADI output file -- hard code to true for now
+      SimSettings%Sim%DT,                    &  ! Timestep to write output file from ADI
+      ADI_NumChannels_C,                     &
+      ADI_OutputChannelNames_C,              &
+      ADI_OutputChannelUnits_C,              &
+      ErrStat_C2, ErrMsg_C2                  &
    )
    CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_Init')
    IF (ErrStat_C >= AbortErrLev_C) RETURN
@@ -309,7 +312,23 @@ contains
       CALL NWTC_Library_Destroyfileinfotype(FileInfo_In, ErrStat_F2, ErrMsg_F2)  ! ignore error from this
 !      if (ErrStat_C >= AbortErrLev_C) call DeallocEverything()
    end subroutine Cleanup
-
+   subroutine ShowPassedData()
+      character(IntfStrLen) :: tmpPath
+      call WrScr("-----------------------------------------------------------")
+      call WrScr("Interface debugging:  WaveTank_Init")
+      call WrScr("   --------------------------------------------------------")
+      tmpPath = transfer(WT_InputFile_C,tmpPath)
+      call WrScr("   WT_InputFile_C         -> "//tmpPath)
+      tmpPath = transfer(MD_InputFile_C,tmpPath)
+      call WrScr("   MD_InputFile_C         -> "//tmpPath)
+      tmpPath = transfer(SS_InputFile_C,tmpPath)
+      call WrScr("   SS_InputFile_C         -> "//tmpPath)
+      tmpPath = transfer(AD_InputFile_C,tmpPath)
+      call WrScr("   AD_InputFile_C         -> "//tmpPath)
+      tmpPath = transfer(IfW_InputFile_C,tmpPath)
+      call WrScr("   IfW_InputFile_C        -> "//tmpPath)
+      call WrScr("-----------------------------------------------------------")
+   end subroutine ShowPassedData
 END SUBROUTINE WaveTank_Init
 
 !subroutine DeallocEverything()
@@ -405,25 +424,25 @@ SUBROUTINE WaveTank_CalcOutput( &
     ErrStat_C = ErrID_None
     ErrMsg_C  = " "//C_NULL_CHAR
 
-    ! Shift the positions and velocities over one index
-    FloaterPositions(1,:) = FloaterPositions(2,:)
-    FloaterPositions(2,:) = FloaterPositions(3,:)
-    NacellePositions(1,:) = NacellePositions(2,:)
-    NacellePositions(2,:) = NacellePositions(3,:)
-    BladeRootPositions(1,:) = BladeRootPositions(2,:)
-    BladeRootPositions(2,:) = BladeRootPositions(3,:)
-    BladeMeshPositions(1,:) = BladeMeshPositions(2,:)
-    BladeMeshPositions(2,:) = BladeMeshPositions(3,:)
-    FloaterVelocities(1,:) = FloaterVelocities(2,:)
-    NacelleVelocities(1,:) = NacelleVelocities(2,:)
-    BladeRootVelocities(1,:) = BladeRootVelocities(2,:)
-    BladeMeshVelocities(1,:) = BladeMeshVelocities(2,:)
+!   ! Shift the positions and velocities over one index
+!   FloaterPositions(1,:) = FloaterPositions(2,:)
+!   FloaterPositions(2,:) = FloaterPositions(3,:)
+!   NacellePositions(1,:) = NacellePositions(2,:)
+!   NacellePositions(2,:) = NacellePositions(3,:)
+!   BladeRootPositions(1,:) = BladeRootPositions(2,:)
+!   BladeRootPositions(2,:) = BladeRootPositions(3,:)
+!   BladeMeshPositions(1,:) = BladeMeshPositions(2,:)
+!   BladeMeshPositions(2,:) = BladeMeshPositions(3,:)
+!   FloaterVelocities(1,:) = FloaterVelocities(2,:)
+!   NacelleVelocities(1,:) = NacelleVelocities(2,:)
+!   BladeRootVelocities(1,:) = BladeRootVelocities(2,:)
+!   BladeMeshVelocities(1,:) = BladeMeshVelocities(2,:)
 
-    ! Load the new positions
-    FloaterPositions(3,:) = (/ positions_x, positions_y, positions_z /)
-    DeltaS = FloaterPositions(3,:) - FloaterPositions(2,:)
-    ! TODO: rigid body rotation is missing on moment arm
-    NacellePositions(3,:) = NacellePositions(2,:) + DeltaS
+!   ! Load the new positions
+!   FloaterPositions(3,:) = (/ positions_x, positions_y, positions_z /)
+!   DeltaS = FloaterPositions(3,:) - FloaterPositions(2,:)
+!   ! TODO: rigid body rotation is missing on moment arm
+!   NacellePositions(3,:) = NacellePositions(2,:) + DeltaS
 
     ! TODO:
     ! - Create mesh for platform point (WaveTank_Init)
@@ -438,144 +457,144 @@ SUBROUTINE WaveTank_CalcOutput( &
     !               +1 is because Fortran starts indexing at 1
     ! Upper bound: (I-1)*3+1+2 is the last of the three position components for the current blade
     !               +2 is because Fortran includes the last index in the range
-    DO I=1,NumBlades_C
-        I0 = (I-1)*3+1
-        I1 = (I-1)*3+1+2
-        BladeRootPositions(3,I0:I1) = BladeRootPositions(2,I0:I1) + DeltaS
-    END DO
-    DO I=1,NumMeshPts_C
-        I0 = (I-1)*3+1
-        I1 = (I-1)*3+1+2
-        BladeMeshPositions(3,I0:I1) = BladeMeshPositions(2,I0:I1) + DeltaS
-    END DO
+!   DO I=1,NumBlades_C
+!       I0 = (I-1)*3+1
+!       I1 = (I-1)*3+1+2
+!       BladeRootPositions(3,I0:I1) = BladeRootPositions(2,I0:I1) + DeltaS
+!   END DO
+!   DO I=1,NumMeshPts_C
+!       I0 = (I-1)*3+1
+!       I1 = (I-1)*3+1+2
+!       BladeMeshPositions(3,I0:I1) = BladeMeshPositions(2,I0:I1) + DeltaS
+!   END DO
 
-    ! Calculate velocities and acceleration
-    FloaterVelocities(1,:) = (/ (FloaterPositions(2,:) - FloaterPositions(1,:)) / REAL(DT, C_FLOAT), 0.0_C_FLOAT, 0.0_C_FLOAT, 0.0_C_FLOAT /)
-    FloaterVelocities(2,:) = (/ (FloaterPositions(3,:) - FloaterPositions(2,:)) / REAL(DT, C_FLOAT), 0.0_C_FLOAT, 0.0_C_FLOAT, 0.0_C_FLOAT /)
-    FloaterAccelerations(1,:) = (/ (FloaterVelocities(2,:) - FloaterVelocities(1,:)) / REAL(DT, C_FLOAT) /)
+!   ! Calculate velocities and acceleration
+!   FloaterVelocities(1,:) = (/ (FloaterPositions(2,:) - FloaterPositions(1,:)) / REAL(DT, C_FLOAT), 0.0_C_FLOAT, 0.0_C_FLOAT, 0.0_C_FLOAT /)
+!   FloaterVelocities(2,:) = (/ (FloaterPositions(3,:) - FloaterPositions(2,:)) / REAL(DT, C_FLOAT), 0.0_C_FLOAT, 0.0_C_FLOAT, 0.0_C_FLOAT /)
+!   FloaterAccelerations(1,:) = (/ (FloaterVelocities(2,:) - FloaterVelocities(1,:)) / REAL(DT, C_FLOAT) /)
 
-    NacelleVelocities(1,:) = (/ (NacellePositions(2,:) - NacellePositions(1,:)) / REAL(DT, C_FLOAT), 0.0_C_FLOAT, 0.0_C_FLOAT, 0.0_C_FLOAT /)
-    NacelleVelocities(2,:) = (/ (NacellePositions(3,:) - NacellePositions(2,:)) / REAL(DT, C_FLOAT), 0.0_C_FLOAT, 0.0_C_FLOAT, 0.0_C_FLOAT /)
-    NacelleAccelerations(1,:) = (/ (NacelleVelocities(2,:) - NacelleVelocities(1,:)) / REAL(DT, C_FLOAT) /)
+!   NacelleVelocities(1,:) = (/ (NacellePositions(2,:) - NacellePositions(1,:)) / REAL(DT, C_FLOAT), 0.0_C_FLOAT, 0.0_C_FLOAT, 0.0_C_FLOAT /)
+!   NacelleVelocities(2,:) = (/ (NacellePositions(3,:) - NacellePositions(2,:)) / REAL(DT, C_FLOAT), 0.0_C_FLOAT, 0.0_C_FLOAT, 0.0_C_FLOAT /)
+!   NacelleAccelerations(1,:) = (/ (NacelleVelocities(2,:) - NacelleVelocities(1,:)) / REAL(DT, C_FLOAT) /)
 
-    DO I=1,NumBlades_C
-        I0 = (I-1)*6+1
-        I1 = (I-1)*6+1+5
-        BladeRootVelocities(1,I0:I1) = (/ (BladeRootPositions(2,(I-1)*3+1:(I-1)*3+1+2) - BladeRootPositions(1,(I-1)*3+1:(I-1)*3+1+2)) / REAL(DT, C_FLOAT), 0.0_C_FLOAT, 0.0_C_FLOAT, 0.0_C_FLOAT /)
-        BladeRootVelocities(2,I0:I1) = (/ (BladeRootPositions(3,(I-1)*3+1:(I-1)*3+1+2) - BladeRootPositions(2,(I-1)*3+1:(I-1)*3+1+2)) / REAL(DT, C_FLOAT), 0.0_C_FLOAT, 0.0_C_FLOAT, 0.0_C_FLOAT /)
-        BladeRootAccelerations(1,I0:I1) = (BladeRootVelocities(2,I0:I1) - BladeRootVelocities(1,I0:I1)) / REAL(DT, C_FLOAT)
-    END DO
+!   DO I=1,NumBlades_C
+!       I0 = (I-1)*6+1
+!       I1 = (I-1)*6+1+5
+!       BladeRootVelocities(1,I0:I1) = (/ (BladeRootPositions(2,(I-1)*3+1:(I-1)*3+1+2) - BladeRootPositions(1,(I-1)*3+1:(I-1)*3+1+2)) / REAL(DT, C_FLOAT), 0.0_C_FLOAT, 0.0_C_FLOAT, 0.0_C_FLOAT /)
+!       BladeRootVelocities(2,I0:I1) = (/ (BladeRootPositions(3,(I-1)*3+1:(I-1)*3+1+2) - BladeRootPositions(2,(I-1)*3+1:(I-1)*3+1+2)) / REAL(DT, C_FLOAT), 0.0_C_FLOAT, 0.0_C_FLOAT, 0.0_C_FLOAT /)
+!       BladeRootAccelerations(1,I0:I1) = (BladeRootVelocities(2,I0:I1) - BladeRootVelocities(1,I0:I1)) / REAL(DT, C_FLOAT)
+!   END DO
 
-    DO I=1,NumMeshPts_C
-        I0 = (I-1)*6+1
-        I1 = (I-1)*6+1+5
-        BladeMeshVelocities(1,I0:I1) = (/ (BladeMeshPositions(2,(I-1)*3+1:(I-1)*3+1+2) - BladeMeshPositions(1,(I-1)*3+1:(I-1)*3+1+2)) / REAL(DT, C_FLOAT), 0.0_C_FLOAT, 0.0_C_FLOAT, 0.0_C_FLOAT /)
-        BladeMeshVelocities(2,I0:I1) = (/ (BladeMeshPositions(3,(I-1)*3+1:(I-1)*3+1+2) - BladeMeshPositions(2,(I-1)*3+1:(I-1)*3+1+2)) / REAL(DT, C_FLOAT), 0.0_C_FLOAT, 0.0_C_FLOAT, 0.0_C_FLOAT /)
-        BladeMeshAccelerations(1,I0:I1) = (BladeMeshVelocities(2,I0:I1) - BladeMeshVelocities(1,I0:I1)) / REAL(DT, C_FLOAT)
-    END DO
+!   DO I=1,NumMeshPts_C
+!       I0 = (I-1)*6+1
+!       I1 = (I-1)*6+1+5
+!       BladeMeshVelocities(1,I0:I1) = (/ (BladeMeshPositions(2,(I-1)*3+1:(I-1)*3+1+2) - BladeMeshPositions(1,(I-1)*3+1:(I-1)*3+1+2)) / REAL(DT, C_FLOAT), 0.0_C_FLOAT, 0.0_C_FLOAT, 0.0_C_FLOAT /)
+!       BladeMeshVelocities(2,I0:I1) = (/ (BladeMeshPositions(3,(I-1)*3+1:(I-1)*3+1+2) - BladeMeshPositions(2,(I-1)*3+1:(I-1)*3+1+2)) / REAL(DT, C_FLOAT), 0.0_C_FLOAT, 0.0_C_FLOAT, 0.0_C_FLOAT /)
+!       BladeMeshAccelerations(1,I0:I1) = (BladeMeshVelocities(2,I0:I1) - BladeMeshVelocities(1,I0:I1)) / REAL(DT, C_FLOAT)
+!   END DO
 
-    ! Get loads from MoorDyn
-    ! NOTE: MD_C_UpdateStates and MD_C_CalcOutput do not use the positions, velocities, and accelerations.
-    !       They're passed here just for consistency, but we should not let that interface drive
-    !       the design of this module.
-    ! TODO: get angles from mesh
-    CALL MD_C_UpdateStates(                 &
-        time,                               &
-        REAL(time + DT, C_DOUBLE),          &
-        (/ FloaterPositions(3,:), 0.0_C_FLOAT, 0.0_C_FLOAT, 0.0_C_FLOAT /), &
-        (/ FloaterVelocities(2,:) /),       &
-        (/ FloaterAccelerations(1,:) /),    &
-        ErrStat_C2, ErrMsg_C2               &
-    )
-    CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'MD_C_UpdateStates')
-    IF (ErrStat_C >= AbortErrLev_C) RETURN
+!   ! Get loads from MoorDyn
+!   ! NOTE: MD_C_UpdateStates and MD_C_CalcOutput do not use the positions, velocities, and accelerations.
+!   !       They're passed here just for consistency, but we should not let that interface drive
+!   !       the design of this module.
+!   ! TODO: get angles from mesh
+!   CALL MD_C_UpdateStates(                 &
+!       time,                               &
+!       REAL(time + DT, C_DOUBLE),          &
+!       (/ FloaterPositions(3,:), 0.0_C_FLOAT, 0.0_C_FLOAT, 0.0_C_FLOAT /), &
+!       (/ FloaterVelocities(2,:) /),       &
+!       (/ FloaterAccelerations(1,:) /),    &
+!       ErrStat_C2, ErrMsg_C2               &
+!   )
+!   CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'MD_C_UpdateStates')
+!   IF (ErrStat_C >= AbortErrLev_C) RETURN
 
-    ! TODO: get angles from mesh
-    CALL MD_C_CalcOutput(                   &
-        time,                               &
-        (/ FloaterPositions(3,:), 0.0_C_FLOAT, 0.0_C_FLOAT, 0.0_C_FLOAT /), &
-        (/ FloaterVelocities(2,:) /),       &
-        (/ FloaterAccelerations(1,:) /),    &
-        MD_Forces_C,                        &
-        md_outputs,                         &
-        ErrStat_C2, ErrMsg_C2               &
-    )
-    CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'MD_C_CalcOutput')
-    IF (ErrStat_C >= AbortErrLev_C) RETURN
+!   ! TODO: get angles from mesh
+!   CALL MD_C_CalcOutput(                   &
+!       time,                               &
+!       (/ FloaterPositions(3,:), 0.0_C_FLOAT, 0.0_C_FLOAT, 0.0_C_FLOAT /), &
+!       (/ FloaterVelocities(2,:) /),       &
+!       (/ FloaterAccelerations(1,:) /),    &
+!       MD_Forces_C,                        &
+!       md_outputs,                         &
+!       ErrStat_C2, ErrMsg_C2               &
+!   )
+!   CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'MD_C_CalcOutput')
+!   IF (ErrStat_C >= AbortErrLev_C) RETURN
 
-    ! Get loads from ADI
+!   ! Get loads from ADI
 
-    ! All components are rigidly connected so they share velocities, accelerations, and orientation
-    ! Positions are set by the input file geometry and the calling code
-    ADI_HubPos_C = FloaterPositions(3,:)
-    ADI_HubOri_C = floater_rotation_matrix
-    ADI_HubVel_C = FloaterVelocities(2,:)
-    ADI_HubAcc_C = FloaterAccelerations(1,:)
+!   ! All components are rigidly connected so they share velocities, accelerations, and orientation
+!   ! Positions are set by the input file geometry and the calling code
+!   ADI_HubPos_C = FloaterPositions(3,:)
+!   ADI_HubOri_C = floater_rotation_matrix
+!   ADI_HubVel_C = FloaterVelocities(2,:)
+!   ADI_HubAcc_C = FloaterAccelerations(1,:)
 
-    ADI_NacPos_C = NacellePositions(3,:)
-    ADI_NacOri_C = floater_rotation_matrix
-    ADI_NacVel_C = NacelleVelocities(2,:)
-    ADI_NacAcc_C = NacelleAccelerations(1,:)
+!   ADI_NacPos_C = NacellePositions(3,:)
+!   ADI_NacOri_C = floater_rotation_matrix
+!   ADI_NacVel_C = NacelleVelocities(2,:)
+!   ADI_NacAcc_C = NacelleAccelerations(1,:)
 
-    ADI_BldRootPos_C = BladeRootPositions(3,:)
-    ADI_BldRootOri_C = blade_rotation_matrix
-    ADI_BldRootVel_C = BladeRootVelocities(2,:)
-    ADI_BldRootAcc_C = BladeRootAccelerations(1,:)
+!   ADI_BldRootPos_C = BladeRootPositions(3,:)
+!   ADI_BldRootOri_C = blade_rotation_matrix
+!   ADI_BldRootVel_C = BladeRootVelocities(2,:)
+!   ADI_BldRootAcc_C = BladeRootAccelerations(1,:)
 
-    ADI_MeshPos_C = BladeMeshPositions(3,:)
-    ADI_MeshOri_C = blade_rotation_matrix
-    ADI_MeshVel_C = BladeMeshVelocities(2,:)
-    ADI_MeshAcc_C = BladeMeshAccelerations(1,:)
+!   ADI_MeshPos_C = BladeMeshPositions(3,:)
+!   ADI_MeshOri_C = blade_rotation_matrix
+!   ADI_MeshVel_C = BladeMeshVelocities(2,:)
+!   ADI_MeshAcc_C = BladeMeshAccelerations(1,:)
 
-    CALL ADI_C_SetRotorMotion(              &
-        iWT_c,                              & !< Wind turbine / rotor number
-        ADI_HubPos_C,                       & !< Hub position
-        ADI_HubOri_C,                       & !< Hub orientation
-        ADI_HubVel_C,                       & !< Hub velocity
-        ADI_HubAcc_C,                       & !< Hub acceleration
-        ADI_NacPos_C,                       & !< Nacelle position
-        ADI_NacOri_C,                       & !< Nacelle orientation
-        ADI_NacVel_C,                       & !< Nacelle velocity
-        ADI_NacAcc_C,                       & !< Nacelle acceleration
-        ADI_BldRootPos_C,                   & !< Blade root positions, 3xNumBlades_C
-        ADI_BldRootOri_C,                   & !< Blade root orientations, 9xNumBlades_C
-        ADI_BldRootVel_C,                   & !< Blade root velocities, 6xNumBlades_C
-        ADI_BldRootAcc_C,                   & !< Blade root accelerations, 6xNumBlades_C
-        NumMeshPts_C,                       & !< Number of mesh points we are transferring motions to and output loads to
-        ADI_MeshPos_C,                      & !< A 3xNumMeshPts_C array [x,y,z]
-        ADI_MeshOri_C,                      & !< A 9xNumMeshPts_C array [r11,r12,r13,r21,r22,r23,r31,r32,r33]
-        ADI_MeshVel_C,                      & !< A 6xNumMeshPts_C array [x,y,z]
-        ADI_MeshAcc_C,                      & !< A 6xNumMeshPts_C array [x,y,z]
-        ErrStat_C2, ErrMsg_C2               &
-    )
-    CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_SetRotorMotion')
-    IF (ErrStat_C >= AbortErrLev_C) RETURN
+!   CALL ADI_C_SetRotorMotion(              &
+!       iWT_c,                              & !< Wind turbine / rotor number
+!       ADI_HubPos_C,                       & !< Hub position
+!       ADI_HubOri_C,                       & !< Hub orientation
+!       ADI_HubVel_C,                       & !< Hub velocity
+!       ADI_HubAcc_C,                       & !< Hub acceleration
+!       ADI_NacPos_C,                       & !< Nacelle position
+!       ADI_NacOri_C,                       & !< Nacelle orientation
+!       ADI_NacVel_C,                       & !< Nacelle velocity
+!       ADI_NacAcc_C,                       & !< Nacelle acceleration
+!       ADI_BldRootPos_C,                   & !< Blade root positions, 3xNumBlades_C
+!       ADI_BldRootOri_C,                   & !< Blade root orientations, 9xNumBlades_C
+!       ADI_BldRootVel_C,                   & !< Blade root velocities, 6xNumBlades_C
+!       ADI_BldRootAcc_C,                   & !< Blade root accelerations, 6xNumBlades_C
+!       NumMeshPts_C,                       & !< Number of mesh points we are transferring motions to and output loads to
+!       ADI_MeshPos_C,                      & !< A 3xNumMeshPts_C array [x,y,z]
+!       ADI_MeshOri_C,                      & !< A 9xNumMeshPts_C array [r11,r12,r13,r21,r22,r23,r31,r32,r33]
+!       ADI_MeshVel_C,                      & !< A 6xNumMeshPts_C array [x,y,z]
+!       ADI_MeshAcc_C,                      & !< A 6xNumMeshPts_C array [x,y,z]
+!       ErrStat_C2, ErrMsg_C2               &
+!   )
+!   CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_SetRotorMotion')
+!   IF (ErrStat_C >= AbortErrLev_C) RETURN
 
-    CALL ADI_C_UpdateStates(                &
-        time,                               &
-        REAL(time + DT, C_DOUBLE),          &
-        ErrStat_C2, ErrMsg_C2               &
-    )
-    CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_UpdateStates')
-    IF (ErrStat_C >= AbortErrLev_C) RETURN
+!   CALL ADI_C_UpdateStates(                &
+!       time,                               &
+!       REAL(time + DT, C_DOUBLE),          &
+!       ErrStat_C2, ErrMsg_C2               &
+!   )
+!   CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_UpdateStates')
+!   IF (ErrStat_C >= AbortErrLev_C) RETURN
 
-    CALL ADI_C_CalcOutput(                  &
-        time,                               &
-        adi_outputs,                        &
-        ErrStat_C2, ErrMsg_C2               &
-    )
-    CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_CalcOutput')
-    IF (ErrStat_C >= AbortErrLev_C) RETURN
+!   CALL ADI_C_CalcOutput(                  &
+!       time,                               &
+!       adi_outputs,                        &
+!       ErrStat_C2, ErrMsg_C2               &
+!   )
+!   CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_CalcOutput')
+!   IF (ErrStat_C >= AbortErrLev_C) RETURN
 
-    CALL ADI_C_GetRotorLoads(               &
-        iWT_c,                              & !< Wind turbine / rotor number
-        NumMeshPts_C,                       & !< Number of mesh points we are transfering motions to and output loads to
-        ADI_MeshFrc_C,                      & !< A 6xNumMeshPts_C array [Fx,Fy,Fz,Mx,My,Mz]       -- forces and moments (global)
-        ADI_HHVel_C,                        & !< Wind speed array [Vx,Vy,Vz]                      -- (m/s) (global)
-        ErrStat_C2, ErrMsg_C2               &
-    )
-    CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_GetRotorLoads')
-    IF (ErrStat_C >= AbortErrLev_C) RETURN
+!   CALL ADI_C_GetRotorLoads(               &
+!       iWT_c,                              & !< Wind turbine / rotor number
+!       NumMeshPts_C,                       & !< Number of mesh points we are transfering motions to and output loads to
+!       ADI_MeshFrc_C,                      & !< A 6xNumMeshPts_C array [Fx,Fy,Fz,Mx,My,Mz]       -- forces and moments (global)
+!       ADI_HHVel_C,                        & !< Wind speed array [Vx,Vy,Vz]                      -- (m/s) (global)
+!       ErrStat_C2, ErrMsg_C2               &
+!   )
+!   CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_GetRotorLoads')
+!   IF (ErrStat_C >= AbortErrLev_C) RETURN
 
 END SUBROUTINE
 
