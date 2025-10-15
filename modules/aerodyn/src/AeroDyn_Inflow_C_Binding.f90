@@ -496,15 +496,15 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
    i = INDEX(OutVTKDir,C_NULL_CHAR) - 1               ! if this has a c null character at the end...
    if ( i > 0 ) OutVTKDir = OutVTKDir(1:I)            ! remove it
 
+   ! Get fortran pointer to C_NULL_CHAR deliniated input files as a string
+   call C_F_pointer(ADinputFileString_C,  ADinputFileString)
+   call C_F_pointer(IfWinputFileString_C, IfWinputFileString)
+
    ! For debugging the interface:
    if (DebugLevel > 0) then
       call ShowPassedData()
    endif
 
-
-   ! Get fortran pointer to C_NULL_CHAR deliniated input files as a string
-   call C_F_pointer(ADinputFileString_C,  ADinputFileString)
-   call C_F_pointer(IfWinputFileString_C, IfWinputFileString)
 
    ! Format AD input file contents
    InitInp%AD%RootName                 = OutRootName
@@ -857,6 +857,7 @@ CONTAINS
    subroutine ShowPassedData()
       character(1) :: TmpFlag
       integer      :: i,j
+      character(IntfStrLen) :: tmpPath
       call WrSCr("")
       call WrScr("-----------------------------------------------------------")
       call WrScr("Interface debugging:  Variables passed in through interface")
@@ -867,10 +868,18 @@ CONTAINS
       call WrScr("       ADinputFilePassed_C            "//TmpFlag )
       call WrScr("       ADinputFileString_C (ptr addr) "//trim(Num2LStr(LOC(ADinputFileString_C))) )
       call WrScr("       ADinputFileStringLength_C      "//trim(Num2LStr( ADinputFileStringLength_C )) )
+      if (ADinputFilePassed==0_c_int) then
+         i = index(ADinputFileString, char(0))     ! skip anything after c_null_char
+         call WrScr("       ADinputFileString_C            "//ADinputFileString(1:i))
+      endif
       TmpFlag="F";   if (IfWinputFilePassed==1_c_int) TmpFlag="T"
       call WrScr("       IfWinputFilePassed_C           "//TmpFlag )
       call WrScr("       IfWinputFileString_C (ptr addr)"//trim(Num2LStr(LOC(IfWinputFileString_C))) )
       call WrScr("       IfWinputFileStringLength_C     "//trim(Num2LStr( IfWinputFileStringLength_C )) )
+      if (IfWinputFilePassed==0_c_int) then
+         i = index(IfWinputFileString, char(0))     ! skip anything after c_null_char
+         call WrScr("       IfWinputFileString_C           "//trim(IfWinputFileString(1:i)))
+      endif
       call WrScr("       OutRootName                    "//trim(OutRootName) )
       call WrScr("       OutVTKDir                      "//trim(OutVTKDir)   )
       call WrScr("   Interpolation")
