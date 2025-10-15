@@ -32,11 +32,11 @@ MODULE WaveTankTesting
    use ISO_C_BINDING
    use NWTC_Library
    use NWTC_IO
-   use SeaState_C_Binding, ONLY: SeaSt_C_Init, SeaSt_C_CalcOutput, SeaSt_C_End, MaxOutPts, SeaSt_GetWaveFieldPointer_C
+   use SeaState_C_Binding, ONLY: SeaSt_C_PreInit, SeaSt_C_Init, SeaSt_C_CalcOutput, SeaSt_C_End, MaxOutPts, SeaSt_C_GetWaveFieldPointer
    use SeaSt_WaveField_Types, ONLY: SeaSt_WaveFieldType
    use AeroDyn_Inflow_C_BINDING, ONLY: ADI_C_PreInit, ADI_C_SetupRotor, ADI_C_Init, ADI_C_End, MaxADIOutputs, ADI_C_SetRotorMotion, ADI_C_UpdateStates, ADI_C_CalcOutput, ADI_C_GetRotorLoads
    use MoorDyn_C, ONLY: MD_C_Init, MD_C_End, MD_C_SetWaveFieldData, MD_C_UpdateStates, MD_C_CalcOutput
-   use NWTC_C_Binding, ONLY: IntfStrLen, SetErrStat_C, SetErrStat_F2C, ErrMsgLen_C, StringConvert_F2C, FileNameFromCString
+   use NWTC_C_Binding, ONLY: IntfStrLen, SetErrStat_C, SetErrStat_F2C, ErrMsgLen_C, StringConvert_F2C, FileNameFromCString, AbortErrLev_C
    use WaveTank_Types
    use WaveTank_IO
 
@@ -118,6 +118,12 @@ SUBROUTINE WaveTank_Init(   &
    character(kind=c_char) :: ADI_OutputChannelNames_C(ChanLen*MaxADIOutputs+1)
    character(kind=c_char) :: ADI_OutputChannelUnits_C(ChanLen*MaxADIOutputs+1)
 
+!FIXME: placeholder for now
+   character(kind=c_char) :: OutVTKDir_C(IntfStrLen)
+
+   OutVTKDir_C = ' '//C_NULL_CHAR
+
+
    ! Initialize error handling
    ErrStat_C = ErrID_None
    ErrMsg_C  = " "//C_NULL_CHAR
@@ -173,30 +179,41 @@ SUBROUTINE WaveTank_Init(   &
    BladeMeshVelocities = 0.0_C_FLOAT
    BladeMeshAccelerations = 0.0_C_FLOAT
 
-   CALL SeaSt_C_Init(                          &    
-       c_loc(SS_InputFile_C(1)),               &
-       c_loc(WT_InitInp%SS_OutRootName_C(1)),  &
-       WT_InitInp%SS_Gravity_C,                &
-       WT_InitInp%SS_WtrDens_C,                &
-       WT_InitInp%SS_WtrDpth_C,                &
-       WT_InitInp%SS_MSL2SWL_C,                &
-       WT_InitInp%SS_NSteps_C,                 &
-       WT_InitInp%SS_TimeInterval_C,           &
-       WT_InitInp%SS_WaveElevSeriesFlag_C,     &
-       WT_InitInp%SS_WrWvKinMod_C,             &
-       WT_InitInp%DebugLevel,                  &
-       SS_NumChannels_C,                       &
-       SS_OutputChannelNames_C,                &
-       SS_OutputChannelUnits_C,                &
-       ErrStat_C2, ErrMsg_C2                   &
+!FIXME: Fix the VTK stuff!!!!!
+   call SeaSt_C_PreInit(                        &
+      WT_InitInp%SS_Gravity_C,                  &
+      WT_InitInp%SS_WtrDens_C,                  &
+      WT_InitInp%SS_WtrDpth_C,                  &
+      WT_InitInp%SS_MSL2SWL_C,                  &
+      WT_InitInp%DebugLevel,                    &
+      OutVTKDir_C,                              &  ! OutVTKDir_C
+      1_c_int,                                  &  ! WrVTK_in
+      0.0_R8Ki,                                 &  ! WrVTK_inDT
+      ErrStat_C2, ErrMsg_C2                     &
    )
-   CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'SeaSt_C_Init')
-   IF (ErrStat_C >= AbortErrLev) RETURN
+   call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'SeaSt_C_PreInit')
+   if (ErrStat_C >= AbortErrLev_C) return
+
+   call SeaSt_C_Init(                         &    
+      c_loc(SS_InputFile_C(1)),               &
+      c_loc(WT_InitInp%SS_OutRootName_C(1)),  &
+      WT_InitInp%SS_NSteps_C,                 &
+      WT_InitInp%SS_TimeInterval_C,           &
+      SS_NumChannels_C,                       &
+      SS_OutputChannelNames_C,                &
+      SS_OutputChannelUnits_C,                &
+      ErrStat_C2, ErrMsg_C2                   &
+   )
+   call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'SeaSt_C_Init')
+   if (ErrStat_C >= AbortErrLev_C) return
 
    ! Set the SeaState Wave Field pointer onto MoorDyn
-   CALL WaveTank_SetWaveFieldPointer(ErrStat_C2, ErrMsg_C2)
+   call WaveTank_SetWaveFieldPointer(ErrStat_C2, ErrMsg_C2)
+   call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'WaveTank_SetWaveFieldPointer')
+   if (ErrStat_C >= AbortErrLev_C) return
 
-   CALL MD_C_Init(                             &
+!FIXME: this interface will change!!!
+   call MD_C_Init(                             &
        0,                                      &   !< InputFilePassed: 0 for file, 1 for string
        c_loc(MD_InputFile_C(1)),               &
        IntfStrLen,                             &   !< InputFileStringLength_C
@@ -213,7 +230,7 @@ SUBROUTINE WaveTank_Init(   &
        ErrMsg_C2                               &
    )
    CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'MD_C_Init')
-   IF (ErrStat_C >= AbortErrLev) RETURN
+   IF (ErrStat_C >= AbortErrLev_C) RETURN
 
    CALL ADI_C_PreInit(                         &
        WT_InitInp%NumTurbines_C,               &
@@ -232,7 +249,7 @@ SUBROUTINE WaveTank_Init(   &
        ErrStat_C2, ErrMsg_C2                   &
    )
    CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_PreInit')
-   IF (ErrStat_C >= AbortErrLev) RETURN
+   IF (ErrStat_C >= AbortErrLev_C) RETURN
 
    CALL ADI_C_SetupRotor(                      &
        WT_InitInp%iWT_c,                       &
@@ -252,7 +269,7 @@ SUBROUTINE WaveTank_Init(   &
        ErrStat_C2, ErrMsg_C2                   &
    )
    CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_SetupRotor')
-   IF (ErrStat_C >= AbortErrLev) RETURN
+   IF (ErrStat_C >= AbortErrLev_C) RETURN
 
    CALL ADI_C_Init(                            &
        0,                                      &   !< ADinputFilePassed; 0 for file, 1 for string
@@ -280,17 +297,17 @@ SUBROUTINE WaveTank_Init(   &
        ErrStat_C2, ErrMsg_C2                   &
    )
    CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_Init')
-   IF (ErrStat_C >= AbortErrLev) RETURN
+   IF (ErrStat_C >= AbortErrLev_C) RETURN
 
 contains
    logical function Failed()
       CALL SetErrStat_F2C(ErrStat_F2, ErrMsg_F2, ErrStat_C, ErrMsg_C)
-      Failed = ErrStat_C >= AbortErrLev
+      Failed = ErrStat_C >= AbortErrLev_C
       if (Failed)    call Cleanup()
    end function Failed
    subroutine Cleanup()
       CALL NWTC_Library_Destroyfileinfotype(FileInfo_In, ErrStat_F2, ErrMsg_F2)  ! ignore error from this
-!      if (ErrStat_C >= AbortErrLev) call DeallocEverything()
+!      if (ErrStat_C >= AbortErrLev_C) call DeallocEverything()
    end subroutine Cleanup
 
 END SUBROUTINE WaveTank_Init
@@ -471,7 +488,7 @@ SUBROUTINE WaveTank_CalcOutput( &
         ErrStat_C2, ErrMsg_C2               &
     )
     CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'MD_C_UpdateStates')
-    IF (ErrStat_C >= AbortErrLev) RETURN
+    IF (ErrStat_C >= AbortErrLev_C) RETURN
 
     ! TODO: get angles from mesh
     CALL MD_C_CalcOutput(                   &
@@ -484,7 +501,7 @@ SUBROUTINE WaveTank_CalcOutput( &
         ErrStat_C2, ErrMsg_C2               &
     )
     CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'MD_C_CalcOutput')
-    IF (ErrStat_C >= AbortErrLev) RETURN
+    IF (ErrStat_C >= AbortErrLev_C) RETURN
 
     ! Get loads from ADI
 
@@ -532,7 +549,7 @@ SUBROUTINE WaveTank_CalcOutput( &
         ErrStat_C2, ErrMsg_C2               &
     )
     CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_SetRotorMotion')
-    IF (ErrStat_C >= AbortErrLev) RETURN
+    IF (ErrStat_C >= AbortErrLev_C) RETURN
 
     CALL ADI_C_UpdateStates(                &
         time,                               &
@@ -540,7 +557,7 @@ SUBROUTINE WaveTank_CalcOutput( &
         ErrStat_C2, ErrMsg_C2               &
     )
     CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_UpdateStates')
-    IF (ErrStat_C >= AbortErrLev) RETURN
+    IF (ErrStat_C >= AbortErrLev_C) RETURN
 
     CALL ADI_C_CalcOutput(                  &
         time,                               &
@@ -548,7 +565,7 @@ SUBROUTINE WaveTank_CalcOutput( &
         ErrStat_C2, ErrMsg_C2               &
     )
     CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_CalcOutput')
-    IF (ErrStat_C >= AbortErrLev) RETURN
+    IF (ErrStat_C >= AbortErrLev_C) RETURN
 
     CALL ADI_C_GetRotorLoads(               &
         iWT_c,                              & !< Wind turbine / rotor number
@@ -558,7 +575,7 @@ SUBROUTINE WaveTank_CalcOutput( &
         ErrStat_C2, ErrMsg_C2               &
     )
     CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_GetRotorLoads')
-    IF (ErrStat_C >= AbortErrLev) RETURN
+    IF (ErrStat_C >= AbortErrLev_C) RETURN
 
 END SUBROUTINE
 
@@ -589,54 +606,58 @@ call SetErrStat_F2C(ErrID_Fatal, ErrMsg_F2, ErrStat_C, ErrMsg_C)
 return
    call MD_C_END(ErrStat_C2, ErrMsg_C2)
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'MD_C_END')
-   if (ErrStat_C >= AbortErrLev) return
+   if (ErrStat_C >= AbortErrLev_C) return
 
    call SeaSt_C_END(ErrStat_C2, ErrMsg_C2)
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'SeaSt_C_END')
-   if (ErrStat_C >= AbortErrLev) return
+   if (ErrStat_C >= AbortErrLev_C) return
 
    call ADI_C_END(ErrStat_C2, ErrMsg_C2)
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_END')
-   if (ErrStat_C >= AbortErrLev) return
+   if (ErrStat_C >= AbortErrLev_C) return
 
 !FIXME: close output file here
 
 END SUBROUTINE
 
-SUBROUTINE WaveTank_SetWaveFieldPointer(ErrStat_C, ErrMsg_C) bind (C, NAME="WaveTank_SetWaveFieldPointer")
+subroutine WaveTank_SetWaveFieldPointer(ErrStat_C, ErrMsg_C) bind (C, NAME="WaveTank_SetWaveFieldPointer")
 #ifndef IMPLICIT_DLLEXPORT
 !DEC$ ATTRIBUTES DLLEXPORT :: WaveTank_SetWaveFieldPointer
 !GCC$ ATTRIBUTES DLLEXPORT :: WaveTank_SetWaveFieldPointer
 #endif
+   integer(c_int),            intent(  out) :: ErrStat_C
+   character(kind=c_char),    intent(  out) :: ErrMsg_C(ErrMsgLen_C)
+   integer(c_int)                           :: ErrStat_C2
+   character(kind=c_char,  len=ErrMsgLen_C) :: ErrMsg_C2
 
-    INTEGER(C_INT),         INTENT(  OUT) :: ErrStat_C
-    CHARACTER(KIND=C_CHAR), INTENT(  OUT) :: ErrMsg_C(ErrMsgLen_C)
+   ! Set the SeaState FlowField pointer onto MoorDyn
+   type(c_ptr)                              :: WaveFieldPointer_C
+   type(SeaSt_WaveFieldType),       pointer :: WaveFieldPointer_F => NULL()      ! used only in sanity check
 
-    ! Local variables
-    INTEGER(C_INT)                          :: ErrStat_C2
-    CHARACTER(KIND=C_CHAR, LEN=ErrMsgLen_C) :: ErrMsg_C2
+   ErrStat_C = ErrID_None
+   ErrMsg_C  = " "//C_NULL_CHAR
 
-    ! Set the SeaState FlowField pointer onto MoorDyn
-    TYPE(C_PTR) :: WaveFieldPointer
-    TYPE(SeaSt_WaveFieldType), POINTER :: WaveFieldPointer_F
+   call SeaSt_C_GetWaveFieldPointer(WaveFieldPointer_C, ErrStat_C2, ErrMsg_C2)
+   call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'WaveTank_SetWaveFieldPointer')
+   if (ErrStat_C >= AbortErrLev_C) return
 
-    ! Initialize error handling
-    ErrStat_C = ErrID_None
-    ErrMsg_C  = " "//C_NULL_CHAR
+   call C_F_POINTER(WaveFieldPointer_C, WaveFieldPointer_F)
+   ! Verify that the data in the WaveField pointer has been set
+   if (WaveFieldPointer_F%WtrDpth == 0) then
+       ErrStat_C2 = ErrID_Fatal
+       ErrMsg_C2 = "SeaState WaveFieldPointer is WtrDpth is 0.0, so it it probably not initialized."
+       call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'WaveTank_SetWaveFieldPointer')
+       return
+   endif
 
-    WaveFieldPointer = SeaSt_GetWaveFieldPointer_C()
+!FIXME: MD needs error handling on this
+   call MD_C_SetWaveFieldData(WaveFieldPointer_C) ! ErrStat_C2, ErrMsg_C2
+   call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'WaveTank_SetWaveFieldPointer')
+   if (ErrStat_C >= AbortErrLev_C) return
 
-    CALL C_F_POINTER(WaveFieldPointer, WaveFieldPointer_F)
-    ! Verify that the data in the WaveField pointer has been set
-    IF (WaveFieldPointer_F%WtrDpth == 0) THEN
-        ErrStat_C2 = ErrID_Fatal
-        ErrMsg_C2 = "SeaState WaveFieldPointer is WtrDpth is 0.0, so it it probably not initialized."
-        CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'WaveTank_SetWaveFieldPointer')
-        RETURN
-    END IF
+   ! Probably doesn't matter, but clear this pointer just in case
+   WaveFieldPointer_F => NULL()
 
-    CALL MD_C_SetWaveFieldData(WaveFieldPointer)
-
-END SUBROUTINE
+end subroutine
 
 END MODULE WaveTankTesting

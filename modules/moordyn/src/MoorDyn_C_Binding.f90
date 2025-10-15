@@ -33,7 +33,9 @@ PUBLIC :: MD_C_Init
 PUBLIC :: MD_C_UpdateStates
 PUBLIC :: MD_C_CalcOutput
 PUBLIC :: MD_C_End
+PUBLIC :: MD_C_SetWaveFieldData
 
+PRIVATE
 
 !------------------------------------------------------------------------------------
 !  Version info for display
