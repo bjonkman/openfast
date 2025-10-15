@@ -100,7 +100,6 @@ subroutine SeaSt_C_PreInit(Gravity_C, WtrDens_C, WtrDpth_C, MSL2SWL_C, DebugLeve
    integer(c_int),             intent(  out) :: ErrStat_C
    character(kind=c_char),     intent(  out) :: ErrMsg_C(ErrMsgLen_C)
 
-   character(kind=C_CHAR, len=IntfStrLen), pointer :: InputString             !< Input string as a single string with NULL chracter separating lines
    integer                          :: ErrStat, ErrStat2
    character(ErrMsgLen)             :: ErrMsg,  ErrMsg2
    integer                          :: i,j,k
@@ -113,6 +112,11 @@ subroutine SeaSt_C_PreInit(Gravity_C, WtrDens_C, WtrDpth_C, MSL2SWL_C, DebugLeve
    call NWTC_Init( ProgNameIn=  SeaSt_ProgDesc%Name )
    call DispCopyrightLicense(   SeaSt_ProgDesc%Name )
    call DispCompileRuntimeInfo( SeaSt_ProgDesc%Name )
+
+   ! Store the out root dir - do this before ShowPassedData call
+   vtk%outdir = TRANSFER( OutVTKDir_C, vtk%outdir )
+   i = INDEX(vtk%outdir,C_NULL_CHAR) - 1               ! if this has a c null character at the end...
+   if ( i > 0 ) vtk%outdir = vtk%outdir(1:I)            ! remove it
 
    ! interface debugging
    DebugLevel = int(DebugLevel_C,IntKi)
@@ -153,10 +157,6 @@ subroutine SeaSt_C_PreInit(Gravity_C, WtrDens_C, WtrDpth_C, MSL2SWL_C, DebugLeve
    endif
 
    if (vtk%write > 0_IntKi) then
-      ! Store the out root dir
-      vtk%outdir = TRANSFER( OutVTKDir_C, vtk%outdir )
-      i = INDEX(vtk%outdir,C_NULL_CHAR) - 1               ! if this has a c null character at the end...
-      if ( i > 0 ) vtk%outdir = vtk%outdir(1:I)            ! remove it
       ! Tell SeaState to generate the visualization using default grid
       InitInp%SurfaceVis     = .true.
       InitInp%SurfaceVisNx   = 0    ! use the WaveField grid resolution
@@ -179,8 +179,6 @@ contains
       call SetErrStat_F2C(ErrStat,ErrMsg,ErrStat_C,ErrMsg_C)
    end subroutine Cleanup
    subroutine ShowPassedData()
-      ! character(1) :: TmpFlag
-      ! integer      :: i,j
       call WrScr("-----------------------------------------------------------")
       call WrScr("Interface debugging:  SeaSt_C_PreInit")
       call WrScr("   --------------------------------------------------------")
@@ -189,7 +187,7 @@ contains
       call WrScr("   WtrDpth_C              -> "//trim(Num2LStr(WtrDpth_C)))
       call WrScr("   MSL2SWL_C              -> "//trim(Num2LStr(MSL2SWL_C)))
       call WrScr("   DebugLevel_C           -> "//trim(Num2LStr(DebugLevel_C)))
-      call WrScr("   OutVTKDir_C (ptr addr) -> "//trim(Num2LStr(LOC(OutVTKDir_C))))
+      call WrScr("   OutVTKDir_C            -> "//trim(vtk%outdir))
       call WrScr("   WrVTK_in               -> "//trim(Num2LStr(WrVTK_in)))
       call WrScr("   WrVTK_inDT             -> "//trim(Num2LStr(WrVTK_inDT)))
       call WrScr("-----------------------------------------------------------")
@@ -203,10 +201,10 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, Nu
 !DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_Init
 !GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_Init
 #endif
-   type(c_ptr),                intent(in   ) :: InputFile_C
-   type(c_ptr),                intent(in   ) :: OutRootName_C
+   character(kind=c_char),     intent(in   ) :: InputFile_C(IntfStrLen)
+   character(kind=c_char),     intent(in   ) :: OutRootName_C(IntfStrLen)
    integer(c_int),             intent(in   ) :: NSteps_C
-   real(c_float),              intent(in   ) :: TimeInterval_C
+   real(c_double),             intent(in   ) :: TimeInterval_C
    integer(c_int),             intent(  out) :: NumChannels_C
    character(kind=c_char),     intent(  out) :: OutputChannelNames_C(ChanLen*MaxOutPts+1)
    character(kind=c_char),     intent(  out) :: OutputChannelUnits_C(ChanLen*MaxOutPts+1)
@@ -214,9 +212,6 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, Nu
    character(kind=c_char),     intent(  out) :: ErrMsg_C(ErrMsgLen_C)
 
    ! Local variables
-   character(kind=C_CHAR, len=IntfStrLen), pointer :: InputFileString          !< Input file as a single string with NULL chracter separating lines
-   character(kind=C_CHAR, len=IntfStrLen), pointer :: OutputFileString          !< Input file as a single string with NULL chracter separating lines
-   character(IntfStrLen)            :: InputFileName
    character(IntfStrLen)            :: OutRootName
    character(1024)                  :: vtkroot
    real(DbKi)                       :: Interval        !< DT for calling
@@ -239,20 +234,23 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, Nu
    call DispCopyrightLicense(   SeaSt_ProgDesc%Name )
    call DispCompileRuntimeInfo( SeaSt_ProgDesc%Name )
 
+
+   ! Input file
+   InitInp%InputFile    = TRANSFER( InputFile_C, InitInp%InputFile )
+   i = INDEX(InitInp%InputFile,C_NULL_CHAR) - 1                ! if this has a c null character at the end...
+   if ( i > 0 ) InitInp%InputFile = InitInp%InputFile(1:I)           ! remove it
+
+   ! OutRootName
+   InitInp%OutRootName  = TRANSFER( OutRootName_C, InitInp%OutRootName )
+   i = INDEX(InitInp%OutRootName,C_NULL_CHAR) - 1                ! if this has a c null character at the end...
+   if ( i > 0 ) InitInp%OutRootName = InitInp%OutRootName(1:I)           ! remove it
+
+   ! Debugging interface
    if (DebugLevel > 0_IntKi) call ShowPassedData()
 
-   ! Input files
-   call C_F_POINTER(InputFile_C, InputFileString)  ! Get a pointer to the input file string
-   InputFileName = FileNameFromCString(InputFileString, IntfStrLen)  ! convert the input file name from c_char to fortran character
-
-   call C_F_POINTER(OutRootName_C, OutputFileString)  ! Get a pointer to the input file string
-   OutRootName = FileNameFromCString(OutputFileString, IntfStrLen)  ! convert the input file name from c_char to fortran character
-
    ! Set other inputs for calling SeaSt_Init
-   InitInp%InputFile    = InputFileName
-   InitInp%UseInputFile = .TRUE. 
-   InitInp%OutRootName  = OutRootName
-   InitInp%TMax         = (NSteps_C - 1) * TimeInterval_C   ! Using this to match the SeaState driver; could otherwise get TMax directly
+   InitInp%UseInputFile = .TRUE.                            ! don't allow passing of full file contents as a string
+   InitInp%TMax         = (NSteps_C - 1) * TimeInterval_C   ! Using this to match the SeaState driver; could otherwise get TMax directly  !FIXME: type conversion
    InitInp%WaveFieldMod = 0_IntKi 
    InitInp%WrWvKinMod   = 0_IntKi 
    InitInp%Linearize    = .false.
@@ -322,14 +320,12 @@ contains
       call SetErrStat_F2C(ErrStat,ErrMsg,ErrStat_C,ErrMsg_C)
    end subroutine Cleanup
    subroutine ShowPassedData()
-      character(1) :: TmpFlag
-      ! integer      :: i,j
       call WrScr("-----------------------------------------------------------")
       call WrScr("Interface debugging:  SeaSt_C_Init")
       call WrScr("   --------------------------------------------------------")
-      call WrScr("   InputFile_C   (ptr addr) -> "//trim(Num2LStr(LOC(InputFile_C))))
-      call WrScr("   OutRootName_C (ptr addr) -> "//trim(Num2LStr(LOC(OutRootName_C))))
-      call WrScr("   NSteps_C               - > "//trim(Num2LStr(NSteps_C)))
+      call WrScr("   InputFile_C             -> "//trim(InitInp%InputFile))
+      call WrScr("   OutRootName_C           -> "//trim(InitInp%OutRootName))
+      call WrScr("   NSteps_C                -> "//trim(Num2LStr(NSteps_C)))
       call WrScr("   TimeInterval_C          -> "//trim(Num2LStr(TimeInterval_C)))
       call WrScr("-----------------------------------------------------------")
    end subroutine ShowPassedData
