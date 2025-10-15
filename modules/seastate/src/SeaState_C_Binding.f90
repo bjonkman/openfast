@@ -213,7 +213,6 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, Nu
 
    ! Local variables
    character(IntfStrLen)            :: OutRootName
-   character(1024)                  :: vtkroot
    real(DbKi)                       :: Interval        !< DT for calling
    integer                          :: ErrStat, ErrStat2
    character(ErrMsgLen)             :: ErrMsg,  ErrMsg2
@@ -237,13 +236,14 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, Nu
 
    ! Input file
    InitInp%InputFile    = TRANSFER( InputFile_C, InitInp%InputFile )
-   i = INDEX(InitInp%InputFile,C_NULL_CHAR) - 1                ! if this has a c null character at the end...
-   if ( i > 0 ) InitInp%InputFile = InitInp%InputFile(1:I)           ! remove it
+   i = INDEX(InitInp%InputFile,C_NULL_CHAR) - 1                   ! if this has a c null character at the end...
+   if ( i > 0 ) InitInp%InputFile = InitInp%InputFile(1:I)        ! remove it
 
-   ! OutRootName
+   ! OutRootName - this should be relative to current location
    InitInp%OutRootName  = TRANSFER( OutRootName_C, InitInp%OutRootName )
-   i = INDEX(InitInp%OutRootName,C_NULL_CHAR) - 1                ! if this has a c null character at the end...
-   if ( i > 0 ) InitInp%OutRootName = InitInp%OutRootName(1:I)           ! remove it
+   i = INDEX(InitInp%OutRootName,C_NULL_CHAR) - 1                 ! if this has a c null character at the end...
+   if ( i > 0 ) InitInp%OutRootName = InitInp%OutRootName(1:I)    ! remove it
+   vtk%OutRootName = InitInp%OutRootName                          ! store for vtk (will modify below)
 
    ! Debugging interface
    if (DebugLevel > 0_IntKi) call ShowPassedData()
@@ -280,30 +280,7 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, Nu
    OutputChannelUnits_C(k) = C_NULL_CHAR
 
    if (vtk%write > 0_IntKi) then
-      ! check dt (can't check against Interval since that is never set, so just make sure it is positive)
-      if (vtk%dt <= 0.0) vtk%dt = 0.25
-      if (allocated(InitOutData%WaveElevVisGrid)) then
-         vtk%NWaveElevPts(1) = size(InitOutData%WaveElevVisX)
-         vtk%NWaveElevPts(2) = size(InitOutData%WaveElevVisY)
-         call move_alloc(InitOutData%WaveElevVisX, vtk%WaveElevVisX)
-         call move_alloc(InitOutData%WaveElevVisY, vtk%WaveElevVisY)
-         call move_alloc(InitOutData%WaveElevVisGrid,vtk%WaveElevVisGrid )
-      else
-         vtk%NWaveElevPts = 0
-         vtk%write = 0     ! FIXME throw warning if we do this
-      endif
-      ! get the name of the output directory for vtk files (in a subdirectory called "vtk" of the output directory), and
-      ! create the VTK directory if it does not exist
-      call GetPath ( OutRootName, vtk%OutRootName, vtkroot ) ! the returned vtk%OutRootName includes a file separator character at the end
-      if (PathIsRelative(trim(vtk%OutRootName))) then
-         vtk%OutRootName = trim(vtk%OutRootName) // trim(vtk%outdir)
-      else
-         vtk%OutRootName = trim(vtk%outdir)
-      endif
-      call MKDIR( trim(vtk%OutRootName) )
-      vtk%OutRootName = trim( vtk%OutRootName ) // PathSep // trim(vtkroot)
-      call WrVTK_WaveElevVisGrid  (0.0_DbKi, vtk, ErrStat2, ErrMsg2)
-      if (Failed()) return
+      call VTKsetup()
    endif
 
 
@@ -329,6 +306,28 @@ contains
       call WrScr("   TimeInterval_C          -> "//trim(Num2LStr(TimeInterval_C)))
       call WrScr("-----------------------------------------------------------")
    end subroutine ShowPassedData
+
+   subroutine VTKsetup()
+      ! check dt (can't check against Interval since that is never set, so just make sure it is positive)
+      if (vtk%dt <= 0.0) vtk%dt = 0.25
+      ! move data
+      if (allocated(InitOutData%WaveElevVisGrid)) then
+         vtk%NWaveElevPts(1) = size(InitOutData%WaveElevVisX)
+         vtk%NWaveElevPts(2) = size(InitOutData%WaveElevVisY)
+         call move_alloc(InitOutData%WaveElevVisX, vtk%WaveElevVisX)
+         call move_alloc(InitOutData%WaveElevVisY, vtk%WaveElevVisY)
+         call move_alloc(InitOutData%WaveElevVisGrid,vtk%WaveElevVisGrid )
+      else
+         vtk%NWaveElevPts = 0
+         vtk%write = 0     ! FIXME throw warning if we do this
+      endif
+      ! get the name of the output directory for vtk files (in a subdirectory called "vtk" of the output directory), and
+      ! create the VTK directory if it does not exist
+      call MKDIR( trim(vtk%outdir) )
+      vtk%OutRootName = trim(vtk%outdir) // PathSep //trim( vtk%OutRootName )
+      call WrVTK_WaveElevVisGrid  (0.0_DbKi, vtk, ErrStat2, ErrMsg2)
+      if (Failed()) return
+   end subroutine VTKsetup
 end subroutine SeaSt_C_Init
 
 subroutine SeaSt_C_CalcOutput(Time_C, OutputChannelValues_C, ErrStat_C, ErrMsg_C) BIND (C, NAME='SeaSt_C_CalcOutput')
