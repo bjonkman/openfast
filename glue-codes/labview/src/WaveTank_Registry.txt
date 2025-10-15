@@ -42,6 +42,7 @@ typedef  ^                    ^              ^                 TowerBsHt        
 typedef  ^                    ^              ^                 PtfmRef              3  -  -  "Location of platform reference point, relative to MSL.  Motions and loads all connect to this point" (m)
 
 typedef  ^                    TurbOpPoint    c_float           RotSpeed             -  -  -  "Rotor speed" (RPM)
+typedef  ^                    ^              ^                 NacYaw               -  -  -  "Initial or fixed nacelle-yaw angle" (deg)
 typedef  ^                    ^              ^                 BldPitch             -  -  -  "Fixed blade pitch for full simulation" (deg)
 
 typedef  ^                    Output         logical           SendScreenToFile     -  -  -  "send to file <OutRootName>.screen.log if true" (-)

@@ -38,6 +38,7 @@
       0,0,0    PtfmRef          - Location of platform reference point, relative to MSL.  Motions and loads all connect to this point
 ! -------- Turbine Operating Point ----
       11.5     RotSpeed         - Rotational speed of rotor in rotor coordinates (rpm)
+         0     NacYaw           - Initial or fixed nacelle-yaw angle (degrees)
          0     BldPitch         - Blade 1 pitch (deg)
 ! -------- Output ---------------------
      false     SendScreenToFile - send to file <OutRootName>.screen.log if true

@@ -88,6 +88,7 @@ subroutine ParseInputFile(FileInfo_In, SimSettings, ErrStat, ErrMsg)
    call ParseAry( FileInfo_In, CurLine, 'PtfmRef',          SimSettings%TCfg%PtfmRef,    3,    ErrStat2, ErrMsg2); if(Failed()) return;  ! Location of platform reference point, relative to MSL.  Motions and loads all connect to this point
    ! -------- Turbine Operating Point ----
    call ParseVar( FileInfo_In, CurLine, 'RotSpeed',         SimSettings%TOp%RotSpeed,          ErrStat2, ErrMsg2); if(Failed()) return;  ! Rotational speed of rotor in rotor coordinates (rpm)
+   call ParseVar( FileInfo_In, CurLine, 'NacYaw',           SimSettings%TOp%NacYaw,            ErrStat2, ErrMsg2); if(Failed()) return;  ! Initial or fixed nacelle-yaw angle (degrees)
    call ParseVar( FileInfo_In, CurLine, 'BldPitch',         SimSettings%TOp%BldPitch,          ErrStat2, ErrMsg2); if(Failed()) return;  ! Blade 1 pitch (deg)
    ! -------- Output ---------------------
    call ParseVar( FileInfo_In, CurLine, 'SendScreenToFile', SimSettings%Outs%SendScreenToFile, ErrStat2, ErrMsg2); if(Failed()) return;  ! send to file <OutRootName>.screen.log if true

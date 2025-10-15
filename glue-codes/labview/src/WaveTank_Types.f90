@@ -74,6 +74,7 @@ IMPLICIT NONE
 ! =========  TurbOpPoint  =======
   TYPE, PUBLIC :: TurbOpPoint
     REAL(c_float)  :: RotSpeed = 0.0_R4Ki      !< Rotor speed [(RPM)]
+    REAL(c_float)  :: NacYaw = 0.0_R4Ki      !< Initial or fixed nacelle-yaw angle [(deg)]
     REAL(c_float)  :: BldPitch = 0.0_R4Ki      !< Fixed blade pitch for full simulation [(deg)]
   END TYPE TurbOpPoint
 ! =======================
@@ -321,6 +322,7 @@ subroutine WT_CopyTurbOpPoint(SrcTurbOpPointData, DstTurbOpPointData, CtrlCode, 
    ErrStat = ErrID_None
    ErrMsg  = ''
    DstTurbOpPointData%RotSpeed = SrcTurbOpPointData%RotSpeed
+   DstTurbOpPointData%NacYaw = SrcTurbOpPointData%NacYaw
    DstTurbOpPointData%BldPitch = SrcTurbOpPointData%BldPitch
 end subroutine
 
@@ -339,6 +341,7 @@ subroutine WT_PackTurbOpPoint(RF, Indata)
    character(*), parameter         :: RoutineName = 'WT_PackTurbOpPoint'
    if (RF%ErrStat >= AbortErrLev) return
    call RegPack(RF, InData%RotSpeed)
+   call RegPack(RF, InData%NacYaw)
    call RegPack(RF, InData%BldPitch)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
@@ -349,6 +352,7 @@ subroutine WT_UnPackTurbOpPoint(RF, OutData)
    character(*), parameter            :: RoutineName = 'WT_UnPackTurbOpPoint'
    if (RF%ErrStat /= ErrID_None) return
    call RegUnpack(RF, OutData%RotSpeed); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%NacYaw); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%BldPitch); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
