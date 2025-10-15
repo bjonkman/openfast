@@ -48,7 +48,7 @@ MODULE SeaState_C_Binding
    !     2  - above + all position/orientation info
    !     3  - above + input files (if direct passed)
    !     4  - above + meshes
-   integer(IntKi)                         :: DebugLevel = 4
+   integer(IntKi)                         :: DebugLevel
    logical                                :: PreInitDone = .false.
 
    !------------------------------------------------------------------------------------

@@ -25,9 +25,9 @@ add_library(wavetanktestinglib SHARED
 )
 target_link_libraries(
     wavetanktestinglib
-        aerodyn_inflow_c_binding
-        moordyn_c_binding
-        seastate_c_binding
+        aerodyn_inflow_c_bind_static
+        moordyn_c_bind_static
+        seastate_c_bind_static
         nwtclibs
         versioninfolib
 )
