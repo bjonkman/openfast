@@ -53,10 +53,6 @@ class WaveTankLib(OpenFASTInterfaceType):
             library_path (str): Path to the compile wavetank interface shared library
             input_file_names (dict): Map of file names for each included module:
                 - WT_InputFile
-                - MD_InputFile
-                - SS_InputFile
-                - AD_InputFile
-                - IfW_InputFile
         """
         super().__init__(library_path)
 
@@ -77,17 +73,17 @@ class WaveTankLib(OpenFASTInterfaceType):
         self.error_status_c = c_int(0)
         self.error_message_c = create_string_buffer(self.ERROR_MESSAGE_LENGTH)
 
+        # returned values
+        self.rootname_c = create_string_buffer(self.IntfStrLen)
+
     def _initialize_routines(self):
         self.WaveTank_Init.argtypes = [
             POINTER(c_char),        #  intent(in   ) :: WT_InputFile_c(IntfStrLen)
-            POINTER(c_char),        #  intent(in   ) :: MD_InputFile_c(IntfStrLen)
-            POINTER(c_char),        #  intent(in   ) :: SS_InputFile_c(IntfStrLen)
-            POINTER(c_char),        #  intent(in   ) :: AD_InputFile_c(IntfStrLen)
-            POINTER(c_char),        #  intent(in   ) :: IfW_InputFile_c(IntfStrLen)
+            POINTER(c_char),        #  intent(  out) :: RootName_C(IntfStrLen)
             POINTER(c_int),         #  intent(  out) :: ErrStat_C
             POINTER(c_char),        #  intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
-        self.WaveTank_Init.restype = c_int
+        self.WaveTank_Init.restype = None
 
         self.WaveTank_CalcOutput.argtypes = [
             POINTER(c_double),      # real(c_double) :: time
@@ -101,7 +97,7 @@ class WaveTankLib(OpenFASTInterfaceType):
             POINTER(c_int),         # integer(c_int),         intent(  out) :: ErrStat_C
             POINTER(c_char),        # character(kind=c_char), intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
-        self.WaveTank_CalcOutput.restype = c_int
+        self.WaveTank_CalcOutput.restype = None
 
         self.WaveTank_End.argtypes = [
             POINTER(c_int),         # integer(c_int),         intent(  out) :: ErrStat_C
@@ -113,7 +109,7 @@ class WaveTankLib(OpenFASTInterfaceType):
             POINTER(c_int),         # integer(c_int),         intent(  out) :: ErrStat_C
             POINTER(c_char),        # character(kind=c_char), intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
-        self.WaveTank_SetWaveFieldPointer.restype = c_int
+        self.WaveTank_SetWaveFieldPointer.restype = None
 
 
     def check_error(self) -> None:
@@ -160,18 +156,13 @@ class WaveTankLib(OpenFASTInterfaceType):
 
         self.WaveTank_Init(
             self.input_file_names["WaveTank"],
-            self.input_file_names["MoorDyn"],
-            self.input_file_names["SeaState"],
-            self.input_file_names["AeroDyn"],
-            self.input_file_names["InflowWind"],
+            self.rootname_c,                        # OUT <- rootname of output files
             byref(self.error_status_c),             # OUT <- error status code
             self.error_message_c                    # OUT <- error message buffer
         )
         self.check_error()
-
-        # self.output_channel_names = [n.decode('UTF-8') for n in _channel_names.value.split()] 
-        # self.output_channel_units = [n.decode('UTF-8') for n in _channel_units.value.split()] 
-        # self.output_values = np.zeros( self.num_outs_c.value, dtype=c_float, order='C' )
+        # tmp = self.rootname_c.raw.decode('utf-8').strip()
+        # print(f'RootName_c: {tmp}')
 
     def calc_output(
         self,

@@ -54,7 +54,7 @@ subroutine ParseInputFile(FileInfo_In, SimSettings, ErrStat, ErrMsg)
    ErrMsg  = " "
 
    CurLine = 1
-   ! Separator/header line skipped automatically
+   ! Separator/header lines skipped automatically
    ! ----- Simulation control -------------
    call ParseVar( FileInfo_In, CurLine, 'DT',               SimSettings%Sim%DT,                ErrStat2, ErrMsg2); if(Failed()) return;  ! timestep (unused)
    call ParseVar( FileInfo_In, CurLine, 'TMax',             SimSettings%Sim%TMax,              ErrStat2, ErrMsg2); if(Failed()) return;  ! Max sim time (unused)
@@ -72,8 +72,12 @@ subroutine ParseInputFile(FileInfo_In, SimSettings, ErrStat, ErrMsg)
    call ParseVar( FileInfo_In, CurLine, 'WtrDpth',          SimSettings%Env%WtrDpth,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Water depth (m)
    call ParseVar( FileInfo_In, CurLine, 'MSL2SWL',          SimSettings%Env%MSL2SWL,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Offset between still-water level and mean sea level (m) [positive upward]
    ! -------- SeaState -------------------
+   call ParseVar( FileInfo_In, CurLine, 'SS_InputFile',     SimSettings%IptFile%SS_InputFile,  ErrStat2, ErrMsg2); if(Failed()) return;  ! SeaState input file
    ! -------- MoorDyn --------------------
+   call ParseVar( FileInfo_In, CurLine, 'MD_InputFile',     SimSettings%IptFile%MD_InputFile,  ErrStat2, ErrMsg2); if(Failed()) return;  ! MoorDyn input file
    ! -------- AeroDyn + InflowWind -------
+   call ParseVar( FileInfo_In, CurLine, 'AD_InputFile',     SimSettings%IptFile%AD_InputFile,  ErrStat2, ErrMsg2); if(Failed()) return;  ! AeroDyn input file
+   call ParseVar( FileInfo_In, CurLine, 'IfW_InputFile',    SimSettings%IptFile%IfW_InputFile, ErrStat2, ErrMsg2); if(Failed()) return;  ! InflowWind input file
    ! -------- Turbine Configuration ------
    call ParseVar( FileInfo_In, CurLine, 'NumBl',            SimSettings%TCfg%NumBl,            ErrStat2, ErrMsg2); if(Failed()) return;  ! Number of blades (-)
    call ParseVar( FileInfo_In, CurLine, 'TipRad',           SimSettings%TCfg%TipRad,           ErrStat2, ErrMsg2); if(Failed()) return;  ! The distance from the rotor apex to the blade tip (meters)
@@ -84,7 +88,7 @@ subroutine ParseInputFile(FileInfo_In, SimSettings, ErrStat, ErrMsg)
    call ParseVar( FileInfo_In, CurLine, 'ShftTilt',         SimSettings%TCfg%ShftTilt,         ErrStat2, ErrMsg2); if(Failed()) return;  ! Rotor shaft tilt angle (degrees)
    call ParseVar( FileInfo_In, CurLine, 'Twr2Shft',         SimSettings%TCfg%Twr2Shft,         ErrStat2, ErrMsg2); if(Failed()) return;  ! Vertical distance from the tower-top to the rotor shaft (meters)
    call ParseVar( FileInfo_In, CurLine, 'TowerHt',          SimSettings%TCfg%TowerHt,          ErrStat2, ErrMsg2); if(Failed()) return;  ! Height of tower relative MSL
-   call ParseVar( FileInfo_In, CurLine, 'TowerBsHt',        SimSettings%TCfg%TowerBsHt,        ErrStat2, ErrMsg2); if(Failed()) return;  ! Height of tower base relative to ground level [onshore], MSL [floating MHK] (meters)
+   call ParseAry( FileInfo_In, CurLine, 'TowerBsHt',        SimSettings%TCfg%TowerBsPt,  3,    ErrStat2, ErrMsg2); if(Failed()) return;  ! Height of tower base relative to ground level [onshore], MSL [floating MHK] (meters)
    call ParseAry( FileInfo_In, CurLine, 'PtfmRef',          SimSettings%TCfg%PtfmRef,    3,    ErrStat2, ErrMsg2); if(Failed()) return;  ! Location of platform reference point, relative to MSL.  Motions and loads all connect to this point
    ! -------- Turbine Operating Point ----
    call ParseVar( FileInfo_In, CurLine, 'RotSpeed',         SimSettings%TOp%RotSpeed,          ErrStat2, ErrMsg2); if(Failed()) return;  ! Rotational speed of rotor in rotor coordinates (rpm)
@@ -117,6 +121,7 @@ subroutine ValidateInputFile(SimSettings, ErrStat, ErrMsg)
    integer(IntKi)                            :: ErrStat2
    character(ErrMsgLen)                      :: ErrMsg2
    character(*), parameter                   :: RoutineName = 'WaveTankTesting.ValidateInputFile'
+   logical                                   :: file_exists
 
    ErrStat = ErrID_None
    ErrMsg  = ""
@@ -133,6 +138,15 @@ subroutine ValidateInputFile(SimSettings, ErrStat, ErrMsg)
    !------------------------
    ! Turbine Config
    !------------------------
+
+   !------------------------
+   ! Input files
+   !------------------------
+   inquire(file=SimSettings%IptFile%SS_InputFile,  exist=file_exists);  if (.not. file_exists) call SetErrStat(ErrID_Fatal,"Cannot find SeaState input file "//trim(SimSettings%IptFile%SS_InputFile ),ErrStat,ErrMsg,RoutineName)
+   inquire(file=SimSettings%IptFile%MD_InputFile,  exist=file_exists);  if (.not. file_exists) call SetErrStat(ErrID_Fatal,"Cannot find SeaState input file "//trim(SimSettings%IptFile%MD_InputFile ),ErrStat,ErrMsg,RoutineName) 
+   inquire(file=SimSettings%IptFile%AD_InputFile,  exist=file_exists);  if (.not. file_exists) call SetErrStat(ErrID_Fatal,"Cannot find SeaState input file "//trim(SimSettings%IptFile%AD_InputFile ),ErrStat,ErrMsg,RoutineName)
+   inquire(file=SimSettings%IptFile%IfW_InputFile, exist=file_exists);  if (.not. file_exists) call SetErrStat(ErrID_Fatal,"Cannot find SeaState input file "//trim(SimSettings%IptFile%IfW_InputFile),ErrStat,ErrMsg,RoutineName)
+   if (ErrStat >= AbortErrLev) return
 
    !------------------------
    ! Turbine Operating point

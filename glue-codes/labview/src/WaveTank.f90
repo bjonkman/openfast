@@ -28,10 +28,8 @@
 !**********************************************************************************************************************************
 MODULE WaveTankTesting
 
-!FIXME: add error messages to log file before returning them (with timestamp)
    use ISO_C_BINDING
    use NWTC_Library
-   use NWTC_IO
    use SeaState_C_Binding, ONLY: SeaSt_C_PreInit, SeaSt_C_Init, SeaSt_C_CalcOutput, SeaSt_C_End, MaxOutPts, SeaSt_C_GetWaveFieldPointer
    use SeaSt_WaveField_Types, ONLY: SeaSt_WaveFieldType
    use AeroDyn_Inflow_C_BINDING, ONLY: ADI_C_PreInit, ADI_C_SetupRotor, ADI_C_Init, ADI_C_End, MaxADIOutputs, ADI_C_SetRotorMotion, ADI_C_UpdateStates, ADI_C_CalcOutput, ADI_C_GetRotorLoads
@@ -85,12 +83,9 @@ integer(c_int) :: tmpMeshPtToBladeNum(2) = (/ 1_c_int, 2_c_int /)
 
 CONTAINS
 
-SUBROUTINE WaveTank_Init(   &
+SUBROUTINE WaveTank_Init(  &
    WT_InputFile_C,         &
-   MD_InputFile_C,         &
-   SS_InputFile_C,         &
-   AD_InputFile_C,         &
-   IfW_InputFile_C,        &
+   RootName_C,             &
    ErrStat_C,              &
    ErrMsg_C                &
 ) BIND (C, NAME='WaveTank_Init')
@@ -100,10 +95,7 @@ SUBROUTINE WaveTank_Init(   &
 #endif
 
    character(c_char),          intent(in   ) :: WT_InputFile_C(IntfStrLen)
-   character(c_char), target,  intent(in   ) :: MD_InputFile_C(IntfStrLen)
-   character(c_char),          intent(in   ) :: SS_InputFile_C(IntfStrLen)
-   character(c_char), target,  intent(in   ) :: AD_InputFile_C(IntfStrLen)
-   character(c_char), target,  intent(in   ) :: IfW_InputFile_C(IntfStrLen)
+   character(kind=c_char),     intent(  out) :: RootName_C(IntfStrLen)
    integer(c_int),             intent(  out) :: ErrStat_C
    character(kind=c_char),     intent(  out) :: ErrMsg_C(ErrMsgLen_C)
 
@@ -129,6 +121,12 @@ SUBROUTINE WaveTank_Init(   &
    character(kind=c_char) :: ADI_OutputChannelNames_C(ChanLen*MaxADIOutputs+1)
    character(kind=c_char) :: ADI_OutputChannelUnits_C(ChanLen*MaxADIOutputs+1)
 
+   ! Filename conversions -- read in as fortran strings, but sent to other modules as c_char arrays
+   character(kind=c_char)         :: SS_InputFile_C(IntfStrLen)
+   character(kind=c_char), target :: MD_InputFile_C(IntfStrLen)
+   character(kind=c_char), target :: AD_InputFile_C(IntfStrLen)
+   character(kind=c_char), target :: IfW_InputFile_C(IntfStrLen)
+
 
    ! Initialize error handling
    ErrStat_C = ErrID_None
@@ -142,7 +140,19 @@ SUBROUTINE WaveTank_Init(   &
 
    call ValidateInputFile(SimSettings, ErrStat_F2, ErrMsg_F2); if (Failed()) return
 
-!FIXME: this doesn't work for SS or MD??????
+   ! transfer filenames for passing to modules
+   SS_InputFile_C  = c_null_char
+   MD_InputFile_C  = c_null_char
+   AD_InputFile_C  = c_null_char
+   IfW_InputFile_C = c_null_char
+   SS_InputFile_C  = transfer(trim(SimSettings%IptFile%SS_InputFile ), SS_InputFile_C )
+   MD_InputFile_C  = transfer(trim(SimSettings%IptFile%MD_InputFile ), MD_InputFile_C )
+   AD_InputFile_C  = transfer(trim(SimSettings%IptFile%AD_InputFile ), AD_InputFile_C )
+   IfW_InputFile_C = transfer(trim(SimSettings%IptFile%IfW_InputFile), IfW_InputFile_C)
+
+   ! return rootname
+   RootName_C = transfer(trim(SimSettings%Sim%OutRootName),RootName_C)
+
    ! If SendScreenToFile - send to file <OutRootName>.screen.log if true
    if (SimSettings%Outs%SendScreenToFile) then
       call GetNewUnit(ScreenLogOutput_Un, ErrStat_F2, ErrMsg_F2); if (Failed()) return
@@ -324,16 +334,7 @@ contains
       call WrScr("-----------------------------------------------------------")
       call WrScr("Interface debugging:  WaveTank_Init")
       call WrScr("   --------------------------------------------------------")
-      tmpPath = transfer(WT_InputFile_C,tmpPath)
-      call WrScr("   WT_InputFile_C         -> "//tmpPath)
-      tmpPath = transfer(MD_InputFile_C,tmpPath)
-      call WrScr("   MD_InputFile_C         -> "//tmpPath)
-      tmpPath = transfer(SS_InputFile_C,tmpPath)
-      call WrScr("   SS_InputFile_C         -> "//tmpPath)
-      tmpPath = transfer(AD_InputFile_C,tmpPath)
-      call WrScr("   AD_InputFile_C         -> "//tmpPath)
-      tmpPath = transfer(IfW_InputFile_C,tmpPath)
-      call WrScr("   IfW_InputFile_C        -> "//tmpPath)
+      call WrScr("   WT_InputFile_C         -> "//trim(InputFile))
       call WrScr("-----------------------------------------------------------")
    end subroutine ShowPassedData
 END SUBROUTINE WaveTank_Init

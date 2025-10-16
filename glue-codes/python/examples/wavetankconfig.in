@@ -18,12 +18,12 @@
          50    WtrDpth          - Water depth (m)
           0    MSL2SWL          - Offset between still-water level and mean sea level (m) [positive upward]
 ! -------- SeaState -------------------
-! SS input file should probably go here instead of being passed
+"../../../reg_tests/r-test/glue-codes/openfast/MHK_RM1_Floating/SeaState.dat"                      SS_InputFile   - SeaState input file
 ! -------- MoorDyn --------------------
-! MD input file should probably go here instead of being passed
+"../../../reg_tests/r-test/glue-codes/openfast/MHK_RM1_Floating/MHK_RM1_Floating_MoorDyn.dat"      MD_InputFile   - MoorDyn input file
 ! -------- AeroDyn + InflowWind -------
-! AD input file should probably go here instead of being passed
-! IfW input file should probably go here instead of being passed
+"../../../reg_tests/r-test/glue-codes/openfast/MHK_RM1_Floating/MHK_RM1_Floating_AeroDyn.dat"      AD_InputFile   - AeroDyn input file
+"../../../reg_tests/r-test/glue-codes/openfast/MHK_RM1_Floating/MHK_RM1_Floating_InflowWind.dat"   IfW_InputFile  - InflowWind input file
 ! -------- Turbine Configuration ------
           2    NumBl            - Number of blades (-)
          10    TipRad           - The distance from the rotor apex to the blade tip (meters)
@@ -34,7 +34,7 @@
           0    ShftTilt         - Rotor shaft tilt angle (degrees)
        -1.2    Twr2Shft         - Vertical distance from the tower-top to the rotor shaft (meters)
         -24    TowerHt          - Height of tower relative MSL
-         -9    TowerBsHt        - Height of tower base relative to ground level [onshore], MSL [floating MHK] (meters)
+    10,0,-9    TowerBsPt        - Height of tower base  [onshore], MSL [floating MHK] (meters)
       0,0,0    PtfmRef          - Location of platform reference point, relative to MSL.  Motions and loads all connect to this point
 ! -------- Turbine Operating Point ----
       11.5     RotSpeed         - Rotational speed of rotor in rotor coordinates (rpm)

@@ -67,7 +67,7 @@ IMPLICIT NONE
     REAL(c_float)  :: ShftTilt = 0.0_R4Ki      !< Rotor shaft tilt angle [(deg)]
     REAL(c_float)  :: Twr2Shft = 0.0_R4Ki      !< Vertical distance from the tower-top to the rotor shaft [(m)]
     REAL(c_float)  :: TowerHt = 0.0_R4Ki      !< Height of tower relative MSL [(m)]
-    REAL(c_float)  :: TowerBsHt = 0.0_R4Ki      !< Height of tower base relative to ground level [onshore], MSL [floating MHK] [(m)]
+    REAL(c_float) , DIMENSION(1:3)  :: TowerBsPt = 0.0_R4Ki      !< Tower base location relative to MSL. Consider absolute difference to PtfmRef [floating MHK] [(m)]
     REAL(c_float) , DIMENSION(1:3)  :: PtfmRef = 0.0_R4Ki      !< Location of platform reference point, relative to MSL.  Motions and loads all connect to this point [(m)]
   END TYPE TurbConfig
 ! =======================
@@ -94,6 +94,14 @@ IMPLICIT NONE
     REAL(c_float) , DIMENSION(1:6)  :: VTKNacDim = 0.0_R4Ki      !< Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz] [(m)]
   END TYPE Viz
 ! =======================
+! =========  IptFiles  =======
+  TYPE, PUBLIC :: IptFiles
+    character(1024)  :: SS_InputFile      !< SeaState   input file [(-)]
+    character(1024)  :: MD_InputFile      !< MoorDyn    input file [(-)]
+    character(1024)  :: AD_InputFile      !< AeroDyn    input file [(-)]
+    character(1024)  :: IfW_InputFile      !< InflowWind input file [(-)]
+  END TYPE IptFiles
+! =======================
 ! =========  SimSettingsType  =======
   TYPE, PUBLIC :: SimSettingsType
     TYPE(Sim)  :: Sim      !< Simulation settings [-]
@@ -102,6 +110,7 @@ IMPLICIT NONE
     TYPE(TurbOpPoint)  :: TOp      !< Turbine operating point [-]
     TYPE(Output)  :: Outs      !< Output settings [-]
     TYPE(Viz)  :: Viz      !< Vizualization settings [-]
+    TYPE(IptFiles)  :: IptFile      !< Input files for each module [-]
   END TYPE SimSettingsType
 ! =======================
 ! =========  MeshesMotion  =======
@@ -112,23 +121,23 @@ IMPLICIT NONE
     TYPE(MeshType) , DIMENSION(:), ALLOCATABLE  :: BladeRootMotion      !< Blade root motions [-]
   END TYPE MeshesMotion
 ! =======================
-! =========  MesheshLoads  =======
-  TYPE, PUBLIC :: MesheshLoads
+! =========  MeshesLoads  =======
+  TYPE, PUBLIC :: MeshesLoads
     TYPE(MeshType)  :: PtfmPRPLoads      !< Platform principle ref point loads output [-]
     TYPE(MeshType)  :: TowerLoads      !< Tower mesh (unused) [-]
     TYPE(MeshType)  :: HubLoads      !< Hub mesh (for mappings, intermediate loads) [-]
     TYPE(MeshType) , DIMENSION(:), ALLOCATABLE  :: BladeRootLoads      !< Blade root loads [-]
-  END TYPE MesheshLoads
+  END TYPE MeshesLoads
 ! =======================
-! =========  MeshMaps  =======
-  TYPE, PUBLIC :: MeshMaps
+! =========  MeshesMaps  =======
+  TYPE, PUBLIC :: MeshesMaps
     TYPE(MeshMapType)  :: Motion_PRP_2_Twr      !< PRP to tower motion [-]
     TYPE(MeshMapType)  :: Motion_PRP_2_Hub      !< Twrtop to nacelle - add rotation afterwards [-]
     TYPE(MeshMapType)  :: Motion_Hub_2_BldRoot      !< Hub to blade root motion transfer [-]
     TYPE(MeshMapType)  :: Load_BldRoot_2_Hub      !< Blade root loads to hub [-]
     TYPE(MeshMapType)  :: Load_Hub_2_PRP      !< Hub to nacelle load transfer [-]
     TYPE(MeshMapType)  :: Load_Twr_2_PRP      !< Tower loads to PRP (unused) [-]
-  END TYPE MeshMaps
+  END TYPE MeshesMaps
 ! =======================
 CONTAINS
 
@@ -262,7 +271,7 @@ subroutine WT_CopyTurbConfig(SrcTurbConfigData, DstTurbConfigData, CtrlCode, Err
    DstTurbConfigData%ShftTilt = SrcTurbConfigData%ShftTilt
    DstTurbConfigData%Twr2Shft = SrcTurbConfigData%Twr2Shft
    DstTurbConfigData%TowerHt = SrcTurbConfigData%TowerHt
-   DstTurbConfigData%TowerBsHt = SrcTurbConfigData%TowerBsHt
+   DstTurbConfigData%TowerBsPt = SrcTurbConfigData%TowerBsPt
    DstTurbConfigData%PtfmRef = SrcTurbConfigData%PtfmRef
 end subroutine
 
@@ -289,7 +298,7 @@ subroutine WT_PackTurbConfig(RF, Indata)
    call RegPack(RF, InData%ShftTilt)
    call RegPack(RF, InData%Twr2Shft)
    call RegPack(RF, InData%TowerHt)
-   call RegPack(RF, InData%TowerBsHt)
+   call RegPack(RF, InData%TowerBsPt)
    call RegPack(RF, InData%PtfmRef)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
@@ -308,7 +317,7 @@ subroutine WT_UnPackTurbConfig(RF, OutData)
    call RegUnpack(RF, OutData%ShftTilt); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%Twr2Shft); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%TowerHt); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpack(RF, OutData%TowerBsHt); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%TowerBsPt); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%PtfmRef); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -450,6 +459,53 @@ subroutine WT_UnPackViz(RF, OutData)
    call RegUnpack(RF, OutData%VTKNacDim); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
+subroutine WT_CopyIptFiles(SrcIptFilesData, DstIptFilesData, CtrlCode, ErrStat, ErrMsg)
+   type(IptFiles), intent(in) :: SrcIptFilesData
+   type(IptFiles), intent(inout) :: DstIptFilesData
+   integer(IntKi),  intent(in   ) :: CtrlCode
+   integer(IntKi),  intent(  out) :: ErrStat
+   character(*),    intent(  out) :: ErrMsg
+   character(*), parameter        :: RoutineName = 'WT_CopyIptFiles'
+   ErrStat = ErrID_None
+   ErrMsg  = ''
+   DstIptFilesData%SS_InputFile = SrcIptFilesData%SS_InputFile
+   DstIptFilesData%MD_InputFile = SrcIptFilesData%MD_InputFile
+   DstIptFilesData%AD_InputFile = SrcIptFilesData%AD_InputFile
+   DstIptFilesData%IfW_InputFile = SrcIptFilesData%IfW_InputFile
+end subroutine
+
+subroutine WT_DestroyIptFiles(IptFilesData, ErrStat, ErrMsg)
+   type(IptFiles), intent(inout) :: IptFilesData
+   integer(IntKi),  intent(  out) :: ErrStat
+   character(*),    intent(  out) :: ErrMsg
+   character(*), parameter        :: RoutineName = 'WT_DestroyIptFiles'
+   ErrStat = ErrID_None
+   ErrMsg  = ''
+end subroutine
+
+subroutine WT_PackIptFiles(RF, Indata)
+   type(RegFile), intent(inout) :: RF
+   type(IptFiles), intent(in) :: InData
+   character(*), parameter         :: RoutineName = 'WT_PackIptFiles'
+   if (RF%ErrStat >= AbortErrLev) return
+   call RegPack(RF, InData%SS_InputFile)
+   call RegPack(RF, InData%MD_InputFile)
+   call RegPack(RF, InData%AD_InputFile)
+   call RegPack(RF, InData%IfW_InputFile)
+   if (RegCheckErr(RF, RoutineName)) return
+end subroutine
+
+subroutine WT_UnPackIptFiles(RF, OutData)
+   type(RegFile), intent(inout)    :: RF
+   type(IptFiles), intent(inout) :: OutData
+   character(*), parameter            :: RoutineName = 'WT_UnPackIptFiles'
+   if (RF%ErrStat /= ErrID_None) return
+   call RegUnpack(RF, OutData%SS_InputFile); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%MD_InputFile); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%AD_InputFile); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%IfW_InputFile); if (RegCheckErr(RF, RoutineName)) return
+end subroutine
+
 subroutine WT_CopySimSettingsType(SrcSimSettingsTypeData, DstSimSettingsTypeData, CtrlCode, ErrStat, ErrMsg)
    type(SimSettingsType), intent(in) :: SrcSimSettingsTypeData
    type(SimSettingsType), intent(inout) :: DstSimSettingsTypeData
@@ -479,6 +535,9 @@ subroutine WT_CopySimSettingsType(SrcSimSettingsTypeData, DstSimSettingsTypeData
    call WT_CopyViz(SrcSimSettingsTypeData%Viz, DstSimSettingsTypeData%Viz, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
+   call WT_CopyIptFiles(SrcSimSettingsTypeData%IptFile, DstSimSettingsTypeData%IptFile, CtrlCode, ErrStat2, ErrMsg2)
+   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   if (ErrStat >= AbortErrLev) return
 end subroutine
 
 subroutine WT_DestroySimSettingsType(SimSettingsTypeData, ErrStat, ErrMsg)
@@ -502,6 +561,8 @@ subroutine WT_DestroySimSettingsType(SimSettingsTypeData, ErrStat, ErrMsg)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    call WT_DestroyViz(SimSettingsTypeData%Viz, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   call WT_DestroyIptFiles(SimSettingsTypeData%IptFile, ErrStat2, ErrMsg2)
+   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
 end subroutine
 
 subroutine WT_PackSimSettingsType(RF, Indata)
@@ -515,6 +576,7 @@ subroutine WT_PackSimSettingsType(RF, Indata)
    call WT_PackTurbOpPoint(RF, InData%TOp) 
    call WT_PackOutput(RF, InData%Outs) 
    call WT_PackViz(RF, InData%Viz) 
+   call WT_PackIptFiles(RF, InData%IptFile) 
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -529,6 +591,7 @@ subroutine WT_UnPackSimSettingsType(RF, OutData)
    call WT_UnpackTurbOpPoint(RF, OutData%TOp) ! TOp 
    call WT_UnpackOutput(RF, OutData%Outs) ! Outs 
    call WT_UnpackViz(RF, OutData%Viz) ! Viz 
+   call WT_UnpackIptFiles(RF, OutData%IptFile) ! IptFile 
 end subroutine
 
 subroutine WT_CopyMeshesMotion(SrcMeshesMotionData, DstMeshesMotionData, CtrlCode, ErrStat, ErrMsg)
@@ -648,9 +711,9 @@ subroutine WT_UnPackMeshesMotion(RF, OutData)
    end if
 end subroutine
 
-subroutine WT_CopyMesheshLoads(SrcMesheshLoadsData, DstMesheshLoadsData, CtrlCode, ErrStat, ErrMsg)
-   type(MesheshLoads), intent(inout) :: SrcMesheshLoadsData
-   type(MesheshLoads), intent(inout) :: DstMesheshLoadsData
+subroutine WT_CopyMeshesLoads(SrcMeshesLoadsData, DstMeshesLoadsData, CtrlCode, ErrStat, ErrMsg)
+   type(MeshesLoads), intent(inout) :: SrcMeshesLoadsData
+   type(MeshesLoads), intent(inout) :: DstMeshesLoadsData
    integer(IntKi),  intent(in   ) :: CtrlCode
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
@@ -658,68 +721,68 @@ subroutine WT_CopyMesheshLoads(SrcMesheshLoadsData, DstMesheshLoadsData, CtrlCod
    integer(B4Ki)                  :: LB(1), UB(1)
    integer(IntKi)                 :: ErrStat2
    character(ErrMsgLen)           :: ErrMsg2
-   character(*), parameter        :: RoutineName = 'WT_CopyMesheshLoads'
+   character(*), parameter        :: RoutineName = 'WT_CopyMeshesLoads'
    ErrStat = ErrID_None
    ErrMsg  = ''
-   call MeshCopy(SrcMesheshLoadsData%PtfmPRPLoads, DstMesheshLoadsData%PtfmPRPLoads, CtrlCode, ErrStat2, ErrMsg2 )
+   call MeshCopy(SrcMeshesLoadsData%PtfmPRPLoads, DstMeshesLoadsData%PtfmPRPLoads, CtrlCode, ErrStat2, ErrMsg2 )
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
-   call MeshCopy(SrcMesheshLoadsData%TowerLoads, DstMesheshLoadsData%TowerLoads, CtrlCode, ErrStat2, ErrMsg2 )
+   call MeshCopy(SrcMeshesLoadsData%TowerLoads, DstMeshesLoadsData%TowerLoads, CtrlCode, ErrStat2, ErrMsg2 )
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
-   call MeshCopy(SrcMesheshLoadsData%HubLoads, DstMesheshLoadsData%HubLoads, CtrlCode, ErrStat2, ErrMsg2 )
+   call MeshCopy(SrcMeshesLoadsData%HubLoads, DstMeshesLoadsData%HubLoads, CtrlCode, ErrStat2, ErrMsg2 )
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
-   if (allocated(SrcMesheshLoadsData%BladeRootLoads)) then
-      LB(1:1) = lbound(SrcMesheshLoadsData%BladeRootLoads)
-      UB(1:1) = ubound(SrcMesheshLoadsData%BladeRootLoads)
-      if (.not. allocated(DstMesheshLoadsData%BladeRootLoads)) then
-         allocate(DstMesheshLoadsData%BladeRootLoads(LB(1):UB(1)), stat=ErrStat2)
+   if (allocated(SrcMeshesLoadsData%BladeRootLoads)) then
+      LB(1:1) = lbound(SrcMeshesLoadsData%BladeRootLoads)
+      UB(1:1) = ubound(SrcMeshesLoadsData%BladeRootLoads)
+      if (.not. allocated(DstMeshesLoadsData%BladeRootLoads)) then
+         allocate(DstMeshesLoadsData%BladeRootLoads(LB(1):UB(1)), stat=ErrStat2)
          if (ErrStat2 /= 0) then
-            call SetErrStat(ErrID_Fatal, 'Error allocating DstMesheshLoadsData%BladeRootLoads.', ErrStat, ErrMsg, RoutineName)
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstMeshesLoadsData%BladeRootLoads.', ErrStat, ErrMsg, RoutineName)
             return
          end if
       end if
       do i1 = LB(1), UB(1)
-         call MeshCopy(SrcMesheshLoadsData%BladeRootLoads(i1), DstMesheshLoadsData%BladeRootLoads(i1), CtrlCode, ErrStat2, ErrMsg2 )
+         call MeshCopy(SrcMeshesLoadsData%BladeRootLoads(i1), DstMeshesLoadsData%BladeRootLoads(i1), CtrlCode, ErrStat2, ErrMsg2 )
          call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
          if (ErrStat >= AbortErrLev) return
       end do
    end if
 end subroutine
 
-subroutine WT_DestroyMesheshLoads(MesheshLoadsData, ErrStat, ErrMsg)
-   type(MesheshLoads), intent(inout) :: MesheshLoadsData
+subroutine WT_DestroyMeshesLoads(MeshesLoadsData, ErrStat, ErrMsg)
+   type(MeshesLoads), intent(inout) :: MeshesLoadsData
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
    integer(B4Ki)   :: i1
    integer(B4Ki)   :: LB(1), UB(1)
    integer(IntKi)                 :: ErrStat2
    character(ErrMsgLen)           :: ErrMsg2
-   character(*), parameter        :: RoutineName = 'WT_DestroyMesheshLoads'
+   character(*), parameter        :: RoutineName = 'WT_DestroyMeshesLoads'
    ErrStat = ErrID_None
    ErrMsg  = ''
-   call MeshDestroy( MesheshLoadsData%PtfmPRPLoads, ErrStat2, ErrMsg2)
+   call MeshDestroy( MeshesLoadsData%PtfmPRPLoads, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   call MeshDestroy( MesheshLoadsData%TowerLoads, ErrStat2, ErrMsg2)
+   call MeshDestroy( MeshesLoadsData%TowerLoads, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   call MeshDestroy( MesheshLoadsData%HubLoads, ErrStat2, ErrMsg2)
+   call MeshDestroy( MeshesLoadsData%HubLoads, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   if (allocated(MesheshLoadsData%BladeRootLoads)) then
-      LB(1:1) = lbound(MesheshLoadsData%BladeRootLoads)
-      UB(1:1) = ubound(MesheshLoadsData%BladeRootLoads)
+   if (allocated(MeshesLoadsData%BladeRootLoads)) then
+      LB(1:1) = lbound(MeshesLoadsData%BladeRootLoads)
+      UB(1:1) = ubound(MeshesLoadsData%BladeRootLoads)
       do i1 = LB(1), UB(1)
-         call MeshDestroy( MesheshLoadsData%BladeRootLoads(i1), ErrStat2, ErrMsg2)
+         call MeshDestroy( MeshesLoadsData%BladeRootLoads(i1), ErrStat2, ErrMsg2)
          call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
       end do
-      deallocate(MesheshLoadsData%BladeRootLoads)
+      deallocate(MeshesLoadsData%BladeRootLoads)
    end if
 end subroutine
 
-subroutine WT_PackMesheshLoads(RF, Indata)
+subroutine WT_PackMeshesLoads(RF, Indata)
    type(RegFile), intent(inout) :: RF
-   type(MesheshLoads), intent(in) :: InData
-   character(*), parameter         :: RoutineName = 'WT_PackMesheshLoads'
+   type(MeshesLoads), intent(in) :: InData
+   character(*), parameter         :: RoutineName = 'WT_PackMeshesLoads'
    integer(B4Ki)   :: i1
    integer(B4Ki)   :: LB(1), UB(1)
    if (RF%ErrStat >= AbortErrLev) return
@@ -738,10 +801,10 @@ subroutine WT_PackMesheshLoads(RF, Indata)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
-subroutine WT_UnPackMesheshLoads(RF, OutData)
+subroutine WT_UnPackMeshesLoads(RF, OutData)
    type(RegFile), intent(inout)    :: RF
-   type(MesheshLoads), intent(inout) :: OutData
-   character(*), parameter            :: RoutineName = 'WT_UnPackMesheshLoads'
+   type(MeshesLoads), intent(inout) :: OutData
+   character(*), parameter            :: RoutineName = 'WT_UnPackMeshesLoads'
    integer(B4Ki)   :: i1
    integer(B4Ki)   :: LB(1), UB(1)
    integer(IntKi)  :: stat
@@ -765,64 +828,64 @@ subroutine WT_UnPackMesheshLoads(RF, OutData)
    end if
 end subroutine
 
-subroutine WT_CopyMeshMaps(SrcMeshMapsData, DstMeshMapsData, CtrlCode, ErrStat, ErrMsg)
-   type(MeshMaps), intent(inout) :: SrcMeshMapsData
-   type(MeshMaps), intent(inout) :: DstMeshMapsData
+subroutine WT_CopyMeshesMaps(SrcMeshesMapsData, DstMeshesMapsData, CtrlCode, ErrStat, ErrMsg)
+   type(MeshesMaps), intent(inout) :: SrcMeshesMapsData
+   type(MeshesMaps), intent(inout) :: DstMeshesMapsData
    integer(IntKi),  intent(in   ) :: CtrlCode
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
    integer(IntKi)                 :: ErrStat2
    character(ErrMsgLen)           :: ErrMsg2
-   character(*), parameter        :: RoutineName = 'WT_CopyMeshMaps'
+   character(*), parameter        :: RoutineName = 'WT_CopyMeshesMaps'
    ErrStat = ErrID_None
    ErrMsg  = ''
-   call NWTC_Library_CopyMeshMapType(SrcMeshMapsData%Motion_PRP_2_Twr, DstMeshMapsData%Motion_PRP_2_Twr, CtrlCode, ErrStat2, ErrMsg2)
+   call NWTC_Library_CopyMeshMapType(SrcMeshesMapsData%Motion_PRP_2_Twr, DstMeshesMapsData%Motion_PRP_2_Twr, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
-   call NWTC_Library_CopyMeshMapType(SrcMeshMapsData%Motion_PRP_2_Hub, DstMeshMapsData%Motion_PRP_2_Hub, CtrlCode, ErrStat2, ErrMsg2)
+   call NWTC_Library_CopyMeshMapType(SrcMeshesMapsData%Motion_PRP_2_Hub, DstMeshesMapsData%Motion_PRP_2_Hub, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
-   call NWTC_Library_CopyMeshMapType(SrcMeshMapsData%Motion_Hub_2_BldRoot, DstMeshMapsData%Motion_Hub_2_BldRoot, CtrlCode, ErrStat2, ErrMsg2)
+   call NWTC_Library_CopyMeshMapType(SrcMeshesMapsData%Motion_Hub_2_BldRoot, DstMeshesMapsData%Motion_Hub_2_BldRoot, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
-   call NWTC_Library_CopyMeshMapType(SrcMeshMapsData%Load_BldRoot_2_Hub, DstMeshMapsData%Load_BldRoot_2_Hub, CtrlCode, ErrStat2, ErrMsg2)
+   call NWTC_Library_CopyMeshMapType(SrcMeshesMapsData%Load_BldRoot_2_Hub, DstMeshesMapsData%Load_BldRoot_2_Hub, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
-   call NWTC_Library_CopyMeshMapType(SrcMeshMapsData%Load_Hub_2_PRP, DstMeshMapsData%Load_Hub_2_PRP, CtrlCode, ErrStat2, ErrMsg2)
+   call NWTC_Library_CopyMeshMapType(SrcMeshesMapsData%Load_Hub_2_PRP, DstMeshesMapsData%Load_Hub_2_PRP, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
-   call NWTC_Library_CopyMeshMapType(SrcMeshMapsData%Load_Twr_2_PRP, DstMeshMapsData%Load_Twr_2_PRP, CtrlCode, ErrStat2, ErrMsg2)
+   call NWTC_Library_CopyMeshMapType(SrcMeshesMapsData%Load_Twr_2_PRP, DstMeshesMapsData%Load_Twr_2_PRP, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
 end subroutine
 
-subroutine WT_DestroyMeshMaps(MeshMapsData, ErrStat, ErrMsg)
-   type(MeshMaps), intent(inout) :: MeshMapsData
+subroutine WT_DestroyMeshesMaps(MeshesMapsData, ErrStat, ErrMsg)
+   type(MeshesMaps), intent(inout) :: MeshesMapsData
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
    integer(IntKi)                 :: ErrStat2
    character(ErrMsgLen)           :: ErrMsg2
-   character(*), parameter        :: RoutineName = 'WT_DestroyMeshMaps'
+   character(*), parameter        :: RoutineName = 'WT_DestroyMeshesMaps'
    ErrStat = ErrID_None
    ErrMsg  = ''
-   call NWTC_Library_DestroyMeshMapType(MeshMapsData%Motion_PRP_2_Twr, ErrStat2, ErrMsg2)
+   call NWTC_Library_DestroyMeshMapType(MeshesMapsData%Motion_PRP_2_Twr, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   call NWTC_Library_DestroyMeshMapType(MeshMapsData%Motion_PRP_2_Hub, ErrStat2, ErrMsg2)
+   call NWTC_Library_DestroyMeshMapType(MeshesMapsData%Motion_PRP_2_Hub, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   call NWTC_Library_DestroyMeshMapType(MeshMapsData%Motion_Hub_2_BldRoot, ErrStat2, ErrMsg2)
+   call NWTC_Library_DestroyMeshMapType(MeshesMapsData%Motion_Hub_2_BldRoot, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   call NWTC_Library_DestroyMeshMapType(MeshMapsData%Load_BldRoot_2_Hub, ErrStat2, ErrMsg2)
+   call NWTC_Library_DestroyMeshMapType(MeshesMapsData%Load_BldRoot_2_Hub, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   call NWTC_Library_DestroyMeshMapType(MeshMapsData%Load_Hub_2_PRP, ErrStat2, ErrMsg2)
+   call NWTC_Library_DestroyMeshMapType(MeshesMapsData%Load_Hub_2_PRP, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   call NWTC_Library_DestroyMeshMapType(MeshMapsData%Load_Twr_2_PRP, ErrStat2, ErrMsg2)
+   call NWTC_Library_DestroyMeshMapType(MeshesMapsData%Load_Twr_2_PRP, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
 end subroutine
 
-subroutine WT_PackMeshMaps(RF, Indata)
+subroutine WT_PackMeshesMaps(RF, Indata)
    type(RegFile), intent(inout) :: RF
-   type(MeshMaps), intent(in) :: InData
-   character(*), parameter         :: RoutineName = 'WT_PackMeshMaps'
+   type(MeshesMaps), intent(in) :: InData
+   character(*), parameter         :: RoutineName = 'WT_PackMeshesMaps'
    if (RF%ErrStat >= AbortErrLev) return
    call NWTC_Library_PackMeshMapType(RF, InData%Motion_PRP_2_Twr) 
    call NWTC_Library_PackMeshMapType(RF, InData%Motion_PRP_2_Hub) 
@@ -833,10 +896,10 @@ subroutine WT_PackMeshMaps(RF, Indata)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
-subroutine WT_UnPackMeshMaps(RF, OutData)
+subroutine WT_UnPackMeshesMaps(RF, OutData)
    type(RegFile), intent(inout)    :: RF
-   type(MeshMaps), intent(inout) :: OutData
-   character(*), parameter            :: RoutineName = 'WT_UnPackMeshMaps'
+   type(MeshesMaps), intent(inout) :: OutData
+   character(*), parameter            :: RoutineName = 'WT_UnPackMeshesMaps'
    if (RF%ErrStat /= ErrID_None) return
    call NWTC_Library_UnpackMeshMapType(RF, OutData%Motion_PRP_2_Twr) ! Motion_PRP_2_Twr 
    call NWTC_Library_UnpackMeshMapType(RF, OutData%Motion_PRP_2_Hub) ! Motion_PRP_2_Hub 

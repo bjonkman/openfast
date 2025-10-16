@@ -38,7 +38,7 @@ typedef  ^                    ^              ^                 ShftGagL         
 typedef  ^                    ^              ^                 ShftTilt             -  -  -  "Rotor shaft tilt angle" (deg)
 typedef  ^                    ^              ^                 Twr2Shft             -  -  -  "Vertical distance from the tower-top to the rotor shaft" (m)
 typedef  ^                    ^              ^                 TowerHt              -  -  -  "Height of tower relative MSL" (m)
-typedef  ^                    ^              ^                 TowerBsHt            -  -  -  "Height of tower base relative to ground level [onshore], MSL [floating MHK]" (m)
+typedef  ^                    ^              ^                 TowerBsPt            3  -  -  "Tower base location relative to MSL. Consider absolute difference to PtfmRef [floating MHK]" (m)
 typedef  ^                    ^              ^                 PtfmRef              3  -  -  "Location of platform reference point, relative to MSL.  Motions and loads all connect to this point" (m)
 
 typedef  ^                    TurbOpPoint    c_float           RotSpeed             -  -  -  "Rotor speed" (RPM)
@@ -55,27 +55,19 @@ typedef  ^                    ^              c_double          WrVTK_DT         
 typedef  ^                    ^              character(1024)   WrVTK_dir            -  -  -  "Directory for VTK writing" -
 typedef  ^                    ^              c_float           VTKNacDim            6  -  -  "Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz]" (m)
 
+typedef  ^                    IptFiles       character(1024)   SS_InputFile         -  -  -  "SeaState   input file" (-)
+typedef  ^                    ^              ^                 MD_InputFile         -  -  -  "MoorDyn    input file" (-)
+typedef  ^                    ^              ^                 AD_InputFile         -  -  -  "AeroDyn    input file" (-)
+typedef  ^                    ^              ^                 IfW_InputFile        -  -  -  "InflowWind input file" (-)
+
+
 typedef  ^                 SimSettingsType   Sim               Sim                  -  -  -  "Simulation settings" -
 typedef  ^                    ^              Env               Env                  -  -  -  "Environment settings" -
 typedef  ^                    ^              TurbConfig        TCfg                 -  -  -  "Turbine configuration" -
 typedef  ^                    ^              TurbOpPoint       TOp                  -  -  -  "Turbine operating point" -
 typedef  ^                    ^              Output            Outs                 -  -  -  "Output settings" -
 typedef  ^                    ^              Viz               Viz                  -  -  -  "Vizualization settings" -
-
-
-
-# Input settings specific to modules
-#typedef  ^                    AD_Setup       c_int       NumTurbines                -  1  -  "Number of turbines" -
-#typedef  ^                    ^              ^           TransposeDCM               -  -  -  "Transpose the DCM for ADI?" -
-#typedef  ^                    ^              ^           PointLoadOutput            -  1  -  "Point loads, or distributed loads (use pointload since mapping to root)" -
-#typedef  ^                    ^              ^           TurbineIsHAWT_c            -  1  -  "true for HAWT, false for VAWT" -
-#typedef  ^                    ^              ^           MHK                        -  1  -  "MHK turbine, set to 1" -
-##typedef  ^                    MD_Setup  
-#typedef  ^                    SS_Setup       c_int       NSteps                     -  -  -  "Number of timesteps" -
-#typedef  ^                    ^              c_double    WaveDT                     -  -  -  "Wave DT for calcs" -
-#typedef  ^                    ^              c_int       WaveElevSeriesFlag         -  0  -  "Output the wave elevation series info (unused)" -
-#typedef  ^                    ^              c_int       WrWvKinMod                 -  0  -  "Write the wave kin mod files" -
-
+typedef  ^                    ^              IptFiles          IptFile              -  -  -  "Input files for each module" -
 
 
 
@@ -85,13 +77,13 @@ typedef  ^                    ^              ^           TowerMotion            
 typedef  ^                    ^              ^           HubMotion                  -  -  -  "Hub mesh (for mappings, no loadings)" -
 typedef  ^                    ^              ^           BladeRootMotion            :  -  -  "Blade root motions" -
 
-typedef  ^                    MesheshLoads   MeshType    PtfmPRPLoads               -  -  -  "Platform principle ref point loads output" -
+typedef  ^                    MeshesLoads    MeshType    PtfmPRPLoads               -  -  -  "Platform principle ref point loads output" -
 typedef  ^                    ^              ^           TowerLoads                 -  -  -  "Tower mesh (unused)" -
 typedef  ^                    ^              ^           HubLoads                   -  -  -  "Hub mesh (for mappings, intermediate loads)" -
 typedef  ^                    ^              ^           BladeRootLoads             :  -  -  "Blade root loads" -
 
 # NOTE: rigid geometry, no yaw, static pitch
-typedef  ^                    MeshMaps       MeshMapType Motion_PRP_2_Twr           -  -  -  "PRP to tower motion" -
+typedef  ^                    MeshesMaps     MeshMapType Motion_PRP_2_Twr           -  -  -  "PRP to tower motion" -
 typedef  ^                    ^              ^           Motion_PRP_2_Hub           -  -  -  "Twrtop to nacelle - add rotation afterwards" -
 typedef  ^                    ^              ^           Motion_Hub_2_BldRoot       -  -  -  "Hub to blade root motion transfer" -
 typedef  ^                    ^              ^           Load_BldRoot_2_Hub         -  -  -  "Blade root loads to hub" -
