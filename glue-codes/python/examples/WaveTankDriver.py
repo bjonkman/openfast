@@ -75,17 +75,19 @@ class WaveTankLib(OpenFASTInterfaceType):
 
         # returned values
         self.rootname_c = create_string_buffer(self.IntfStrLen)
+        self.vtkdir_c   = create_string_buffer(self.IntfStrLen)
 
     def _initialize_routines(self):
         self.WaveTank_Init.argtypes = [
             POINTER(c_char),        #  intent(in   ) :: WT_InputFile_c(IntfStrLen)
             POINTER(c_char),        #  intent(  out) :: RootName_C(IntfStrLen)
+            POINTER(c_char),        #  intent(  out) :: VTKdir_C(IntfStrLen)
             POINTER(c_int),         #  intent(  out) :: ErrStat_C
             POINTER(c_char),        #  intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
         self.WaveTank_Init.restype = None
 
-        self.WaveTank_CalcOutput.argtypes = [
+        self.WaveTank_CalcStep.argtypes = [
             POINTER(c_double),      # real(c_double) :: time
             POINTER(c_float),       # real(c_float),          intent(in   ) :: positions_x
             POINTER(c_float),       # real(c_float),          intent(in   ) :: positions_y
@@ -97,7 +99,7 @@ class WaveTankLib(OpenFASTInterfaceType):
             POINTER(c_int),         # integer(c_int),         intent(  out) :: ErrStat_C
             POINTER(c_char),        # character(kind=c_char), intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
-        self.WaveTank_CalcOutput.restype = None
+        self.WaveTank_CalcStep.restype = None
 
         self.WaveTank_End.argtypes = [
             POINTER(c_int),         # integer(c_int),         intent(  out) :: ErrStat_C
@@ -157,12 +159,15 @@ class WaveTankLib(OpenFASTInterfaceType):
         self.WaveTank_Init(
             self.input_file_names["WaveTank"],
             self.rootname_c,                        # OUT <- rootname of output files
+            self.vtkdir_c,                          # OUT <- directory for vtk output
             byref(self.error_status_c),             # OUT <- error status code
             self.error_message_c                    # OUT <- error message buffer
         )
         self.check_error()
         # tmp = self.rootname_c.raw.decode('utf-8').strip()
         # print(f'RootName_c: {tmp}')
+        # tmp = self.vtkdir_c.raw.decode('utf-8').strip()
+        # print(f'VTKdir_c: {tmp}')
 
     def calc_output(
         self,
@@ -177,7 +182,7 @@ class WaveTankLib(OpenFASTInterfaceType):
         hub_height_velocities: np.ndarray,
     ):
 
-        self.WaveTank_CalcOutput(
+        self.WaveTank_CalcStep(
             byref(c_double(time)),
             byref(c_float(positions_x)),
             byref(c_float(positions_y)),

@@ -42,7 +42,7 @@ MODULE WaveTankTesting
    save
 
    public :: WaveTank_Init
-   public :: WaveTank_CalcOutput
+   public :: WaveTank_CalcStep
    public :: WaveTank_End
 
    INTEGER(C_INT) :: SS_NumChannels_C
@@ -86,6 +86,7 @@ CONTAINS
 SUBROUTINE WaveTank_Init(  &
    WT_InputFile_C,         &
    RootName_C,             &
+   VTKdir_C,               &
    ErrStat_C,              &
    ErrMsg_C                &
 ) BIND (C, NAME='WaveTank_Init')
@@ -96,6 +97,7 @@ SUBROUTINE WaveTank_Init(  &
 
    character(c_char),          intent(in   ) :: WT_InputFile_C(IntfStrLen)
    character(kind=c_char),     intent(  out) :: RootName_C(IntfStrLen)
+   character(kind=c_char),     intent(  out) :: VTKdir_C(IntfStrLen)
    integer(c_int),             intent(  out) :: ErrStat_C
    character(kind=c_char),     intent(  out) :: ErrMsg_C(ErrMsgLen_C)
 
@@ -151,6 +153,7 @@ SUBROUTINE WaveTank_Init(  &
    IfW_InputFile_C = transfer(trim(SimSettings%IptFile%IfW_InputFile), IfW_InputFile_C)
 
    ! return rootname
+   RootName_C = c_null_char
    RootName_C = transfer(trim(SimSettings%Sim%OutRootName),RootName_C)
 
    ! If SendScreenToFile - send to file <OutRootName>.screen.log if true
@@ -164,8 +167,12 @@ SUBROUTINE WaveTank_Init(  &
    ! debugging
    if (SimSettings%Sim%DebugLevel > 0_c_int) call ShowPassedData()
 
-   ! VTK directory - this may leave the c_null_char, but it will get corrected after passed into other code
-   WrVTK_Dir_C = transfer( SimSettings%Viz%WrVTK_Dir, WrVTK_Dir_C )
+   ! VTK directory
+   WrVTK_Dir_C = c_null_char
+   WrVTK_Dir_C = transfer( trim(SimSettings%Viz%WrVTK_Dir), WrVTK_Dir_C )
+   ! return VTKdir
+   VTKdir_C = c_null_char
+   if (SimSettings%Viz%WrVTK > 0_c_int) VTKdir_C = WrVTK_Dir_C
 
 
 !FIXME: build struct model
@@ -366,7 +373,7 @@ END SUBROUTINE WaveTank_Init
 !   character(kind=c_char), intent(  out) :: ErrMsg_C(ErrMsgLen_C)
 
    
-SUBROUTINE WaveTank_CalcOutput( &
+SUBROUTINE WaveTank_CalcStep( &
     time,                       &
     positions_x,                &
     positions_y,                &
@@ -377,10 +384,10 @@ SUBROUTINE WaveTank_CalcOutput( &
     ADI_MeshFrc_C,              &
     ErrStat_C,                  &
     ErrMsg_C                    &
-) BIND (C, NAME='WaveTank_CalcOutput')
+) BIND (C, NAME='WaveTank_CalcStep')
 #ifndef IMPLICIT_DLLEXPORT
-!DEC$ ATTRIBUTES DLLEXPORT :: WaveTank_CalcOutput
-!GCC$ ATTRIBUTES DLLEXPORT :: WaveTank_CalcOutput
+!DEC$ ATTRIBUTES DLLEXPORT :: WaveTank_CalcStep
+!GCC$ ATTRIBUTES DLLEXPORT :: WaveTank_CalcStep
 #endif
 
     REAL(C_DOUBLE),         INTENT(IN   ) :: time
@@ -604,18 +611,15 @@ SUBROUTINE WaveTank_CalcOutput( &
 !   CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_GetRotorLoads')
 !   IF (ErrStat_C >= AbortErrLev_C) RETURN
 
-END SUBROUTINE
+end subroutine
 
-!FIXME: update interface
-!subroutine WaveTank_End(OutputRootName, VTKdirName, ErrStat_C, ErrMsg_C) bind (C, NAME="WaveTank_End")
+
 SUBROUTINE WaveTank_End(ErrStat_C, ErrMsg_C) bind (C, NAME="WaveTank_End")
 #ifndef IMPLICIT_DLLEXPORT
 !DEC$ ATTRIBUTES DLLEXPORT :: WaveTank_End
 !GCC$ ATTRIBUTES DLLEXPORT :: WaveTank_End
 #endif
 
-!   character(c_char),      intent(  out) :: OutputRootName(IntfStrLen)     ! return the rootname 
-!   character(c_char),      intent(  out) :: VTKdirName(IntfStrLen)     ! return the name of the vtk directory (leave empty in no VTK)
    integer(c_int),         intent(  out) :: ErrStat_C
    character(kind=c_char), intent(  out) :: ErrMsg_C(ErrMsgLen_C)
 
