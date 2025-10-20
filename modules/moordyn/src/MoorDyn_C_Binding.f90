@@ -555,8 +555,13 @@ SUBROUTINE MD_C_End(ErrStat_C,ErrMsg_C) BIND (C, NAME='MD_C_End')
    ErrMsg_F = ''
 
    ! Call the main subroutine MD_End
-   CALL MD_End(u(1), p, x(1), xd(1), z(1), other(1), y, m, ErrStat_F2, ErrMsg_F2)
-   call SetErrStat( ErrStat_F2, ErrMsg_F2, ErrStat_F, ErrMsg_F, RoutineName )
+   !     If u is not allocated, then we didn't get far at all in initialization,
+   !     or AD_C_End got called before Init.  We don't want a segfault, so check
+   !     for allocation.
+   if (allocated(u)) then
+      CALL MD_End(u(1), p, x(1), xd(1), z(1), other(1), y, m, ErrStat_F2, ErrMsg_F2)
+      call SetErrStat( ErrStat_F2, ErrMsg_F2, ErrStat_F, ErrMsg_F, RoutineName )
+   endif
 
    !  NOTE: MoorDyn_End only takes 1 instance of u, not the array.  So extra
    !        logic is required here (this isn't necessary in the fortran driver

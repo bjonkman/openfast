@@ -58,19 +58,15 @@ MODULE WaveTankTesting
 !   REAL(C_FLOAT), DIMENSION(3,3) :: FloaterPositions = 0.0_C_FLOAT
 !   REAL(C_FLOAT), DIMENSION(2,6) :: FloaterVelocities = 0.0_C_FLOAT
 !   REAL(C_FLOAT), DIMENSION(1,6) :: FloaterAccelerations = 0.0_C_FLOAT
-
 !   REAL(C_FLOAT), DIMENSION(3,3) :: NacellePositions = 0.0_C_FLOAT
 !   REAL(C_FLOAT), DIMENSION(2,6) :: NacelleVelocities = 0.0_C_FLOAT
 !   REAL(C_FLOAT), DIMENSION(1,6) :: NacelleAccelerations = 0.0_C_FLOAT
-
 !   REAL(C_FLOAT), ALLOCATABLE :: BladeRootPositions(:,:)
 !   REAL(C_FLOAT), ALLOCATABLE :: BladeRootVelocities(:,:)
 !   REAL(C_FLOAT), ALLOCATABLE :: BladeRootAccelerations(:,:)
-!   
 !   REAL(C_FLOAT), ALLOCATABLE :: BladeMeshPositions(:,:)
 !   REAL(C_FLOAT), ALLOCATABLE :: BladeMeshVelocities(:,:)
 !   REAL(C_FLOAT), ALLOCATABLE :: BladeMeshAccelerations(:,:)
-
 !FIXME: this is temporary until meshes are properly setup.  Move all this to some temporary storage that gets allocated on init
 real(c_double) :: tmpIdent9(9) = (/ 1.0_c_float, 0.0_c_float, 0.0_c_float,  0.0_c_float, 1.0_c_float, 0.0_c_float,  0.0_c_float, 0.0_c_float, 1.0_c_float /)
 real(c_double) :: tmpBldRootOri(18) = (/ 1.0_c_float, 0.0_c_float, 0.0_c_float,  0.0_c_float, 1.0_c_float, 0.0_c_float,  0.0_c_float, 0.0_c_float, 1.0_c_float, &
@@ -600,6 +596,7 @@ SUBROUTINE WaveTank_End(ErrStat_C, ErrMsg_C) bind (C, NAME="WaveTank_End")
    ! Local variables
    integer(c_int)                          :: ErrStat_C2
    character(kind=c_char, len=ErrMsgLen_C) :: ErrMsg_C2
+   integer(IntKi)                          :: ErrStat_F2
    character(ErrMsgLen)                    :: ErrMsg_F2
 
    ErrStat_C = ErrID_None
@@ -608,21 +605,14 @@ SUBROUTINE WaveTank_End(ErrStat_C, ErrMsg_C) bind (C, NAME="WaveTank_End")
    ! in case we were writing to a file instead of the screen
    if (ScreenLogOutput_Un > 0)   close(ScreenLogOutput_Un)
 
-!FIXME: fix MD_C_END so it doesn't segfault if no init occured
-ErrMsg_F2  = "WaveTank_End is broken!!!!"
-call SetErrStat_F2C(ErrID_Fatal, ErrMsg_F2, ErrStat_C, ErrMsg_C)
-return
    call MD_C_END(ErrStat_C2, ErrMsg_C2)
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'MD_C_END')
-   if (ErrStat_C >= AbortErrLev_C) return
 
    call SeaSt_C_END(ErrStat_C2, ErrMsg_C2)
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'SeaSt_C_END')
-   if (ErrStat_C >= AbortErrLev_C) return
 
    call ADI_C_END(ErrStat_C2, ErrMsg_C2)
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_END')
-   if (ErrStat_C >= AbortErrLev_C) return
 
 !FIXME: close output file here
 

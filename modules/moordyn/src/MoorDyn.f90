@@ -3901,15 +3901,10 @@ CONTAINS
       CALL MD_DestroyMisc(m, ErrStat2, ErrMsg2)
          CALL CheckError( ErrStat2, ErrMsg2 )
          
-      IF (p%UnLog > 0_IntKi) CLOSE( p%UnLog )  ! close log file if it's open
-         !TODO: any need to specifically deallocate things like m%xTemp%states in the above? <<<<
-
- !     IF ( ErrStat==ErrID_None) THEN
- !        CALL WrScr('MoorDyn closed without errors')
- !     ELSE
- !        CALL WrScr('MoorDyn closed with errors')
- !     END IF
-
+      IF (p%UnLog > 0_IntKi) then
+         CLOSE( p%UnLog )  ! close log file if it's open
+         p%UnLog = -1      ! in case we call end a second time for whatever reason
+      endif
 
    CONTAINS
 

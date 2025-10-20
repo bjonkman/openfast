@@ -1320,22 +1320,20 @@ CONTAINS
       INTEGER,                      INTENT(   OUT )  :: ErrStat              ! a non-zero value indicates an error occurred
       CHARACTER(*),                 INTENT(   OUT )  :: ErrMsg               ! Error message if ErrStat /= ErrID_None
 
-      INTEGER(IntKi)       :: I  ! generic counter
-
+      INTEGER(IntKi)          :: I  ! generic counter
+      integer(IntKi)          :: ErrStat2
+      character(ErrMsgLen)    :: ErrMsg2
+      character(*), parameter :: RoutineName = 'MDIO_CloseOutput'
 
       ErrStat = 0
       ErrMsg  = ""
 
-
-!FIXME: make sure thes are actually open before trying to close them. Segfault will occur otherwise!!!!
-!  This bug can be triggered by an early failure of the parsing routines, before these files were ever opened
-!  which returns MD to OpenFAST as ErrID_Fatal, then OpenFAST calls MD_End, which calls this.
-
       ! close main MoorDyn output file
       if (p%MDUnOut > 0) then
-         CLOSE( p%MDUnOut, IOSTAT = ErrStat )
-         IF ( ErrStat /= 0 ) THEN
-            ErrMsg = 'Error closing output file'
+         CLOSE( p%MDUnOut, IOSTAT = ErrStat2 )
+         p%MDUnOut = -1
+         IF ( ErrStat2 /= 0 ) THEN
+            call SetErrStat(ErrID_Severe,'Error closing output file',ErrStat,ErrMsg,RoutineName)
          END IF
       end if 
       
@@ -1343,9 +1341,10 @@ CONTAINS
       DO I=1,p%NRods
          if (allocated(m%RodList)) then
             if (m%RodList(I)%RodUnOut > 0) then
-               CLOSE( m%RodList(I)%RodUnOut, IOSTAT = ErrStat )
-               IF ( ErrStat /= 0 ) THEN
-                  ErrMsg = 'Error closing rod output file'
+               CLOSE( m%RodList(I)%RodUnOut, IOSTAT = ErrStat2 )
+               m%RodList(I)%RodUnOut = -1
+               IF ( ErrStat2 /= 0 ) THEN
+                  call SetErrStat(ErrID_Severe,'Error closing rod output file',ErrStat,ErrMsg,RoutineName)
                END IF
             end if 
          end if 
@@ -1355,9 +1354,10 @@ CONTAINS
       DO I=1,p%NLines
          if (allocated(m%LineList)) then
             if (m%LineList(I)%LineUnOut > 0) then
-               CLOSE( m%LineList(I)%LineUnOut, IOSTAT = ErrStat )
-               IF ( ErrStat /= 0 ) THEN
-                  ErrMsg = 'Error closing line output file'
+               CLOSE( m%LineList(I)%LineUnOut, IOSTAT = ErrStat2 )
+               m%LineList(I)%LineUnOut = -1
+               IF ( ErrStat2 /= 0 ) THEN
+                  call SetErrStat(ErrID_Severe,'Error closing line output file',ErrStat,ErrMsg,RoutineName)
                END IF
             end if 
          end if
