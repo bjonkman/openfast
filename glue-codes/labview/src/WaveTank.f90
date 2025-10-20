@@ -45,15 +45,14 @@ MODULE WaveTankTesting
    public :: WaveTank_CalcStep
    public :: WaveTank_End
 
-   INTEGER(C_INT) :: SS_NumChannels_C
-   INTEGER(C_INT) :: MD_NumChannels_C
-   INTEGER(C_INT) :: ADI_NumChannels_C
-
-   INTEGER(C_INT) :: NumBlades_C
-   INTEGER(C_INT) :: NumMeshPts_C
-
+   ! output to screen or to file
    integer(IntKi) :: ScreenLogOutput_Un = -1
    character(1024):: ScreenLogOutput_File
+
+   ! Simulation data storage
+   type(SimSettingsType), target           :: SimSettings
+
+   ! file output
 
 !FIXME: replace all this with meshes
 !   REAL(C_FLOAT), DIMENSION(3,3) :: FloaterPositions = 0.0_C_FLOAT
@@ -81,6 +80,13 @@ real(c_float)  :: tmpBldRootPos(6), tmpHubPos(3), tmpNacPos(3), tmpInitMeshPos(6
 integer(c_int) :: tmpNumMeshPts = 2
 integer(c_int) :: tmpMeshPtToBladeNum(2) = (/ 1_c_int, 2_c_int /)
 
+!FIXME: this is temporary -- move to a derived type for clarity
+   INTEGER(C_INT) :: SS_NumChannels_C
+   INTEGER(C_INT) :: MD_NumChannels_C
+   INTEGER(C_INT) :: ADI_NumChannels_C
+   INTEGER(C_INT) :: NumBlades_C
+   INTEGER(C_INT) :: NumMeshPts_C
+
 CONTAINS
 
 SUBROUTINE WaveTank_Init(  &
@@ -106,7 +112,6 @@ SUBROUTINE WaveTank_Init(  &
    character(kind=c_char, len=ErrMsgLen_C) :: ErrMsg_C2
    integer(IntKi)                          :: ErrStat_F2
    character(ErrMsgLen)                    :: ErrMsg_F2
-   type(SimSettingsType), target           :: SimSettings
    character(1024)                         :: InputFile
    integer(IntKi)                          :: i
    type(FileInfoType)                      :: FileInfo_In   !< The derived type for holding the full input file for parsing -- we may pass this in the future
@@ -351,93 +356,62 @@ END SUBROUTINE WaveTank_Init
 
 
 
-!FIXME: use this interface instead
-!subroutine WaveTank_TimeStep( &
-!   time,                      &
-!   pos,                       &  ! (1x6)      ! x-y-z euler angle, intrinsic
-!   vel,                       &  ! (1x6)
-!   acc,                       &  ! (1x6)
-!   FrcMom,                    &  ! (1x6)
-!   ErrStat_C,                 &
-!   ErrMsg_C                   &
-!) BIND (C, NAME='WaveTank_TimeStep')
-!#ifndef IMPLICIT_DLLEXPORT
-!!DEC$ ATTRIBUTES DLLEXPORT :: WaveTank_TimeStep
-!!GCC$ ATTRIBUTES DLLEXPORT :: WaveTank_TimeStep
-!   real(c_double),         intent(in   ) :: time
-!   real(c_float),          intent(in   ) :: pos(6)
-!   real(c_float),          intent(in   ) :: vel(6)
-!   real(c_float),          intent(in   ) :: acc(6)
-!   real(c_float),          intent(  out) :: FrcMom(6)
-!   integer(c_int),         intent(  out) :: ErrStat_C
-!   character(kind=c_char), intent(  out) :: ErrMsg_C(ErrMsgLen_C)
-
-   
-SUBROUTINE WaveTank_CalcStep( &
-    time,                       &
-    positions_x,                &
-    positions_y,                &
-    positions_z,                &
-    floater_rotation_matrix,    &
-    blade_rotation_matrix,      &
-    MD_Forces_C,                &
-    ADI_MeshFrc_C,              &
-    ErrStat_C,                  &
-    ErrMsg_C                    &
+subroutine WaveTank_CalcStep( &
+   time,                      &
+   pos,                       &
+   vel,                       &
+   acc,                       &
+   loads,                     &
+   ErrStat_C,                 &
+   ErrMsg_C                   &
 ) BIND (C, NAME='WaveTank_CalcStep')
 #ifndef IMPLICIT_DLLEXPORT
 !DEC$ ATTRIBUTES DLLEXPORT :: WaveTank_CalcStep
 !GCC$ ATTRIBUTES DLLEXPORT :: WaveTank_CalcStep
 #endif
+   real(c_double),         intent(in   ) :: time
+   real(c_float),          intent(in   ) :: pos(6)       ! [x,y,z,roll,pitch,yaw]
+   real(c_float),          intent(in   ) :: vel(6)       ! [x_dot,y_dot,z_dot,roll_dot,pitch_dot,yaw_dot]
+   real(c_float),          intent(in   ) :: acc(6)       ! [x_ddot,y_ddot,z_ddot,roll_ddot,pitch_ddot,yaw_ddot]
+   real(c_float),          intent(  out) :: loads(6)     ! [Fx,Fy,Fz,Mx,My,Mz]
+   integer(c_int),         intent(  out) :: ErrStat_C
+   character(c_char),      intent(  out) :: ErrMsg_C(ErrMsgLen_C)
+   integer(c_int)                        :: ErrStat_C2(ErrMsgLen_C)
+   character(c_char)                     :: ErrMsg_C2
 
-    REAL(C_DOUBLE),         INTENT(IN   ) :: time
-    REAL(C_FLOAT),          INTENT(IN   ) :: positions_x
-    REAL(C_FLOAT),          INTENT(IN   ) :: positions_y
-    REAL(C_FLOAT),          INTENT(IN   ) :: positions_z
-    REAL(C_FLOAT),          INTENT(IN   ) :: floater_rotation_matrix(9)
-    REAL(C_FLOAT),          INTENT(IN   ) :: blade_rotation_matrix(NumBlades_C*9)   !< Rotation matrix for each blade, (/ 1x9 flat R for blade 1, 1x9 flat R for blade 2 /)
+   ! Initialize error handling
+   ErrStat_C = ErrID_None
+   ErrMsg_C  = " "//C_NULL_CHAR
 
-    ! Outputs
-    REAL(C_FLOAT),          INTENT(  OUT) :: MD_Forces_C( 6 )
-    REAL(C_FLOAT),          INTENT(  OUT) :: ADI_MeshFrc_C( 6*NumMeshPts_C )   !< A 6xNumMeshPts_C array [Fx,Fy,Fz,Mx,My,Mz]       -- forces and moments (global)
-    INTEGER(C_INT),         INTENT(  OUT) :: ErrStat_C
-    CHARACTER(KIND=C_CHAR), INTENT(  OUT) :: ErrMsg_C(ErrMsgLen_C)
-
-    ! Local variables
-    INTEGER(C_INT)                          :: ErrStat_C2
-    CHARACTER(KIND=C_CHAR, LEN=ErrMsgLen_C) :: ErrMsg_C2
-    REAL(C_FLOAT)                           :: DeltaS(3)                        !< Change in position from previous time step
-    INTEGER                                 :: I, I0, I1
+   ! zero loads in case of error
+   loads = 0.0_c_float
 
 !FIXME: setup new method for handling this
 !FIXME: turb off HHVel
-   real(c_float) :: md_outputs(MD_NumChannels_C)
-   real(c_float) :: adi_outputs(ADI_NumChannels_C)
-   real(c_float) :: ADI_HHVel_C(3)                    !< Wind speed array [Vx,Vy,Vz]                      -- (m/s) (global)
+!   real(c_float) :: md_outputs(MD_NumChannels_C)
+!   real(c_float) :: adi_outputs(ADI_NumChannels_C)
+!   real(c_float) :: ADI_HHVel_C(3)                    !< Wind speed array [Vx,Vy,Vz]                      -- (m/s) (global)
 
     ! ! ADI
     ! ! SetRotorMotion
-    REAL(C_FLOAT)      :: ADI_HubPos_C( 3 )                 !< Hub position
-    REAL(C_DOUBLE)     :: ADI_HubOri_C( 9 )                 !< Hub orientation
-    REAL(C_FLOAT)      :: ADI_HubVel_C( 6 )                 !< Hub velocity
-    REAL(C_FLOAT)      :: ADI_HubAcc_C( 6 )                 !< Hub acceleration
-    REAL(C_FLOAT)      :: ADI_NacPos_C( 3 )                 !< Nacelle position
-    REAL(C_DOUBLE)     :: ADI_NacOri_C( 9 )                 !< Nacelle orientation
-    REAL(C_FLOAT)      :: ADI_NacVel_C( 6 )                 !< Nacelle velocity
-    REAL(C_FLOAT)      :: ADI_NacAcc_C( 6 )                 !< Nacelle acceleration
-    REAL(C_FLOAT)      :: ADI_BldRootPos_C( 3*NumBlades_C ) !< Blade root positions
-    REAL(C_DOUBLE)     :: ADI_BldRootOri_C( 9*NumBlades_C ) !< Blade root orientations
-    REAL(C_FLOAT)      :: ADI_BldRootVel_C( 6*NumBlades_C ) !< Blade root velocities
-    REAL(C_FLOAT)      :: ADI_BldRootAcc_C( 6*NumBlades_C ) !< Blade root accelerations
-    ! Blade mesh nodes
-    REAL(C_FLOAT)      :: ADI_MeshPos_C( 3*NumMeshPts_C )   !< A 3xNumMeshPts_C array [x,y,z]
-    REAL(C_DOUBLE)     :: ADI_MeshOri_C( 9*NumMeshPts_C )   !< A 9xNumMeshPts_C array [r11,r12,r13,r21,r22,r23,r31,r32,r33]
-    REAL(C_FLOAT)      :: ADI_MeshVel_C( 6*NumMeshPts_C )   !< A 6xNumMeshPts_C array [x,y,z]
-    REAL(C_FLOAT)      :: ADI_MeshAcc_C( 6*NumMeshPts_C )   !< A 6xNumMeshPts_C array [x,y,z]
+!    REAL(C_FLOAT)      :: ADI_HubPos_C( 3 )                 !< Hub position
+!    REAL(C_DOUBLE)     :: ADI_HubOri_C( 9 )                 !< Hub orientation
+!    REAL(C_FLOAT)      :: ADI_HubVel_C( 6 )                 !< Hub velocity
+!    REAL(C_FLOAT)      :: ADI_HubAcc_C( 6 )                 !< Hub acceleration
+!    REAL(C_FLOAT)      :: ADI_NacPos_C( 3 )                 !< Nacelle position
+!    REAL(C_DOUBLE)     :: ADI_NacOri_C( 9 )                 !< Nacelle orientation
+!    REAL(C_FLOAT)      :: ADI_NacVel_C( 6 )                 !< Nacelle velocity
+!    REAL(C_FLOAT)      :: ADI_NacAcc_C( 6 )                 !< Nacelle acceleration
+!    REAL(C_FLOAT)      :: ADI_BldRootPos_C( 3*NumBlades_C ) !< Blade root positions
+!    REAL(C_DOUBLE)     :: ADI_BldRootOri_C( 9*NumBlades_C ) !< Blade root orientations
+!    REAL(C_FLOAT)      :: ADI_BldRootVel_C( 6*NumBlades_C ) !< Blade root velocities
+!    REAL(C_FLOAT)      :: ADI_BldRootAcc_C( 6*NumBlades_C ) !< Blade root accelerations
+!    ! Blade mesh nodes
+!    REAL(C_FLOAT)      :: ADI_MeshPos_C( 3*NumMeshPts_C )   !< A 3xNumMeshPts_C array [x,y,z]
+!    REAL(C_DOUBLE)     :: ADI_MeshOri_C( 9*NumMeshPts_C )   !< A 9xNumMeshPts_C array [r11,r12,r13,r21,r22,r23,r31,r32,r33]
+!    REAL(C_FLOAT)      :: ADI_MeshVel_C( 6*NumMeshPts_C )   !< A 6xNumMeshPts_C array [x,y,z]
+!    REAL(C_FLOAT)      :: ADI_MeshAcc_C( 6*NumMeshPts_C )   !< A 6xNumMeshPts_C array [x,y,z]
 
-    ! Initialize error handling
-    ErrStat_C = ErrID_None
-    ErrMsg_C  = " "//C_NULL_CHAR
 
 !   ! Shift the positions and velocities over one index
 !   FloaterPositions(1,:) = FloaterPositions(2,:)
