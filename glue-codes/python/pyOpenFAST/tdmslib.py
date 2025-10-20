@@ -21,22 +21,10 @@ Description:
 
 import nptdms
 
-def parse_tdms(filename: str):
-    output = TdmsToDict(filename)["Winch System"]
-    x = output["x"]
-    y = output["y"]
-    z = output["z"]
-    phi = output["phi"]
-    theta = output["theta"]
-    psi = output["psi"]
-    return {
-        "x": x,
-        "y": y,
-        "z": z,
-        "phi": phi,
-        "theta": theta,
-        "psi": psi,
-    }
+def main():
+    fileName = "Oscilloscope Data/UF HASEL tests/UF2down_3kVcycleForce.tdms"
+    output = TdmsToDict(fileName)
+    print(output)
 
 def TdmsToDict(path):
     '''
@@ -53,11 +41,14 @@ def TdmsToDict(path):
         Python dictionary of the tdms file.
 
     '''
+    # Get the files requested
+    tdmsFile = path
+    
     # open/read the tdms file
-    tdms_file = nptdms.TdmsFile.read(path)
+    tdms_file = nptdms.TdmsFile.read(tdmsFile)
 
     # Set up python dictionary
-    pyDict = {}
+    pyDict = {}    
     # Get group names
     for group in tdms_file.groups():
         #print(f'''Group: {group.name}''')
@@ -74,4 +65,4 @@ def TdmsToDict(path):
     return pyDict
 
 if __name__ == "__main__":
-    parse_tdms("Full_10N_Wrench_1.tdms")
+    main()
