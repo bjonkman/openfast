@@ -27,7 +27,7 @@
 !
 !**********************************************************************************************************************************
 MODULE WaveTank_IO
-
+   use ISO_C_BINDING
    use NWTC_Library
    use NWTC_IO
    use WaveTank_Types
@@ -42,7 +42,7 @@ MODULE WaveTank_IO
    public :: WriteOutputLine
 
    ! These channels are output by default
-   integer(IntKi), parameter :: NumDefChans = 43
+   integer(IntKi), parameter :: NumDefChans = 47
    character(OutStrLenM1), parameter  :: DefChanNames(NumDefChans) =  (/ "Time          ",   &
                               "Ptfm_x        ","Ptfm_y        ","Ptfm_z        ",   &  ! position (absolute global)
                               "Ptfm_Rx       ","Ptfm_Ry       ","Ptfm_Rz       ",   &  ! Euler angles phi,theta,psi
@@ -57,7 +57,9 @@ MODULE WaveTank_IO
                               "MD_Fx         ","MD_Fy         ","MD_Fz         ",   &  ! Forces from MD
                               "MD_Mx         ","MD_My         ","MD_Mz         ",   &  ! Moments from MD
                               "ADI_Fx        ","ADI_Fy        ","ADI_Fz        ",   &  ! Forces from ADI
-                              "ADI_Mx        ","ADI_My        ","ADI_Mz        "    &  ! Moments from ADI
+                              "ADI_Mx        ","ADI_My        ","ADI_Mz        ",   &  ! Moments from ADI
+                              "Azimuth       ","RotSpeed      ","BlPitch       ",   &
+                              "NacYaw        "                                      &
                            /)
    character(OutStrLenM1), parameter  :: DefChanUnits(NumDefChans) =  (/ "(s)           ",   &
                               "(m)           ","(m)           ","(m)           ",   &
@@ -73,7 +75,9 @@ MODULE WaveTank_IO
                               "(N)           ","(N)           ","(N)           ",   &  ! Forces from MD
                               "(N-m)         ","(N-m)         ","(N-m)         ",   &  ! Moments from MD
                               "(N)           ","(N)           ","(N)           ",   &  ! Forces from ADI
-                              "(N-m)         ","(N-m)         ","(N-m)         "    &  ! Moments from ADI
+                              "(N-m)         ","(N-m)         ","(N-m)         ",   &  ! Moments from ADI
+                              "(deg)         ","(RPM)         ","(deg)         ",   &
+                              "(deg)         "                                      &
                            /)
 
 contains
@@ -122,21 +126,27 @@ subroutine ParseInputFile(FileInfo_In, SimSettings, ErrStat, ErrMsg)
    call ParseVar( FileInfo_In, CurLine, 'AD_InputFile',     SimSettings%IptFile%AD_InputFile,  ErrStat2, ErrMsg2); if(Failed()) return;  ! AeroDyn input file
    call ParseVar( FileInfo_In, CurLine, 'IfW_InputFile',    SimSettings%IptFile%IfW_InputFile, ErrStat2, ErrMsg2); if(Failed()) return;  ! InflowWind input file
    ! -------- Turbine Configuration ------
-   call ParseVar( FileInfo_In, CurLine, 'NumBl',            SimSettings%TCfg%NumBl,            ErrStat2, ErrMsg2); if(Failed()) return;  ! Number of blades (-)
-   call ParseVar( FileInfo_In, CurLine, 'TipRad',           SimSettings%TCfg%TipRad,           ErrStat2, ErrMsg2); if(Failed()) return;  ! The distance from the rotor apex to the blade tip (meters)
-   call ParseVar( FileInfo_In, CurLine, 'HubRad',           SimSettings%TCfg%HubRad,           ErrStat2, ErrMsg2); if(Failed()) return;  ! The distance from the rotor apex to the blade root (meters)
-   call ParseVar( FileInfo_In, CurLine, 'PreCone',          SimSettings%TCfg%PreCone,          ErrStat2, ErrMsg2); if(Failed()) return;  ! Blade cone angle (degrees)
-   call ParseVar( FileInfo_In, CurLine, 'OverHang',         SimSettings%TCfg%OverHang,         ErrStat2, ErrMsg2); if(Failed()) return;  ! Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades] (meters)
-   call ParseVar( FileInfo_In, CurLine, 'ShftGagL',         SimSettings%TCfg%ShftGagL,         ErrStat2, ErrMsg2); if(Failed()) return;  ! Distance from rotor apex [3 blades] or teeter pin [2 blades] to shaft strain gages [positive for upwind rotors] (meters)
-   call ParseVar( FileInfo_In, CurLine, 'ShftTilt',         SimSettings%TCfg%ShftTilt,         ErrStat2, ErrMsg2); if(Failed()) return;  ! Rotor shaft tilt angle (degrees)
-   call ParseVar( FileInfo_In, CurLine, 'Twr2Shft',         SimSettings%TCfg%Twr2Shft,         ErrStat2, ErrMsg2); if(Failed()) return;  ! Vertical distance from the tower-top to the rotor shaft (meters)
-   call ParseVar( FileInfo_In, CurLine, 'TowerHt',          SimSettings%TCfg%TowerHt,          ErrStat2, ErrMsg2); if(Failed()) return;  ! Height of tower relative MSL
-   call ParseAry( FileInfo_In, CurLine, 'TowerBsHt',        SimSettings%TCfg%TowerBsPt,  3,    ErrStat2, ErrMsg2); if(Failed()) return;  ! Height of tower base relative to ground level [onshore], MSL [floating MHK] (meters)
-   call ParseAry( FileInfo_In, CurLine, 'PtfmRef',          SimSettings%TCfg%PtfmRef,    3,    ErrStat2, ErrMsg2); if(Failed()) return;  ! Location of platform reference point, relative to MSL.  Motions and loads all connect to this point
+   call ParseVar( FileInfo_In, CurLine, 'NumBl',            SimSettings%TrbCfg%NumBl,          ErrStat2, ErrMsg2); if(Failed()) return;  ! Number of blades (-)
+   call ParseVar( FileInfo_In, CurLine, 'TipRad',           SimSettings%TrbCfg%TipRad,         ErrStat2, ErrMsg2); if(Failed()) return;  ! The distance from the rotor apex to the blade tip (meters)
+   call ParseVar( FileInfo_In, CurLine, 'HubRad',           SimSettings%TrbCfg%HubRad,         ErrStat2, ErrMsg2); if(Failed()) return;  ! The distance from the rotor apex to the blade root (meters)
+   call ParseVar( FileInfo_In, CurLine, 'PreCone',          SimSettings%TrbCfg%PreCone,        ErrStat2, ErrMsg2); if(Failed()) return;  ! Blade cone angle (degrees)
+   call ParseVar( FileInfo_In, CurLine, 'OverHang',         SimSettings%TrbCfg%OverHang,       ErrStat2, ErrMsg2); if(Failed()) return;  ! Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades] (meters)
+   call ParseVar( FileInfo_In, CurLine, 'ShftGagL',         SimSettings%TrbCfg%ShftGagL,       ErrStat2, ErrMsg2); if(Failed()) return;  ! Distance from rotor apex [3 blades] or teeter pin [2 blades] to shaft strain gages [positive for upwind rotors] (meters)
+   call ParseVar( FileInfo_In, CurLine, 'ShftTilt',         SimSettings%TrbCfg%ShftTilt,       ErrStat2, ErrMsg2); if(Failed()) return;  ! Rotor shaft tilt angle (degrees)
+   call ParseVar( FileInfo_In, CurLine, 'Twr2Shft',         SimSettings%TrbCfg%Twr2Shft,       ErrStat2, ErrMsg2); if(Failed()) return;  ! Vertical distance from the tower-top to the rotor shaft (meters)
+   call ParseVar( FileInfo_In, CurLine, 'TowerHt',          SimSettings%TrbCfg%TowerHt,        ErrStat2, ErrMsg2); if(Failed()) return;  ! Height of tower relative MSL
+   call ParseAry( FileInfo_In, CurLine, 'TowerBsHt',        SimSettings%TrbCfg%TowerBsPt,    3,ErrStat2, ErrMsg2); if(Failed()) return;  ! Height of tower base relative to ground level [onshore], MSL [floating MHK] (meters)
+   call ParseAry( FileInfo_In, CurLine, 'PtfmRefPos',       SimSettings%TrbCfg%PtfmRefPos,   3,ErrStat2, ErrMsg2); if(Failed()) return;  ! Location of platform reference point, relative to MSL.  Motions and loads all connect to this point
+   call ParseAry( FileInfo_In, CurLine, 'PtfmRefOrient',    SimSettings%TrbCfg%PtfmRefOrient,3,ErrStat2, ErrMsg2); if(Failed()) return;  ! Orientation of platform reference point, Euler angle set of roll,pitch,yaw" (rad)
    ! -------- Turbine Operating Point ----
-   call ParseVar( FileInfo_In, CurLine, 'RotSpeed',         SimSettings%TOp%RotSpeed,          ErrStat2, ErrMsg2); if(Failed()) return;  ! Rotational speed of rotor in rotor coordinates (rpm)
-   call ParseVar( FileInfo_In, CurLine, 'NacYaw',           SimSettings%TOp%NacYaw,            ErrStat2, ErrMsg2); if(Failed()) return;  ! Initial or fixed nacelle-yaw angle (degrees)
-   call ParseVar( FileInfo_In, CurLine, 'BldPitch',         SimSettings%TOp%BldPitch,          ErrStat2, ErrMsg2); if(Failed()) return;  ! Blade 1 pitch (deg)
+   call ParseVar( FileInfo_In, CurLine, 'RotSpeed',         SimSettings%TrbInit%RotSpeed,      ErrStat2, ErrMsg2); if(Failed()) return;  ! Rotational speed of rotor in rotor coordinates (rpm)
+   call ParseVar( FileInfo_In, CurLine, 'NacYaw',           SimSettings%TrbInit%NacYaw,        ErrStat2, ErrMsg2); if(Failed()) return;  ! Initial or fixed nacelle-yaw angle (deg read)
+   call ParseVar( FileInfo_In, CurLine, 'BldPitch',         SimSettings%TrbInit%BldPitch,      ErrStat2, ErrMsg2); if(Failed()) return;  ! Blade 1 pitch (deg read)
+   call ParseVar( FileInfo_In, CurLine, 'Azimuth',          SimSettings%TrbInit%Azimuth,       ErrStat2, ErrMsg2); if(Failed()) return;  ! Initial azimuth (deg read)
+   ! angles are read as degrees, store as radians internally
+   SimSettings%TrbInit%NacYaw    = D2R * SimSettings%TrbInit%NacYaw
+   SimSettings%TrbInit%BldPitch  = D2R * SimSettings%TrbInit%BldPitch
+   SimSettings%TrbInit%Azimuth   = D2R * SimSettings%TrbInit%Azimuth
    ! -------- Output ---------------------
    call ParseVar( FileInfo_In, CurLine, 'SendScreenToFile', SimSettings%Outs%SendScreenToFile, ErrStat2, ErrMsg2); if(Failed()) return;  ! send to file <OutRootName>.screen.log if true
    call ParseVar( FileInfo_In, CurLine, 'OutFile',          SimSettings%Outs%OutFile,          ErrStat2, ErrMsg2); if(Failed()) return;  ! 0: no output file of channels, 1: output file in text format (at default DT) 
@@ -306,9 +316,10 @@ subroutine  InitOutputFile(WrOutputData, ErrStat, ErrMsg)
 end subroutine
 
 
-subroutine WriteOutputLine(OutFmt, CalcStepIO, WrOutputData, ErrStat, ErrMsg)
+subroutine WriteOutputLine(OutFmt, CalcStepIO, StructTmp, WrOutputData, ErrStat, ErrMsg)
    character(*),              intent(in   )  :: OutFmt
    type(CalcStepIOdataType),  intent(in   )  :: CalcStepIO
+   type(StructTmpType),       intent(in   )  :: StructTmp            ! operating states are in here
    type(WrOutputDataType),    intent(in   )  :: WrOutputData
    integer(IntKi),            intent(  out)  :: ErrStat
    character(ErrMsgLen),      intent(  out)  :: ErrMsg
@@ -317,6 +328,7 @@ subroutine WriteOutputLine(OutFmt, CalcStepIO, WrOutputData, ErrStat, ErrMsg)
    character(ErrMsgLen)                      :: errMsg2              ! Error message if ErrStat /= ErrID_None
    character(200)                            :: frmt                 ! A string to hold a format specifier
    character(15)                             :: tmpStr               ! temporary string to print the time output as text
+   real(ReKi)                                :: TmpAry(4)            ! temporary array for RotSpeed, BlPitch, NacYaw, Azimuth
 
    ErrStat = ErrID_None
    ErrMSg  = ""
@@ -340,6 +352,8 @@ subroutine WriteOutputLine(OutFmt, CalcStepIO, WrOutputData, ErrStat, ErrMsg)
    call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_SS,  frmt, errStat2, errMsg2); if (Failed()) return
    call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_MD,  frmt, errStat2, errMsg2); if (Failed()) return
    call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_ADI, frmt, errStat2, errMsg2); if (Failed()) return
+   TmpAry = (/ R2D*StructTmp%Azimuth, StructTmp%RotSpeed, R2D*StructTmp%BldPitch, R2D*StructTmp%NacYaw /)
+   call WrNumAryFileNR(OutUnit, TmpAry,                frmt, errStat2, errMsg2); if (Failed()) return
    ! channels from modules
    call WrNumAryFileNR(OutUnit, WrOutputData%OutData_SS,  frmt, errStat2, ErrMsg2); if (Failed()) return
    call WrNumAryFileNR(OutUnit, WrOutputData%OutData_MD,  frmt, errStat2, ErrMsg2); if (Failed()) return

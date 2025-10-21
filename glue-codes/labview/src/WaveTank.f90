@@ -37,6 +37,7 @@ MODULE WaveTankTesting
    use NWTC_C_Binding, ONLY: IntfStrLen, SetErrStat_C, SetErrStat_F2C, ErrMsgLen_C, StringConvert_F2C, FileNameFromCString, AbortErrLev_C
    use WaveTank_Types
    use WaveTank_IO
+   use WaveTank_Struct
 
    implicit none
    save
@@ -57,6 +58,13 @@ MODULE WaveTankTesting
 
    ! Output file writing: headers, units, data, filename, fileunit etc.
    type(WrOutputDataType)        :: WrOutputData
+
+   ! Structural model data storage
+   type(MeshesMotionType) :: MeshMotions     ! motion meshes (inputs)
+   type(MeshesLoadsType ) :: MeshLoads       ! load meshes   (output)
+   type(MeshesMapsType  ) :: MeshMaps        ! mappings
+   type(StructTmpType   ) :: StructTmp       ! temporary data - avoids reallocation
+
 
 !FIXME: replace all this with meshes
 !   REAL(C_FLOAT), DIMENSION(3,3) :: FloaterPositions = 0.0_C_FLOAT
@@ -180,7 +188,15 @@ subroutine WaveTank_Init(  &
    !------------------------------
    ! Build struct model
    !------------------------------
+   call StructCreate(SimSettings, MeshMotions, MeshLoads, MeshMaps, StructTmp, ErrStat_F2, ErrMsg_F2)
+   if (Failed()) return
+
+   ! output VTK for struct model (if requested)
+   if (SimSettings%Viz%WrVTK > 0_c_int) then
 !FIXME: write this
+!      call StructWrVTK_Ref(SimSettings, MeshMotions, MeshLoads, ErrStat_F2, ErrMsg_F2)
+      if (Failed()) return
+   endif
 
 
    !------------------------------
@@ -244,7 +260,7 @@ subroutine WaveTank_Init(  &
    !------------------------------
 !FIXME: this interface will change!!! -- Split with PreInit
 !FIXME: add WrVTK_Dir_C,  SimSettings%Viz%WrVTK, SimSettings%Viz%WrVTK_DT
-   !SimSettings%TCfg%PtfmRef
+   !SimSettings%TrbCfg%PtfmRef
 !FIXME: 6 DOF with 3xPos, 3xEulerAngle
    InitPtfmPosOri = 0.0_c_float
    MD_InputFile_C = c_null_char
@@ -302,8 +318,8 @@ subroutine WaveTank_Init(  &
    endif
 
 !FIXME: temporary location info until meshes set up
-tmpNacPos = SimSettings%TCfg%TowerHt
-tmpHubPos = tmpNacPos + SimSettings%TCfg%OverHang + SimSettings%TCfg%Twr2Shft     ! missing angles
+tmpNacPos = SimSettings%TrbCfg%TowerHt
+tmpHubPos = tmpNacPos + SimSettings%TrbCfg%OverHang + SimSettings%TrbCfg%Twr2Shft     ! missing angles
 tmpBldRootPos(1:3) = tmpHubPos   ! blade 1
 tmpBldRootPos(4:6) = tmpHubPos   ! blade 2
 tmpInitMeshPos = tmpBldRootPos
@@ -316,14 +332,14 @@ tmpInitMeshOri = tmpBldRootOri      !FIXME: blade pitch
       tmpIdent9          ,     &  ! HubOri
       tmpNacPos          ,     &  ! NacPos
       tmpIdent9          ,     &  ! NacOri
-      SimSettings%TCfg%NumBl,                &  ! NumBlades
+      SimSettings%TrbCfg%NumBl,              &  ! NumBlades
       tmpBldRootPos      ,     &  ! BldRootPos
       tmpBldRootOri      ,     &  ! BldRootOri
       tmpNumMeshPts      ,     &  ! NumMeshPts
       tmpInitMeshPos     ,     &  ! InitMeshPos
       tmpInitMeshOri     ,     &  ! InitMeshOri
       tmpMeshPtToBladeNum,     &  ! MeshPtToBladeNum
-      ErrStat_C2, ErrMsg_C2                   &
+      ErrStat_C2, ErrMsg_C2                  &
    )
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_SetupRotor')
    if (ErrStat_C >= AbortErrLev_C) then
@@ -353,7 +369,7 @@ tmpInitMeshOri = tmpBldRootOri      !FIXME: blade pitch
       SimSettings%Viz%WrVTK_Type,            &  ! Type of VTK visualization data: (switch) {1=surfaces; 2=basic meshes (lines/points); 3=all meshes (debug)} [unused if WrVTK=0]
       SimSettings%Viz%WrVTK_DT,              &  ! timestep of VTK writing
       SimSettings%Viz%VTKNacDim,             &  ! Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz] (m)
-      SimSettings%TCfg%HubRad,               &  ! Hub radius for VTK surface rendering
+      SimSettings%TrbCfg%HubRad,             &  ! Hub radius for VTK surface rendering
       1_c_int,                               &  ! wrOuts_C -- Write ADI output file -- hard code to true for now
       SimSettings%Sim%DT,                    &  ! Timestep to write output file from ADI
       ADI_NumChannels_C,                     &
@@ -676,7 +692,7 @@ subroutine WaveTank_CalcStep( &
       !WrOutputData%OutData_MD,
       !WrOutputData%OutData_ADI
       ! output to file
-      call WriteOutputLine(SimSettings%Outs%OutFmt, CalcStepIO, WrOutputData, ErrStat_F2, ErrMsg_F2)
+      call WriteOutputLine(SimSettings%Outs%OutFmt, CalcStepIO, StructTmp, WrOutputData, ErrStat_F2, ErrMsg_F2)
       if (Failed()) return
    endif
 contains
@@ -707,7 +723,7 @@ subroutine WaveTank_End(ErrStat_C, ErrMsg_C) bind (C, NAME="WaveTank_End")
    ErrMsg_C  = " "//C_NULL_CHAR
 
    ! destroy mesh info
-   call StrucDestroy(ErrStat_F2,ErrMsg_F2)
+   call StructDestroy(MeshMotions, MeshLoads, MeshMaps, StructTmp, ErrStat_F2, ErrMsg_F2)
    call SetErrStat_F2C(ErrStat_F2, ErrMsg_F2, ErrStat_C, ErrMsg_C)
 
    ! in case we were writing to a file instead of the screen

@@ -21,6 +21,7 @@ endif()
 add_library(wavetanktestinglib SHARED 
     src/WaveTank_Types.f90
     src/WaveTank_IO.f90
+    src/WaveTank_Struct.f90
     src/WaveTank.f90
 )
 target_link_libraries(

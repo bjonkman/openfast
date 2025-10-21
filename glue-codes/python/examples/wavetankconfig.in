@@ -36,11 +36,13 @@
        -1.2    Twr2Shft         - Vertical distance from the tower-top to the rotor shaft (meters)
         -24    TowerHt          - Height of tower relative MSL
     10,0,-9    TowerBsPt        - Height of tower base  [onshore], MSL [floating MHK] (meters)
-      0,0,0    PtfmRef          - Location of platform reference point, relative to MSL.  Motions and loads all connect to this point
-! -------- Turbine Operating Point ----
+      0,0,0    PtfmRefPos       - Location of platform reference point, relative to MSL.  Motions and loads all connect to this point
+      0,0,0    PtfmRefOrient    - Orientation of platform reference point, Euler angle set of roll,pitch,yaw (rad)
+! -------- Turbine initial conditions -
       11.5     RotSpeed         - Rotational speed of rotor in rotor coordinates (rpm)
          0     NacYaw           - Initial or fixed nacelle-yaw angle (degrees)
          0     BldPitch         - Blade 1 pitch (deg)
+         0     Azimuth          - Initial azimuth (actual azimuth calculated and not stored)
 ! -------- Output ---------------------
      false     SendScreenToFile - send to file <OutRootName>.screen.log if true
          3     OutFile          - 0: no output file of channels, 1: output file in text format (at default DT) 

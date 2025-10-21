@@ -13,7 +13,7 @@
 include    Registry_NWTC_Library.txt
 #
 
-typedef  WaveTank/WT          SimType       c_double          DT                   -  -  -  "timestep" -
+typedef  WaveTank/WT          SimType        c_double          DT                   -  -  -  "timestep" -
 typedef  ^                    ^              c_double          TMax                 -  -  -  "Max sim time" -
 typedef  ^                    ^              c_int             MHK                  -  -  -  "MHK turbine type (switch) {0=Not an MHK turbine; 1=Fixed MHK turbine; 2=Floating MHK turbine}" (-)
 typedef  ^                    ^              c_int             InterpOrd            -  1  -  "Interpolation order" -
@@ -40,11 +40,14 @@ typedef  ^                    ^              ^                 ShftTilt         
 typedef  ^                    ^              ^                 Twr2Shft             -  -  -  "Vertical distance from the tower-top to the rotor shaft" (m)
 typedef  ^                    ^              ^                 TowerHt              -  -  -  "Height of tower relative MSL" (m)
 typedef  ^                    ^              ^                 TowerBsPt            3  -  -  "Tower base location relative to MSL. Consider absolute difference to PtfmRef [floating MHK]" (m)
-typedef  ^                    ^              ^                 PtfmRef              3  -  -  "Location of platform reference point, relative to MSL.  Motions and loads all connect to this point" (m)
+typedef  ^                    ^              ^                 PtfmRefPos           3  -  -  "Location of platform reference point, relative to MSL.  Motions and loads all connect to this point" (m)
+typedef  ^                    ^              ^                 PtfmRefOrient        3  -  -  "Orientation of platform reference point, Euler angle set of roll,pitch,yaw" (rad)
 
-typedef  ^                 TurbOpPointType   c_float           RotSpeed             -  -  -  "Rotor speed" (RPM)
-typedef  ^                    ^              ^                 NacYaw               -  -  -  "Initial or fixed nacelle-yaw angle" (deg)
-typedef  ^                    ^              ^                 BldPitch             -  -  -  "Fixed blade pitch for full simulation" (deg)
+
+typedef  ^                 TurbInitCondType  ReKi              RotSpeed             -  -  -  "Rotor speed" (RPM)
+typedef  ^                    ^              ^                 NacYaw               -  -  -  "Initial or fixed nacelle-yaw angle - read as deg, convert to rad" (rad)
+typedef  ^                    ^              ^                 BldPitch             -  -  -  "Fixed blade pitch for full simulation - read as deg, convert to rad" (rad)
+typedef  ^                    ^              ^                 Azimuth              -  0  -  "Initial azimuth (actual azimuth calculated and not stored) - read as deg, convert to rad" (rad)
 
 typedef  ^                    OutFilesType   logical           SendScreenToFile     -  -  -  "send to file <OutRootName>.screen.log if true" (-)
 typedef  ^                    ^              c_int             OutFile              -  -  -  "0: no output file of channels, 1: output file in text format (at DT)" (-)
@@ -64,8 +67,8 @@ typedef  ^                    ^              ^                 IfW_InputFile    
 
 typedef  ^                 SimSettingsType   SimType          Sim                  -  -  -  "Simulation settings" -
 typedef  ^                    ^              EnvType          Env                  -  -  -  "Environment settings" -
-typedef  ^                    ^              TurbConfigType   TCfg                 -  -  -  "Turbine configuration" -
-typedef  ^                    ^              TurbOpPointType  TOp                  -  -  -  "Turbine operating point" -
+typedef  ^                    ^              TurbConfigType   TrbCfg               -  -  -  "Turbine configuration" -
+typedef  ^                    ^              TurbInitCondType TrbInit              -  -  -  "Turbine initial operating point" -
 typedef  ^                    ^              OutFilesType     Outs                 -  -  -  "Output settings" -
 typedef  ^                    ^              VizType          Viz                  -  -  -  "Vizualization settings" -
 typedef  ^                    ^              IptFilesType     IptFile              -  -  -  "Input files for each module" -
@@ -102,20 +105,26 @@ typedef  ^                    ^              IntKi             OutUn            
 
 
 # Mesh structures and mappings
-typedef  ^                    MeshesMotion   MeshType    PtfmPRPMotion              -  -  -  "Platform principle ref point. Also serves as tower base" -
+typedef  ^                 MeshesMotionType  MeshType    PtfmPtMotion               -  -  -  "Platform principle ref point. Also serves as tower base" -
 typedef  ^                    ^              ^           TowerMotion                -  -  -  "Tower mesh (used only for vis)" -
 typedef  ^                    ^              ^           HubMotion                  -  -  -  "Hub mesh (for mappings, no loadings)" -
 typedef  ^                    ^              ^           BladeRootMotion            :  -  -  "Blade root motions" -
 
-typedef  ^                    MeshesLoads    MeshType    PtfmPRPLoads               -  -  -  "Platform principle ref point loads output" -
+typedef  ^                 MeshesLoadsType   MeshType    PtfmPtLoads                -  -  -  "Platform principle ref point loads output" -
 typedef  ^                    ^              ^           TowerLoads                 -  -  -  "Tower mesh (unused)" -
 typedef  ^                    ^              ^           HubLoads                   -  -  -  "Hub mesh (for mappings, intermediate loads)" -
 typedef  ^                    ^              ^           BladeRootLoads             :  -  -  "Blade root loads" -
 
 # NOTE: rigid geometry, no yaw, static pitch
-typedef  ^                    MeshesMaps     MeshMapType Motion_PRP_2_Twr           -  -  -  "PRP to tower motion" -
+typedef  ^                 MeshesMapsType    MeshMapType Motion_PRP_2_Twr           -  -  -  "PRP to tower motion" -
 typedef  ^                    ^              ^           Motion_PRP_2_Hub           -  -  -  "Twrtop to nacelle - add rotation afterwards" -
 typedef  ^                    ^              ^           Motion_Hub_2_BldRoot       -  -  -  "Hub to blade root motion transfer" -
 typedef  ^                    ^              ^           Load_BldRoot_2_Hub         -  -  -  "Blade root loads to hub" -
 typedef  ^                    ^              ^           Load_Hub_2_PRP             -  -  -  "Hub to nacelle load transfer" -
 typedef  ^                    ^              ^           Load_Twr_2_PRP             -  -  -  "Tower loads to PRP (unused)" -
+
+# temporary data storage for structural model
+typedef  ^                    StructTmpType  ReKi        Azimuth                    -  0  -  "Current Azimuth" (rad)
+typedef  ^                    ^              ^           RotSpeed                   -  -  -  "Rotor speed" (RPM)
+typedef  ^                    ^              ^           BldPitch                   -  -  -  "Blade pitch" (rad)
+typedef  ^                    ^              ^           NacYaw                     -  -  -  "Nacelle-yaw angle" (rad)
