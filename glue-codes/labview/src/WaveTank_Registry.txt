@@ -17,6 +17,7 @@ typedef  WaveTank/WT          SimType       c_double          DT                
 typedef  ^                    ^              c_double          TMax                 -  -  -  "Max sim time" -
 typedef  ^                    ^              c_int             MHK                  -  -  -  "MHK turbine type (switch) {0=Not an MHK turbine; 1=Fixed MHK turbine; 2=Floating MHK turbine}" (-)
 typedef  ^                    ^              c_int             InterpOrd            -  1  -  "Interpolation order" -
+typedef  ^                    ^              c_float           ScaleFact            -  1  -  "scaling factor for scaling full size model to wavetank scale results (>1)" (-)
 typedef  ^                    ^              c_int             DebugLevel           -  -  -  "Debug level for outputs" -
 typedef  ^                    ^              character(1024)   OutRootName          -  -  -  "Rootname for outputs" -
 

@@ -101,7 +101,8 @@ subroutine ParseInputFile(FileInfo_In, SimSettings, ErrStat, ErrMsg)
    call ParseVar( FileInfo_In, CurLine, 'DT',               SimSettings%Sim%DT,                ErrStat2, ErrMsg2); if(Failed()) return;  ! timestep (unused)
    call ParseVar( FileInfo_In, CurLine, 'TMax',             SimSettings%Sim%TMax,              ErrStat2, ErrMsg2); if(Failed()) return;  ! Max sim time (unused)
    call ParseVar( FileInfo_In, CurLine, 'MHK',              SimSettings%Sim%MHK,               ErrStat2, ErrMsg2); if(Failed()) return;  ! MHK turbine type (switch) {0=Not an MHK turbine; 1=Fixed MHK turbine; 2=Floating MHK turbine}
-   call ParseVar( FileInfo_In, CurLine, 'InterpOrd',        SimSettings%Sim%InterpOrd,         ErrStat2, ErrMsg2); if(Failed()) return;  ! Interpolation order (unused)
+   call ParseVar( FileInfo_In, CurLine, 'InterpOrd',        SimSettings%Sim%InterpOrd,         ErrStat2, ErrMsg2); if(Failed()) return;  ! Interpolation order [unused]
+   call ParseVar( FileInfo_In, CurLine, 'ScaleFact',        SimSettings%Sim%ScaleFact,         ErrStat2, ErrMsg2); if(Failed()) return;  ! scaling factor for scaling full size model to wavetank scale results (>1 expected) [unused]
    call ParseVar( FileInfo_In, CurLine, 'DebugLevel',       SimSettings%Sim%DebugLevel,        ErrStat2, ErrMsg2); if(Failed()) return;  ! 0: none, 1: I/O summary, 2: +positions/orientations passed, 3:, 4: +all meshes
    call ParseVar( FileInfo_In, CurLine, 'OutRootName',      SimSettings%Sim%OutRootName,       ErrStat2, ErrMsg2); if(Failed()) return;  ! Root name for any summary or other files
    ! -------- Environment ----------------
@@ -171,7 +172,8 @@ subroutine ValidateInputFile(SimSettings, ErrStat, ErrMsg)
    !------------------------
    ! Sim Control
    !------------------------
-   if (SimSettings%Sim%MHK /= 2_c_int) call SetErrStat(ErrID_Fatal, "WaveTank module only works for floating MHK turbines at present (MHK=2).",ErrStat,ErrMsg,RoutineName)
+   if (SimSettings%Sim%MHK /= 2_c_int)          call SetErrStat(ErrID_Fatal, "WaveTank module only works for floating MHK turbines at present (MHK=2).",ErrStat,ErrMsg,RoutineName)
+   if (SimSettings%Sim%ScaleFact < 1.0_c_float) call SetErrStat(ErrID_Fatal, "ScaleFact should be > 1 [unused at present]", ErrStat,ErrMsg,RoutineName)
 
    !------------------------
    ! Environment

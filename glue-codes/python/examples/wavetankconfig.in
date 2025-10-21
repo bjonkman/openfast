@@ -6,7 +6,8 @@
         600    TMax             - Max sim time (unused)
           2    MHK              - MHK turbine type (switch) {0=Not an MHK turbine; 1=Fixed MHK turbine; 2=Floating MHK turbine} -- only works for MHK floating at present
           1    InterpOrd        - Interpolation order (unused)
-          4    DebugLevel       - 0: none, 1: I/O summary, 2: +positions/orientations passed, 3:, 4: +all meshes
+          1    ScaleFact        - scaling factor for scaling full size model to wavetank scale results (>1 expected) [unused at present]
+          1    DebugLevel       - 0: none, 1: I/O summary, 2: +positions/orientations passed, 3:, 4: +all meshes
 "RM1_tank_test" OutRootName     - Root name for any summary or other files
 ! -------- Environment ----------------
     9.80665    Gravity          - Gravitational acceleration (m/s^2)

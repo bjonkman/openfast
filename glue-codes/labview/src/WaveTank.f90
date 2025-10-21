@@ -80,6 +80,15 @@ real(c_float)  :: tmpBldRootPos(6), tmpHubPos(3), tmpNacPos(3), tmpInitMeshPos(6
 integer(c_int) :: tmpNumMeshPts = 2
 integer(c_int) :: tmpMeshPtToBladeNum(2) = (/ 1_c_int, 2_c_int /)
 
+!TODO:
+!     - add echo file
+!     - add summary file
+!     - add scaling
+!        - Input for scaling already in place
+!        - add info into summary file on scaling
+!        - add unscaled interface IO outputs to file as well as the regular IO currently in there
+!        - add pre and post scaling routines for time, pos, vel, acc, force/moment
+
 
 contains
 
