@@ -58,6 +58,7 @@ typedef  ^                    ^              ^                 WrVTK_type       
 typedef  ^                    ^              c_double          WrVTK_DT             -  -  -  "Time step between VTK writes" -
 typedef  ^                    ^              character(1024)   WrVTK_dir            -  -  -  "Directory for VTK writing" -
 typedef  ^                    ^              c_float           VTKNacDim            6  -  -  "Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz]" (m)
+typedef  ^                    ^              IntKi             Twidth               -  6  -  "Time width -- hard coded for now" (-)
 
 typedef  ^                    IptFilesType   character(1024)   SS_InputFile         -  -  -  "SeaState   input file" (-)
 typedef  ^                    ^              ^                 MD_InputFile         -  -  -  "MoorDyn    input file" (-)

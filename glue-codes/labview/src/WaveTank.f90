@@ -60,11 +60,13 @@ MODULE WaveTankTesting
    type(WrOutputDataType)        :: WrOutputData
 
    ! Structural model data storage
-   type(MeshesMotionType) :: MeshMotions     ! motion meshes (inputs)
-   type(MeshesLoadsType ) :: MeshLoads       ! load meshes   (output)
-   type(MeshesMapsType  ) :: MeshMaps        ! mappings
-   type(StructTmpType   ) :: StructTmp       ! temporary data - avoids reallocation
+   type(MeshesMotionType)  :: MeshMotions    ! motion meshes (inputs)
+   type(MeshesLoadsType )  :: MeshLoads      ! load meshes   (output)
+   type(MeshesMapsType  )  :: MeshMaps       ! mappings
+   type(StructTmpType   )  :: StructTmp      ! temporary data - avoids reallocation
 
+   ! time stuff
+   integer(IntKi)          :: VTKn_Global    ! global timestep for VTK
 
 !FIXME: replace all this with meshes
 !   REAL(C_FLOAT), DIMENSION(3,3) :: FloaterPositions = 0.0_C_FLOAT
@@ -193,8 +195,7 @@ subroutine WaveTank_Init(  &
 
    ! output VTK for struct model (if requested)
    if (SimSettings%Viz%WrVTK > 0_c_int) then
-!FIXME: write this
-!      call StructWrVTK_Ref(SimSettings, MeshMotions, MeshLoads, ErrStat_F2, ErrMsg_F2)
+      call WrVTK_Struct_Ref(SimSettings, MeshMotions, MeshLoads, ErrStat_F2, ErrMsg_F2)
       if (Failed()) return
    endif
 
@@ -393,7 +394,7 @@ tmpInitMeshOri = tmpBldRootOri      !FIXME: blade pitch
    ! Assemble data for output file
    !------------------------------
    if (SimSettings%Outs%OutFile > 0_IntKi) then
-   WrOutputData%OutName = trim(SimSettings%Sim%OutRootName)//'.out'
+      WrOutputData%OutName = trim(SimSettings%Sim%OutRootName)//'.out'
       call InitOutputFile(WrOutputData,ErrStat_F2,ErrMsg_F2); if (Failed()) return
 
       ! allocate storage for output channels from each of the modules
@@ -405,9 +406,9 @@ tmpInitMeshOri = tmpBldRootOri      !FIXME: blade pitch
    !------------------------------
    ! Final cleanup
    !------------------------------
-!FIXME: may not be anything to add here
-
-
+   ! Initialize time counting for VTK
+   VTKn_Global = 0_IntKi
+   call ShowReturnData()
 
 contains
    logical function Failed()
@@ -420,13 +421,16 @@ contains
       if (ScreenLogOutput_Un > 0)   close(ScreenLogOutput_Un)
    end subroutine Cleanup
    subroutine ShowPassedData()
-      character(IntfStrLen) :: tmpPath
       call WrScr("-----------------------------------------------------------")
       call WrScr("Interface debugging:  WaveTank_Init")
       call WrScr("   --------------------------------------------------------")
       call WrScr("   WT_InputFile_C         -> "//trim(InputFile))
-      call WrScr("-----------------------------------------------------------")
    end subroutine ShowPassedData
+   subroutine ShowReturnData()
+      call WrScr("   RootName_C             -> "//trim(SimSettings%Sim%OutRootName))
+      call WrScr("   WrVTK_Dir_C            -> "//trim(SimSettings%Viz%WrVTK_Dir))
+      call WrScr("-----------------------------------------------------------")
+   end subroutine
 end subroutine WaveTank_Init
 
 !subroutine DeallocEverything()
@@ -463,6 +467,10 @@ subroutine WaveTank_CalcStep( &
    ErrStat_C = ErrID_None
    ErrMsg_C  = " "//C_NULL_CHAR
 
+
+   ! debugging
+   if (SimSettings%Sim%DebugLevel > 0_c_int) call ShowPassedData()
+
    ! zero loads in case of error
    loads_c = 0.0_c_float
 
@@ -471,6 +479,23 @@ subroutine WaveTank_CalcStep( &
    CalcStepIO%PosAng_c  = pos_c
    CalcStepIO%Vel_c     = vel_c
    CalcStepIO%Acc_c     = acc_c
+
+
+   !--------------------------------------
+   ! Update motion meshes
+   !--------------------------------------
+!FIXME: add this
+
+   !--------------------------------------
+   ! Write VTK if requested
+   !     Do this here in case failed calcs
+   !--------------------------------------
+   if (SimSettings%Viz%WrVTK > 0_c_int) then
+      ! Increment VTK time counter
+      VTKn_Global = VTKn_Global+1_IntKi
+      call WrVTK_Struct(VTKn_Global, SimSettings, MeshMotions, MeshLoads, ErrStat_F2, ErrMsg_F2)
+      if (Failed()) return
+   endif
 
 
 !FIXME: setup new method for handling this
@@ -673,6 +698,8 @@ subroutine WaveTank_CalcStep( &
 !   IF (ErrStat_C >= AbortErrLev_C) RETURN
 
 
+   ! debugging
+   if (SimSettings%Sim%DebugLevel > 0_c_int) call ShowReturnData()
 
    ! Store returned values
    CalcStepIO%FrcMom_C = 0.0_c_float
@@ -701,6 +728,25 @@ contains
       Failed = ErrStat_C >= AbortErrLev_C
       !if (Failed)    call Cleanup()
    end function Failed
+   subroutine ShowPassedData()
+      character(120) :: TmpStr
+      call WrScr("-----------------------------------------------------------")
+      call WrScr("Interface debugging:  WaveTank_CalcStep")
+      call WrScr("   --------------------------------------------------------")
+      call WrScr("   time_c    -> "//trim(Num2LStr(time_c)))
+      write(TmpStr,'("(", *(f10.5, :, ","))') pos_c;  TmpStr=trim(TmpStr)//" )"
+      call WrScr("   pos_c     -> "//trim(TmpStr))
+      write(TmpStr,'("(", *(f10.5, :, ","))') vel_c;  TmpStr=trim(TmpStr)//" )"
+      call WrScr("   vel_c     -> "//trim(TmpStr))
+      write(TmpStr,'("(", *(f10.5, :, ","))') acc_c;  TmpStr=trim(TmpStr)//" )"
+      call WrScr("   acc_c     -> "//trim(TmpStr))
+   end subroutine ShowPassedData
+   subroutine ShowReturnData()
+      character(120) :: TmpStr
+      write(TmpStr,'("(", *(f10.5, :, ","))') loads_c;  TmpStr=trim(TmpStr)//" )"
+      call WrScr("   loads_c   -> "//trim(TmpStr))
+      call WrScr("-----------------------------------------------------------")
+   end subroutine
 end subroutine
 
 

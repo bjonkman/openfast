@@ -32,6 +32,8 @@ module WaveTank_Struct
 
    public :: StructCreate
    public :: StructDestroy
+   public :: WrVTK_Struct_Ref
+   public :: WrVTK_Struct
 
 contains
 
@@ -135,12 +137,21 @@ subroutine WrVTK_Struct_Ref(SimSettings, MeshMotions, MeshLoads, ErrStat, ErrMsg
    integer(IntKi)                                  :: ErrStat2
    character(ErrMsgLen)                            :: ErrMsg2
    character(*),           parameter               :: RoutineName = 'WaveTank::WrVTK_Struct_Ref'
+   real(ReKi)                                      :: RefPt(3)
    ErrStat = ErrID_None
    ErrMsg  = ''
+   RefPt   = (/ 0.0_ReKi, 0.0_ReKi, 0.0_ReKi /)
    ! Platform point
+   call MeshWrVTKreference(RefPt, MeshMotions%PtfmPtMotion, trim(SimSettings%Viz%WrVTK_dir)//PathSep//trim(SimSettings%Sim%OutRootName)//'.Struct'//'.PtfmPtMotion', ErrStat2, ErrMsg2); if (Failed()) return
+contains
+   logical function Failed()
+      call SetErrStat(errStat2, errMsg2, errStat, errMsg, RoutineName)
+      Failed = errStat >= AbortErrLev
+   end function Failed
 end subroutine
 
-subroutine WrVTK_Struct(SimSettings, MeshMotions, MeshLoads, ErrStat, ErrMsg)
+subroutine WrVTK_Struct(n_Global, SimSettings, MeshMotions, MeshLoads, ErrStat, ErrMsg)
+   integer(IntKi),                  intent(in   )  :: n_Global
    type(SimSettingsType),  target,  intent(in   )  :: SimSettings
    type(MeshesMotionType),          intent(in   )  :: MeshMotions
    type(MeshesLoadsType ),          intent(in   )  :: MeshLoads
@@ -149,9 +160,17 @@ subroutine WrVTK_Struct(SimSettings, MeshMotions, MeshLoads, ErrStat, ErrMsg)
    integer(IntKi)                                  :: ErrStat2
    character(ErrMsgLen)                            :: ErrMsg2
    character(*),           parameter               :: RoutineName = 'WaveTank::WrVTK_Struct'
+   real(ReKi)                                      :: RefPt(3)
    ErrStat = ErrID_None
    ErrMsg  = ''
+   RefPt   = (/ 0.0_ReKi, 0.0_ReKi, 0.0_ReKi /)
    ! Platform point
+   call MeshWrVTK(RefPt, MeshMotions%PtfmPtMotion, trim(SimSettings%Viz%WrVTK_dir)//PathSep//trim(SimSettings%Sim%OutRootName)//'.Struct'//'.PtfmPtMotion', n_Global, .true., ErrStat2, ErrMsg2, Twidth=SimSettings%Viz%Twidth); if (Failed()) return
+contains
+   logical function Failed()
+      call SetErrStat(errStat2, errMsg2, errStat, errMsg, RoutineName)
+      Failed = errStat >= AbortErrLev
+   end function Failed
 end subroutine
 
 end module

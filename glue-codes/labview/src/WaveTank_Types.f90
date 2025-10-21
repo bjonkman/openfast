@@ -95,6 +95,7 @@ IMPLICIT NONE
     REAL(c_double)  :: WrVTK_DT = 0.0_R8Ki      !< Time step between VTK writes [-]
     character(1024)  :: WrVTK_dir      !< Directory for VTK writing [-]
     REAL(c_float) , DIMENSION(1:6)  :: VTKNacDim = 0.0_R4Ki      !< Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz] [(m)]
+    INTEGER(IntKi)  :: Twidth = 6      !< Time width -- hard coded for now [(-)]
   END TYPE VizType
 ! =======================
 ! =========  IptFilesType  =======
@@ -475,6 +476,7 @@ subroutine WT_CopyVizType(SrcVizTypeData, DstVizTypeData, CtrlCode, ErrStat, Err
    DstVizTypeData%WrVTK_DT = SrcVizTypeData%WrVTK_DT
    DstVizTypeData%WrVTK_dir = SrcVizTypeData%WrVTK_dir
    DstVizTypeData%VTKNacDim = SrcVizTypeData%VTKNacDim
+   DstVizTypeData%Twidth = SrcVizTypeData%Twidth
 end subroutine
 
 subroutine WT_DestroyVizType(VizTypeData, ErrStat, ErrMsg)
@@ -496,6 +498,7 @@ subroutine WT_PackVizType(RF, Indata)
    call RegPack(RF, InData%WrVTK_DT)
    call RegPack(RF, InData%WrVTK_dir)
    call RegPack(RF, InData%VTKNacDim)
+   call RegPack(RF, InData%Twidth)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -509,6 +512,7 @@ subroutine WT_UnPackVizType(RF, OutData)
    call RegUnpack(RF, OutData%WrVTK_DT); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%WrVTK_dir); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%VTKNacDim); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%Twidth); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
 subroutine WT_CopyIptFilesType(SrcIptFilesTypeData, DstIptFilesTypeData, CtrlCode, ErrStat, ErrMsg)
