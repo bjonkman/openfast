@@ -45,14 +45,18 @@ MODULE WaveTankTesting
    public :: WaveTank_CalcStep
    public :: WaveTank_End
 
-   ! output to screen or to file
-   integer(IntKi) :: ScreenLogOutput_Un = -1
-   character(1024):: ScreenLogOutput_File
+   ! output to screen or to file (LabView doesn't capture console output nicely)
+   integer(IntKi)    :: ScreenLogOutput_Un = -1
+   character(1024)   :: ScreenLogOutput_File
 
    ! Simulation data storage
-   type(SimSettingsType), target           :: SimSettings
+   type(SimSettingsType), target :: SimSettings
 
-   ! file output
+   ! IO data storage for CalcStep
+   type(CalcStepIOdataType)      :: CalcStepIO
+
+   ! Output file writing: headers, units, data, filename, fileunit etc.
+   type(WrOutputDataType)        :: WrOutputData
 
 !FIXME: replace all this with meshes
 !   REAL(C_FLOAT), DIMENSION(3,3) :: FloaterPositions = 0.0_C_FLOAT
@@ -76,22 +80,16 @@ real(c_float)  :: tmpBldRootPos(6), tmpHubPos(3), tmpNacPos(3), tmpInitMeshPos(6
 integer(c_int) :: tmpNumMeshPts = 2
 integer(c_int) :: tmpMeshPtToBladeNum(2) = (/ 1_c_int, 2_c_int /)
 
-!FIXME: this is temporary -- move to a derived type for clarity
-   INTEGER(C_INT) :: SS_NumChannels_C
-   INTEGER(C_INT) :: MD_NumChannels_C
-   INTEGER(C_INT) :: ADI_NumChannels_C
-   INTEGER(C_INT) :: NumBlades_C
-   INTEGER(C_INT) :: NumMeshPts_C
 
-CONTAINS
+contains
 
-SUBROUTINE WaveTank_Init(  &
+subroutine WaveTank_Init(  &
    WT_InputFile_C,         &
    RootName_C,             &
    VTKdir_C,               &
    ErrStat_C,              &
    ErrMsg_C                &
-) BIND (C, NAME='WaveTank_Init')
+) bind (C, name='WaveTank_Init')
 #ifndef IMPLICIT_DLLEXPORT
 !DEC$ ATTRIBUTES DLLEXPORT :: WaveTank_Init
 !GCC$ ATTRIBUTES DLLEXPORT :: WaveTank_Init
@@ -116,13 +114,13 @@ SUBROUTINE WaveTank_Init(  &
    character(kind=c_char) :: WrVTK_Dir_C(IntfStrLen)
    character(kind=c_char) :: OutRootName_C(IntfStrLen)
 
-   ! The length of these arrays much match what is set in the corresponding C binding modules
-   character(kind=c_char) :: SS_OutputChannelNames_C(ChanLen*MaxOutPts+1)
-   character(kind=c_char) :: SS_OutputChannelUnits_C(ChanLen*MaxOutPts+1)
-   character(kind=c_char) :: MD_OutputChannelNames_C(100000)
-   character(kind=c_char) :: MD_OutputChannelUnits_C(100000)
-   character(kind=c_char) :: ADI_OutputChannelNames_C(ChanLen*MaxADIOutputs+1)
-   character(kind=c_char) :: ADI_OutputChannelUnits_C(ChanLen*MaxADIOutputs+1)
+   ! The length of these arrays much match what is set in the corresponding C binding modules, or be larger
+   character(kind=c_char) :: SS_WriteOutputHdr_C(ChanLen*MaxOutPts+1)
+   character(kind=c_char) :: SS_WriteOutputUnt_C(ChanLen*MaxOutPts+1)
+   character(kind=c_char) :: MD_WriteOutputHdr_C(ChanLen*1000)               ! probably oversized
+   character(kind=c_char) :: MD_WriteOutputUnt_C(ChanLen*1000)               ! probably oversized
+   character(kind=c_char) :: ADI_WriteOutputHdr_C(ChanLen*MaxADIOutputs+1)
+   character(kind=c_char) :: ADI_WriteOutputUnt_C(ChanLen*MaxADIOutputs+1)
 
    ! Filename conversions -- read in as fortran strings, but sent to other modules as c_char arrays
    character(kind=c_char)         :: SS_InputFile_C(IntfStrLen)
@@ -130,6 +128,10 @@ SUBROUTINE WaveTank_Init(  &
    character(kind=c_char), target :: AD_InputFile_C(IntfStrLen)
    character(kind=c_char), target :: IfW_InputFile_C(IntfStrLen)
 
+   ! temporary storage of number of output channels
+   integer(c_int)    :: SS_NumChannels_C
+   integer(c_int)    :: MD_NumChannels_C
+   integer(c_int)    :: ADI_NumChannels_C
 
    ! Initialize error handling
    ErrStat_C = ErrID_None
@@ -142,16 +144,6 @@ SUBROUTINE WaveTank_Init(  &
    call ParseInputFile(FileInfo_In, SimSettings, ErrStat_F2, ErrMsg_F2); if (Failed()) return
 
    call ValidateInputFile(SimSettings, ErrStat_F2, ErrMsg_F2); if (Failed()) return
-
-   ! transfer filenames for passing to modules
-   SS_InputFile_C  = c_null_char
-   MD_InputFile_C  = c_null_char
-   AD_InputFile_C  = c_null_char
-   IfW_InputFile_C = c_null_char
-   SS_InputFile_C  = transfer(trim(SimSettings%IptFile%SS_InputFile ), SS_InputFile_C )
-   MD_InputFile_C  = transfer(trim(SimSettings%IptFile%MD_InputFile ), MD_InputFile_C )
-   AD_InputFile_C  = transfer(trim(SimSettings%IptFile%AD_InputFile ), AD_InputFile_C )
-   IfW_InputFile_C = transfer(trim(SimSettings%IptFile%IfW_InputFile), IfW_InputFile_C)
 
    ! return rootname
    RootName_C = c_null_char
@@ -176,7 +168,10 @@ SUBROUTINE WaveTank_Init(  &
    if (SimSettings%Viz%WrVTK > 0_c_int) VTKdir_C = WrVTK_Dir_C
 
 
-!FIXME: build struct model
+   !------------------------------
+   ! Build struct model
+   !------------------------------
+!FIXME: write this
 
 
    !------------------------------
@@ -194,28 +189,46 @@ SUBROUTINE WaveTank_Init(  &
       ErrStat_C2, ErrMsg_C2         &
    )
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'SeaSt_C_PreInit')
-   if (ErrStat_C >= AbortErrLev_C) return
+   if (ErrStat_C >= AbortErrLev_C) then
+      call CleanUp()
+      return
+   endif
 
-   OutRootName_C = transfer(trim(SimSettings%Sim%OutRootName)//'.SeaSt'//c_null_char, OutRootName_C)
-   call SeaSt_C_Init(            &    
+   SS_InputFile_C = c_null_char
+   SS_InputFile_C = transfer(trim(SimSettings%IptFile%SS_InputFile ), SS_InputFile_C )
+   OutRootName_C  = transfer(trim(SimSettings%Sim%OutRootName)//'.SeaSt'//c_null_char, OutRootName_C)
+   call SeaSt_C_Init(            &
       SS_InputFile_C,            &
       OutRootName_C,             &
       1000_c_int,                & !FIXME: do we need the number of timesteps???
       SimSettings%Sim%DT,        &
       SS_NumChannels_C,          &
-      SS_OutputChannelNames_C,   &
-      SS_OutputChannelUnits_C,   &
+      SS_WriteOutputHdr_C,       &
+      SS_WriteOutputUnt_C,       &
       ErrStat_C2, ErrMsg_C2      &
    )
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'SeaSt_C_Init')
-   if (ErrStat_C >= AbortErrLev_C) return
+   if (ErrStat_C >= AbortErrLev_C) then
+      call CleanUp()
+      return
+   endif
+
+   ! store channel info
+   WrOutputData%NumChans_SS = int(SS_NumChannels_c,IntKi)
+   call TransferOutChanNamesUnits(WrOutputData%NumChans_SS, 'WriteOutputHdr_SS', SS_WriteOutputHdr_c, WrOutputData%WriteOutputHdr_SS,ErrStat_F2,ErrMsg_F2); if (Failed()) return
+   call TransferOutChanNamesUnits(WrOutputData%NumChans_SS, 'WriteOutputUnt_SS', SS_WriteOutputUnt_c, WrOutputData%WriteOutputUnt_SS,ErrStat_F2,ErrMsg_F2); if (Failed()) return
+
 
    !------------------------------
    ! Set the SeaState Wave Field pointer onto MoorDyn
    !------------------------------
    call WaveTank_SetWaveFieldPointer(ErrStat_C2, ErrMsg_C2)
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'WaveTank_SetWaveFieldPointer')
-   if (ErrStat_C >= AbortErrLev_C) return
+   if (ErrStat_C >= AbortErrLev_C) then
+      call CleanUp()
+      return
+   endif
+
 
    !------------------------------
    ! Setup and initialize MoorDyn
@@ -225,7 +238,9 @@ SUBROUTINE WaveTank_Init(  &
    !SimSettings%TCfg%PtfmRef
 !FIXME: 6 DOF with 3xPos, 3xEulerAngle
    InitPtfmPosOri = 0.0_c_float
-   OutRootName_C = transfer(trim(SimSettings%Sim%OutRootName)//'.MD'//c_null_char, OutRootName_C)
+   MD_InputFile_C = c_null_char
+   MD_InputFile_C = transfer(trim(SimSettings%IptFile%MD_InputFile ), MD_InputFile_C )
+   OutRootName_C  = transfer(trim(SimSettings%Sim%OutRootName)//'.MD'//c_null_char, OutRootName_C)
    call MD_C_Init(                           &
       0_c_int,                               &   !< InputFilePassed: 0 for file, 1 for string
       c_loc(MD_InputFile_C(1)),              &
@@ -237,15 +252,23 @@ SUBROUTINE WaveTank_Init(  &
       InitPtfmPosOri,                        &
       SimSettings%Sim%InterpOrd,             &
       MD_NumChannels_C,                      &
-      MD_OutputChannelNames_C,               &
-      MD_OutputChannelUnits_C,               &
+      MD_WriteOutputHdr_C,                   &
+      MD_WriteOutputUnt_C,                   &
       ErrStat_C2, ErrMsg_C2                  &
    )
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'MD_C_Init')
-   if (ErrStat_C >= AbortErrLev_C) return
+   if (ErrStat_C >= AbortErrLev_C) then
+      call CleanUp()
+      return
+   endif
+
+   ! store channel info
+   WrOutputData%NumChans_MD = int(MD_NumChannels_c,IntKi)
+   call TransferOutChanNamesUnits(WrOutputData%NumChans_MD, 'WriteOutputHdr_MD', MD_WriteOutputHdr_c, WrOutputData%WriteOutputHdr_MD,ErrStat_F2,ErrMsg_F2); if (Failed()) return
+   call TransferOutChanNamesUnits(WrOutputData%NumChans_MD, 'WriteOutputUnt_MD', MD_WriteOutputUnt_c, WrOutputData%WriteOutputUnt_MD,ErrStat_F2,ErrMsg_F2); if (Failed()) return
 
    !------------------------------
-   ! Setup and initialize MoorDyn
+   ! Setup and initialize AeroDyn+Inflow
    !------------------------------
    call ADI_C_PreInit(                       &
       1_c_int,                               &     ! only one turbine
@@ -264,12 +287,11 @@ SUBROUTINE WaveTank_Init(  &
       ErrStat_C2, ErrMsg_C2                  &
    )
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_PreInit')
-   if (ErrStat_C >= AbortErrLev_C) return
+   if (ErrStat_C >= AbortErrLev_C) then
+      call CleanUp()
+      return
+   endif
 
-
-   !------------------------------
-   ! Setup and initialize MoorDyn
-   !------------------------------
 !FIXME: temporary location info until meshes set up
 tmpNacPos = SimSettings%TCfg%TowerHt
 tmpHubPos = tmpNacPos + SimSettings%TCfg%OverHang + SimSettings%TCfg%Twr2Shft     ! missing angles
@@ -295,8 +317,15 @@ tmpInitMeshOri = tmpBldRootOri      !FIXME: blade pitch
       ErrStat_C2, ErrMsg_C2                   &
    )
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_SetupRotor')
-   if (ErrStat_C >= AbortErrLev_C) return
+   if (ErrStat_C >= AbortErrLev_C) then
+      call CleanUp()
+      return
+   endif
 
+   AD_InputFile_C  = c_null_char
+   AD_InputFile_C  = transfer(trim(SimSettings%IptFile%AD_InputFile ), AD_InputFile_C )
+   IfW_InputFile_C = c_null_char
+   IfW_InputFile_C = transfer(trim(SimSettings%IptFile%IfW_InputFile), IfW_InputFile_C)
    OutRootName_C = transfer(trim(SimSettings%Sim%OutRootName)//'.ADI'//c_null_char, OutRootName_C)
    call ADI_C_Init(                          &
       0,                                     &  ! ADinputFilePassed; 0 for file, 1 for string
@@ -319,12 +348,41 @@ tmpInitMeshOri = tmpBldRootOri      !FIXME: blade pitch
       1_c_int,                               &  ! wrOuts_C -- Write ADI output file -- hard code to true for now
       SimSettings%Sim%DT,                    &  ! Timestep to write output file from ADI
       ADI_NumChannels_C,                     &
-      ADI_OutputChannelNames_C,              &
-      ADI_OutputChannelUnits_C,              &
+      ADI_WriteOutputHdr_C,                  &
+      ADI_WriteOutputUnt_C,                  &
       ErrStat_C2, ErrMsg_C2                  &
    )
-   CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_Init')
-   IF (ErrStat_C >= AbortErrLev_C) RETURN
+   call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_Init')
+   if (ErrStat_C >= AbortErrLev_C) then
+      call CleanUp()
+      return
+   endif
+
+   ! store channel info
+   WrOutputData%NumChans_ADI = int(ADI_NumChannels_c,IntKi)
+   call TransferOutChanNamesUnits(WrOutputData%NumChans_ADI, 'WriteOutputHdr_ADI', ADI_WriteOutputHdr_c, WrOutputData%WriteOutputHdr_ADI, ErrStat_F2, ErrMsg_F2); if (Failed()) return
+   call TransferOutChanNamesUnits(WrOutputData%NumChans_ADI, 'WriteOutputUnt_ADI', ADI_WriteOutputUnt_c, WrOutputData%WriteOutputUnt_ADI, ErrStat_F2, ErrMsg_F2); if (Failed()) return
+
+
+   !------------------------------
+   ! Assemble data for output file
+   !------------------------------
+   if (SimSettings%Outs%OutFile > 0_IntKi) then
+   WrOutputData%OutName = trim(SimSettings%Sim%OutRootName)//'.out'
+      call InitOutputFile(WrOutputData,ErrStat_F2,ErrMsg_F2); if (Failed()) return
+
+      ! allocate storage for output channels from each of the modules
+      call AllocAry(WrOutputData%OutData_SS,  WrOutputData%Numchans_SS,  'OutData_SS',  ErrStat_F2, ErrMsg_F2); if (Failed()) return
+      call AllocAry(WrOutputData%OutData_MD,  WrOutputData%Numchans_MD,  'OutData_MD',  ErrStat_F2, ErrMsg_F2); if (Failed()) return
+      call AllocAry(WrOutputData%OutData_ADI, WrOutputData%Numchans_ADI, 'OutData_ADI', ErrStat_F2, ErrMsg_F2); if (Failed()) return
+   endif
+
+   !------------------------------
+   ! Final cleanup
+   !------------------------------
+!FIXME: may not be anything to add here
+
+
 
 contains
    logical function Failed()
@@ -333,9 +391,8 @@ contains
       if (Failed)    call Cleanup()
    end function Failed
    subroutine Cleanup()
-      call NWTC_Library_Destroyfileinfotype(FileInfo_In, ErrStat_F2, ErrMsg_F2)  ! ignore error from this
+      call NWTC_Library_DestroyFileInfoType(FileInfo_In, ErrStat_F2, ErrMsg_F2)  ! ignore error from this
       if (ScreenLogOutput_Un > 0)   close(ScreenLogOutput_Un)
-!      if (ErrStat_C >= AbortErrLev_C) call DeallocEverything()
    end subroutine Cleanup
    subroutine ShowPassedData()
       character(IntfStrLen) :: tmpPath
@@ -345,7 +402,7 @@ contains
       call WrScr("   WT_InputFile_C         -> "//trim(InputFile))
       call WrScr("-----------------------------------------------------------")
    end subroutine ShowPassedData
-END SUBROUTINE WaveTank_Init
+end subroutine WaveTank_Init
 
 !subroutine DeallocEverything()
 !end subroutine DeallocEverything
@@ -353,11 +410,11 @@ END SUBROUTINE WaveTank_Init
 
 
 subroutine WaveTank_CalcStep( &
-   time,                      &
-   pos,                       &
-   vel,                       &
-   acc,                       &
-   loads,                     &
+   time_c,                    &
+   pos_c,                     &
+   vel_c,                     &
+   acc_c,                     &
+   loads_C,                   &
    ErrStat_C,                 &
    ErrMsg_C                   &
 ) BIND (C, NAME='WaveTank_CalcStep')
@@ -365,22 +422,31 @@ subroutine WaveTank_CalcStep( &
 !DEC$ ATTRIBUTES DLLEXPORT :: WaveTank_CalcStep
 !GCC$ ATTRIBUTES DLLEXPORT :: WaveTank_CalcStep
 #endif
-   real(c_double),         intent(in   ) :: time
-   real(c_float),          intent(in   ) :: pos(6)       ! [x,y,z,roll,pitch,yaw]
-   real(c_float),          intent(in   ) :: vel(6)       ! [x_dot,y_dot,z_dot,roll_dot,pitch_dot,yaw_dot]
-   real(c_float),          intent(in   ) :: acc(6)       ! [x_ddot,y_ddot,z_ddot,roll_ddot,pitch_ddot,yaw_ddot]
-   real(c_float),          intent(  out) :: loads(6)     ! [Fx,Fy,Fz,Mx,My,Mz]
+   real(c_double),         intent(in   ) :: time_c
+   real(c_float),          intent(in   ) :: pos_c(6)     ! [x,y,z,roll,pitch,yaw]
+   real(c_float),          intent(in   ) :: vel_c(6)     ! [x_dot,y_dot,z_dot,roll_dot,pitch_dot,yaw_dot]
+   real(c_float),          intent(in   ) :: acc_c(6)     ! [x_ddot,y_ddot,z_ddot,roll_ddot,pitch_ddot,yaw_ddot]
+   real(c_float),          intent(  out) :: loads_c(6)   ! [Fx,Fy,Fz,Mx,My,Mz]
    integer(c_int),         intent(  out) :: ErrStat_C
    character(c_char),      intent(  out) :: ErrMsg_C(ErrMsgLen_C)
    integer(c_int)                        :: ErrStat_C2(ErrMsgLen_C)
    character(c_char)                     :: ErrMsg_C2
+   integer(IntKi)                        :: ErrStat_F2
+   character(ErrMsgLen)                  :: ErrMsg_F2
 
    ! Initialize error handling
    ErrStat_C = ErrID_None
    ErrMsg_C  = " "//C_NULL_CHAR
 
    ! zero loads in case of error
-   loads = 0.0_c_float
+   loads_c = 0.0_c_float
+
+   ! Transfer CalcStepIO data (storing for output to file)
+   CalcStepIO%Time_c    = time_C
+   CalcStepIO%PosAng_c  = pos_c
+   CalcStepIO%Vel_c     = vel_c
+   CalcStepIO%Acc_c     = acc_c
+
 
 !FIXME: setup new method for handling this
 !FIXME: turb off HHVel
@@ -581,10 +647,39 @@ subroutine WaveTank_CalcStep( &
 !   CALL SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_GetRotorLoads')
 !   IF (ErrStat_C >= AbortErrLev_C) RETURN
 
+
+
+   ! Store returned values
+   CalcStepIO%FrcMom_C = 0.0_c_float
+   loads_c = CalcStepIO%FrcMom_C
+
+   ! Transfer outputs and write to file
+   if (SimSettings%Outs%OutFile > 0_IntKi) then
+      ! store mapped loads from modules at the platform point
+!FIXME
+!      CalcStepIO%FrcMom_SS
+!      CalcStepIO%FrcMom_MD
+!      CalcStepIO%FrcMom_ADI
+
+      ! store outputs from modules
+!FIXME
+      !WrOutputData%OutData_SS,
+      !WrOutputData%OutData_MD,
+      !WrOutputData%OutData_ADI
+      ! output to file
+      call WriteOutputLine(SimSettings%Outs%OutFmt, CalcStepIO, WrOutputData, ErrStat_F2, ErrMsg_F2)
+      if (Failed()) return
+   endif
+contains
+   logical function Failed()
+      call SetErrStat_F2C(ErrStat_F2, ErrMsg_F2, ErrStat_C, ErrMsg_C)
+      Failed = ErrStat_C >= AbortErrLev_C
+      !if (Failed)    call Cleanup()
+   end function Failed
 end subroutine
 
 
-SUBROUTINE WaveTank_End(ErrStat_C, ErrMsg_C) bind (C, NAME="WaveTank_End")
+subroutine WaveTank_End(ErrStat_C, ErrMsg_C) bind (C, NAME="WaveTank_End")
 #ifndef IMPLICIT_DLLEXPORT
 !DEC$ ATTRIBUTES DLLEXPORT :: WaveTank_End
 !GCC$ ATTRIBUTES DLLEXPORT :: WaveTank_End
@@ -602,6 +697,10 @@ SUBROUTINE WaveTank_End(ErrStat_C, ErrMsg_C) bind (C, NAME="WaveTank_End")
    ErrStat_C = ErrID_None
    ErrMsg_C  = " "//C_NULL_CHAR
 
+   ! destroy mesh info
+   call StrucDestroy(ErrStat_F2,ErrMsg_F2)
+   call SetErrStat_F2C(ErrStat_F2, ErrMsg_F2, ErrStat_C, ErrMsg_C)
+
    ! in case we were writing to a file instead of the screen
    if (ScreenLogOutput_Un > 0)   close(ScreenLogOutput_Un)
 
@@ -614,9 +713,15 @@ SUBROUTINE WaveTank_End(ErrStat_C, ErrMsg_C) bind (C, NAME="WaveTank_End")
    call ADI_C_END(ErrStat_C2, ErrMsg_C2)
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_END')
 
-!FIXME: close output file here
+   ! close output file
+   if (WrOutputData%OutUn > 0) then
+      close(WrOutputData%OutUn, iostat=ErrStat_F2)
+      if (ErrStat_F2 /= 0_IntKi) call SetErrStat_C(int(ErrID_Fatal,c_int), 'could no close output file '//trim(WrOutputData%OutName), ErrStat_C, ErrMsg_C, 'ADI_C_END')
+      WrOutputData%OutUn = -1    ! mark as closed - prevents faults
+   endif
 
-END SUBROUTINE
+end subroutine
+
 
 subroutine WaveTank_SetWaveFieldPointer(ErrStat_C, ErrMsg_C) bind (C, NAME="WaveTank_SetWaveFieldPointer")
 #ifndef IMPLICIT_DLLEXPORT
@@ -648,14 +753,11 @@ subroutine WaveTank_SetWaveFieldPointer(ErrStat_C, ErrMsg_C) bind (C, NAME="Wave
        return
    endif
 
-!FIXME: MD needs error handling on this
-   call MD_C_SetWaveFieldData(WaveFieldPointer_C) ! ErrStat_C2, ErrMsg_C2
-   call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'WaveTank_SetWaveFieldPointer')
-   if (ErrStat_C >= AbortErrLev_C) return
+   ! There isn't a good way to check for an error here.  Will get caught at init
+   call MD_C_SetWaveFieldData(WaveFieldPointer_C)
 
-   ! Probably doesn't matter, but clear this pointer just in case
+   ! Probably doesn't matter, but clear the fortran pointer just in case
    WaveFieldPointer_F => NULL()
-
 end subroutine
 
 END MODULE WaveTankTesting

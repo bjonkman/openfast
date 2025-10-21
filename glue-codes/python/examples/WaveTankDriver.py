@@ -526,5 +526,6 @@ if __name__=="__main__":
 
     wavetanklib.end()
 
+    print("WaveTank run completed")
 
 

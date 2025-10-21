@@ -34,18 +34,18 @@ MODULE WaveTank_Types
 USE ISO_C_BINDING
 USE NWTC_Library
 IMPLICIT NONE
-! =========  Sim  =======
-  TYPE, PUBLIC :: Sim
+! =========  SimType  =======
+  TYPE, PUBLIC :: SimType
     REAL(c_double)  :: DT = 0.0_R8Ki      !< timestep [-]
     REAL(c_double)  :: TMax = 0.0_R8Ki      !< Max sim time [-]
     INTEGER(c_int)  :: MHK = 0_IntKi      !< MHK turbine type (switch) {0=Not an MHK turbine; 1=Fixed MHK turbine; 2=Floating MHK turbine} [(-)]
     INTEGER(c_int)  :: InterpOrd = 1      !< Interpolation order [-]
     INTEGER(c_int)  :: DebugLevel = 0_IntKi      !< Debug level for outputs [-]
     character(1024)  :: OutRootName      !< Rootname for outputs [-]
-  END TYPE Sim
+  END TYPE SimType
 ! =======================
-! =========  Env  =======
-  TYPE, PUBLIC :: Env
+! =========  EnvType  =======
+  TYPE, PUBLIC :: EnvType
     REAL(c_float)  :: Gravity = 0.0_R4Ki      !< gravitational constant (positive for down) [(m/s^2)]
     REAL(c_float)  :: WtrDens = 0.0_R4Ki      !< Water density [(kg/m^3)]
     REAL(c_float)  :: WtrVisc = 0.0_R4Ki      !< fluid viscosity [(m^2/s)]
@@ -54,10 +54,10 @@ IMPLICIT NONE
     REAL(c_float)  :: Pvap = 0.0_R4Ki      !< Vapour pressure of working fluid [used only for an MHK turbine cavitation check] [(Pa)]
     REAL(c_float)  :: WtrDpth = 0.0_R4Ki      !< Water depth [(m)]
     REAL(c_float)  :: MSL2SWL = 0.0_R4Ki      !< Mean sea level to still water level [(m)]
-  END TYPE Env
+  END TYPE EnvType
 ! =======================
-! =========  TurbConfig  =======
-  TYPE, PUBLIC :: TurbConfig
+! =========  TurbConfigType  =======
+  TYPE, PUBLIC :: TurbConfigType
     INTEGER(c_int)  :: NumBl = 0_IntKi      !< Number of blades [(-)]
     REAL(c_float)  :: TipRad = 0.0_R4Ki      !< The distance from the rotor apex to the blade tip [(m)]
     REAL(c_float)  :: HubRad = 0.0_R4Ki      !< The distance from the rotor apex to the blade root [(m)]
@@ -69,49 +69,81 @@ IMPLICIT NONE
     REAL(c_float)  :: TowerHt = 0.0_R4Ki      !< Height of tower relative MSL [(m)]
     REAL(c_float) , DIMENSION(1:3)  :: TowerBsPt = 0.0_R4Ki      !< Tower base location relative to MSL. Consider absolute difference to PtfmRef [floating MHK] [(m)]
     REAL(c_float) , DIMENSION(1:3)  :: PtfmRef = 0.0_R4Ki      !< Location of platform reference point, relative to MSL.  Motions and loads all connect to this point [(m)]
-  END TYPE TurbConfig
+  END TYPE TurbConfigType
 ! =======================
-! =========  TurbOpPoint  =======
-  TYPE, PUBLIC :: TurbOpPoint
+! =========  TurbOpPointType  =======
+  TYPE, PUBLIC :: TurbOpPointType
     REAL(c_float)  :: RotSpeed = 0.0_R4Ki      !< Rotor speed [(RPM)]
     REAL(c_float)  :: NacYaw = 0.0_R4Ki      !< Initial or fixed nacelle-yaw angle [(deg)]
     REAL(c_float)  :: BldPitch = 0.0_R4Ki      !< Fixed blade pitch for full simulation [(deg)]
-  END TYPE TurbOpPoint
+  END TYPE TurbOpPointType
 ! =======================
-! =========  Output  =======
-  TYPE, PUBLIC :: Output
+! =========  OutFilesType  =======
+  TYPE, PUBLIC :: OutFilesType
     LOGICAL  :: SendScreenToFile = .false.      !< send to file <OutRootName>.screen.log if true [(-)]
     INTEGER(c_int)  :: OutFile = 0_IntKi      !< 0: no output file of channels, 1: output file in text format (at DT) [(-)]
     character(20)  :: OutFmt      !< Format used for text tabular output, excluding the time channel. (quoted string) [(-)]
-  END TYPE Output
+  END TYPE OutFilesType
 ! =======================
-! =========  Viz  =======
-  TYPE, PUBLIC :: Viz
+! =========  VizType  =======
+  TYPE, PUBLIC :: VizType
     INTEGER(c_int)  :: WrVTK = 0_IntKi      !< Write VTK? [-]
     INTEGER(c_int)  :: WrVTK_type = 0_IntKi      !< Write VTK outputs as [1: surface, 2: lines, 3: both] [-]
     REAL(c_double)  :: WrVTK_DT = 0.0_R8Ki      !< Time step between VTK writes [-]
     character(1024)  :: WrVTK_dir      !< Directory for VTK writing [-]
     REAL(c_float) , DIMENSION(1:6)  :: VTKNacDim = 0.0_R4Ki      !< Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz] [(m)]
-  END TYPE Viz
+  END TYPE VizType
 ! =======================
-! =========  IptFiles  =======
-  TYPE, PUBLIC :: IptFiles
+! =========  IptFilesType  =======
+  TYPE, PUBLIC :: IptFilesType
     character(1024)  :: SS_InputFile      !< SeaState   input file [(-)]
     character(1024)  :: MD_InputFile      !< MoorDyn    input file [(-)]
     character(1024)  :: AD_InputFile      !< AeroDyn    input file [(-)]
     character(1024)  :: IfW_InputFile      !< InflowWind input file [(-)]
-  END TYPE IptFiles
+  END TYPE IptFilesType
 ! =======================
 ! =========  SimSettingsType  =======
   TYPE, PUBLIC :: SimSettingsType
-    TYPE(Sim)  :: Sim      !< Simulation settings [-]
-    TYPE(Env)  :: Env      !< Environment settings [-]
-    TYPE(TurbConfig)  :: TCfg      !< Turbine configuration [-]
-    TYPE(TurbOpPoint)  :: TOp      !< Turbine operating point [-]
-    TYPE(Output)  :: Outs      !< Output settings [-]
-    TYPE(Viz)  :: Viz      !< Vizualization settings [-]
-    TYPE(IptFiles)  :: IptFile      !< Input files for each module [-]
+    TYPE(SimType)  :: Sim      !< Simulation settings [-]
+    TYPE(EnvType)  :: Env      !< Environment settings [-]
+    TYPE(TurbConfigType)  :: TCfg      !< Turbine configuration [-]
+    TYPE(TurbOpPointType)  :: TOp      !< Turbine operating point [-]
+    TYPE(OutFilesType)  :: Outs      !< Output settings [-]
+    TYPE(VizType)  :: Viz      !< Vizualization settings [-]
+    TYPE(IptFilesType)  :: IptFile      !< Input files for each module [-]
   END TYPE SimSettingsType
+! =======================
+! =========  CalcStepIOdataType  =======
+  TYPE, PUBLIC :: CalcStepIOdataType
+    REAL(c_double)  :: Time_c = 0.0_R8Ki      !< IN:  time [(s)]
+    REAL(c_float) , DIMENSION(1:6)  :: PosAng_c = 0.0_R4Ki      !< IN:  Position + Euler Ang [x,y,z,phi,theta,psi] [[(m) (rad)]]
+    REAL(c_float) , DIMENSION(1:6)  :: Vel_c = 0.0_R4Ki      !< IN:  Velocity             [Vx,Vy,Vz,RVx,RVy,RVz] [[(m/s) (rad/s)]]
+    REAL(c_float) , DIMENSION(1:6)  :: Acc_c = 0.0_R4Ki      !< IN:  Acceleration         [Ax,Ay,Az,RAx,RAy,RAz] [[(m/s^2) (rad/s^2)]]
+    REAL(c_float) , DIMENSION(1:6)  :: FrcMom_c = 0.0_R4Ki      !< OUT: Acceleration         [Fx,Fy,Fz,Mx,My,Mz] [[(N) (N-m)]]
+    REAL(ReKi) , DIMENSION(1:6)  :: FrcMom_SS = 0.0_ReKi      !< calculated forces/moments from SS [-]
+    REAL(ReKi) , DIMENSION(1:6)  :: FrcMom_MD = 0.0_ReKi      !< calculated forces/moments from MD [-]
+    REAL(ReKi) , DIMENSION(1:6)  :: FrcMom_ADI = 0.0_ReKi      !< calculated forces/moments from ADI [-]
+  END TYPE CalcStepIOdataType
+! =======================
+! =========  WrOutputDataType  =======
+  TYPE, PUBLIC :: WrOutputDataType
+    INTEGER(IntKi)  :: NumChans_cbind = 0      !< Number of output channels from c-bind [-]
+    INTEGER(IntKi)  :: NumChans_SS = 0      !< Number of output channels from SS [-]
+    INTEGER(IntKi)  :: NumChans_MD = 0      !< Number of output channels from MD [-]
+    INTEGER(IntKi)  :: NumChans_ADI = 0      !< Number of output channels from ADI [-]
+    INTEGER(IntKi)  :: NumChans_all = 0      !< Total number of channels (sum of above) [-]
+    character(ChanLen) , DIMENSION(:), ALLOCATABLE  :: WriteOutputHdr_SS      !< output file header names from SS [-]
+    character(ChanLen) , DIMENSION(:), ALLOCATABLE  :: WriteOutputUnt_SS      !< output file header units from SS [-]
+    character(ChanLen) , DIMENSION(:), ALLOCATABLE  :: WriteOutputHdr_MD      !< output file header names from MD [-]
+    character(ChanLen) , DIMENSION(:), ALLOCATABLE  :: WriteOutputUnt_MD      !< output file header units from MD [-]
+    character(ChanLen) , DIMENSION(:), ALLOCATABLE  :: WriteOutputHdr_ADI      !< output file header names from ADI [-]
+    character(ChanLen) , DIMENSION(:), ALLOCATABLE  :: WriteOutputUnt_ADI      !< output file header units from ADI [-]
+    REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: OutData_SS      !< output data from SS [-]
+    REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: OutData_MD      !< output data from MD [-]
+    REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: OutData_ADI      !< output data from ADI [-]
+    character(1024)  :: OutName      !< Output file name [-]
+    INTEGER(IntKi)  :: OutUn = -1      !< Output unit [-]
+  END TYPE WrOutputDataType
 ! =======================
 ! =========  MeshesMotion  =======
   TYPE, PUBLIC :: MeshesMotion
@@ -141,36 +173,36 @@ IMPLICIT NONE
 ! =======================
 CONTAINS
 
-subroutine WT_CopySim(SrcSimData, DstSimData, CtrlCode, ErrStat, ErrMsg)
-   type(Sim), intent(in) :: SrcSimData
-   type(Sim), intent(inout) :: DstSimData
+subroutine WT_CopySimType(SrcSimTypeData, DstSimTypeData, CtrlCode, ErrStat, ErrMsg)
+   type(SimType), intent(in) :: SrcSimTypeData
+   type(SimType), intent(inout) :: DstSimTypeData
    integer(IntKi),  intent(in   ) :: CtrlCode
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
-   character(*), parameter        :: RoutineName = 'WT_CopySim'
+   character(*), parameter        :: RoutineName = 'WT_CopySimType'
    ErrStat = ErrID_None
    ErrMsg  = ''
-   DstSimData%DT = SrcSimData%DT
-   DstSimData%TMax = SrcSimData%TMax
-   DstSimData%MHK = SrcSimData%MHK
-   DstSimData%InterpOrd = SrcSimData%InterpOrd
-   DstSimData%DebugLevel = SrcSimData%DebugLevel
-   DstSimData%OutRootName = SrcSimData%OutRootName
+   DstSimTypeData%DT = SrcSimTypeData%DT
+   DstSimTypeData%TMax = SrcSimTypeData%TMax
+   DstSimTypeData%MHK = SrcSimTypeData%MHK
+   DstSimTypeData%InterpOrd = SrcSimTypeData%InterpOrd
+   DstSimTypeData%DebugLevel = SrcSimTypeData%DebugLevel
+   DstSimTypeData%OutRootName = SrcSimTypeData%OutRootName
 end subroutine
 
-subroutine WT_DestroySim(SimData, ErrStat, ErrMsg)
-   type(Sim), intent(inout) :: SimData
+subroutine WT_DestroySimType(SimTypeData, ErrStat, ErrMsg)
+   type(SimType), intent(inout) :: SimTypeData
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
-   character(*), parameter        :: RoutineName = 'WT_DestroySim'
+   character(*), parameter        :: RoutineName = 'WT_DestroySimType'
    ErrStat = ErrID_None
    ErrMsg  = ''
 end subroutine
 
-subroutine WT_PackSim(RF, Indata)
+subroutine WT_PackSimType(RF, Indata)
    type(RegFile), intent(inout) :: RF
-   type(Sim), intent(in) :: InData
-   character(*), parameter         :: RoutineName = 'WT_PackSim'
+   type(SimType), intent(in) :: InData
+   character(*), parameter         :: RoutineName = 'WT_PackSimType'
    if (RF%ErrStat >= AbortErrLev) return
    call RegPack(RF, InData%DT)
    call RegPack(RF, InData%TMax)
@@ -181,10 +213,10 @@ subroutine WT_PackSim(RF, Indata)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
-subroutine WT_UnPackSim(RF, OutData)
+subroutine WT_UnPackSimType(RF, OutData)
    type(RegFile), intent(inout)    :: RF
-   type(Sim), intent(inout) :: OutData
-   character(*), parameter            :: RoutineName = 'WT_UnPackSim'
+   type(SimType), intent(inout) :: OutData
+   character(*), parameter            :: RoutineName = 'WT_UnPackSimType'
    if (RF%ErrStat /= ErrID_None) return
    call RegUnpack(RF, OutData%DT); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%TMax); if (RegCheckErr(RF, RoutineName)) return
@@ -194,38 +226,38 @@ subroutine WT_UnPackSim(RF, OutData)
    call RegUnpack(RF, OutData%OutRootName); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
-subroutine WT_CopyEnv(SrcEnvData, DstEnvData, CtrlCode, ErrStat, ErrMsg)
-   type(Env), intent(in) :: SrcEnvData
-   type(Env), intent(inout) :: DstEnvData
+subroutine WT_CopyEnvType(SrcEnvTypeData, DstEnvTypeData, CtrlCode, ErrStat, ErrMsg)
+   type(EnvType), intent(in) :: SrcEnvTypeData
+   type(EnvType), intent(inout) :: DstEnvTypeData
    integer(IntKi),  intent(in   ) :: CtrlCode
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
-   character(*), parameter        :: RoutineName = 'WT_CopyEnv'
+   character(*), parameter        :: RoutineName = 'WT_CopyEnvType'
    ErrStat = ErrID_None
    ErrMsg  = ''
-   DstEnvData%Gravity = SrcEnvData%Gravity
-   DstEnvData%WtrDens = SrcEnvData%WtrDens
-   DstEnvData%WtrVisc = SrcEnvData%WtrVisc
-   DstEnvData%SpdSound = SrcEnvData%SpdSound
-   DstEnvData%Patm = SrcEnvData%Patm
-   DstEnvData%Pvap = SrcEnvData%Pvap
-   DstEnvData%WtrDpth = SrcEnvData%WtrDpth
-   DstEnvData%MSL2SWL = SrcEnvData%MSL2SWL
+   DstEnvTypeData%Gravity = SrcEnvTypeData%Gravity
+   DstEnvTypeData%WtrDens = SrcEnvTypeData%WtrDens
+   DstEnvTypeData%WtrVisc = SrcEnvTypeData%WtrVisc
+   DstEnvTypeData%SpdSound = SrcEnvTypeData%SpdSound
+   DstEnvTypeData%Patm = SrcEnvTypeData%Patm
+   DstEnvTypeData%Pvap = SrcEnvTypeData%Pvap
+   DstEnvTypeData%WtrDpth = SrcEnvTypeData%WtrDpth
+   DstEnvTypeData%MSL2SWL = SrcEnvTypeData%MSL2SWL
 end subroutine
 
-subroutine WT_DestroyEnv(EnvData, ErrStat, ErrMsg)
-   type(Env), intent(inout) :: EnvData
+subroutine WT_DestroyEnvType(EnvTypeData, ErrStat, ErrMsg)
+   type(EnvType), intent(inout) :: EnvTypeData
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
-   character(*), parameter        :: RoutineName = 'WT_DestroyEnv'
+   character(*), parameter        :: RoutineName = 'WT_DestroyEnvType'
    ErrStat = ErrID_None
    ErrMsg  = ''
 end subroutine
 
-subroutine WT_PackEnv(RF, Indata)
+subroutine WT_PackEnvType(RF, Indata)
    type(RegFile), intent(inout) :: RF
-   type(Env), intent(in) :: InData
-   character(*), parameter         :: RoutineName = 'WT_PackEnv'
+   type(EnvType), intent(in) :: InData
+   character(*), parameter         :: RoutineName = 'WT_PackEnvType'
    if (RF%ErrStat >= AbortErrLev) return
    call RegPack(RF, InData%Gravity)
    call RegPack(RF, InData%WtrDens)
@@ -238,10 +270,10 @@ subroutine WT_PackEnv(RF, Indata)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
-subroutine WT_UnPackEnv(RF, OutData)
+subroutine WT_UnPackEnvType(RF, OutData)
    type(RegFile), intent(inout)    :: RF
-   type(Env), intent(inout) :: OutData
-   character(*), parameter            :: RoutineName = 'WT_UnPackEnv'
+   type(EnvType), intent(inout) :: OutData
+   character(*), parameter            :: RoutineName = 'WT_UnPackEnvType'
    if (RF%ErrStat /= ErrID_None) return
    call RegUnpack(RF, OutData%Gravity); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%WtrDens); if (RegCheckErr(RF, RoutineName)) return
@@ -253,41 +285,41 @@ subroutine WT_UnPackEnv(RF, OutData)
    call RegUnpack(RF, OutData%MSL2SWL); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
-subroutine WT_CopyTurbConfig(SrcTurbConfigData, DstTurbConfigData, CtrlCode, ErrStat, ErrMsg)
-   type(TurbConfig), intent(in) :: SrcTurbConfigData
-   type(TurbConfig), intent(inout) :: DstTurbConfigData
+subroutine WT_CopyTurbConfigType(SrcTurbConfigTypeData, DstTurbConfigTypeData, CtrlCode, ErrStat, ErrMsg)
+   type(TurbConfigType), intent(in) :: SrcTurbConfigTypeData
+   type(TurbConfigType), intent(inout) :: DstTurbConfigTypeData
    integer(IntKi),  intent(in   ) :: CtrlCode
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
-   character(*), parameter        :: RoutineName = 'WT_CopyTurbConfig'
+   character(*), parameter        :: RoutineName = 'WT_CopyTurbConfigType'
    ErrStat = ErrID_None
    ErrMsg  = ''
-   DstTurbConfigData%NumBl = SrcTurbConfigData%NumBl
-   DstTurbConfigData%TipRad = SrcTurbConfigData%TipRad
-   DstTurbConfigData%HubRad = SrcTurbConfigData%HubRad
-   DstTurbConfigData%PreCone = SrcTurbConfigData%PreCone
-   DstTurbConfigData%OverHang = SrcTurbConfigData%OverHang
-   DstTurbConfigData%ShftGagL = SrcTurbConfigData%ShftGagL
-   DstTurbConfigData%ShftTilt = SrcTurbConfigData%ShftTilt
-   DstTurbConfigData%Twr2Shft = SrcTurbConfigData%Twr2Shft
-   DstTurbConfigData%TowerHt = SrcTurbConfigData%TowerHt
-   DstTurbConfigData%TowerBsPt = SrcTurbConfigData%TowerBsPt
-   DstTurbConfigData%PtfmRef = SrcTurbConfigData%PtfmRef
+   DstTurbConfigTypeData%NumBl = SrcTurbConfigTypeData%NumBl
+   DstTurbConfigTypeData%TipRad = SrcTurbConfigTypeData%TipRad
+   DstTurbConfigTypeData%HubRad = SrcTurbConfigTypeData%HubRad
+   DstTurbConfigTypeData%PreCone = SrcTurbConfigTypeData%PreCone
+   DstTurbConfigTypeData%OverHang = SrcTurbConfigTypeData%OverHang
+   DstTurbConfigTypeData%ShftGagL = SrcTurbConfigTypeData%ShftGagL
+   DstTurbConfigTypeData%ShftTilt = SrcTurbConfigTypeData%ShftTilt
+   DstTurbConfigTypeData%Twr2Shft = SrcTurbConfigTypeData%Twr2Shft
+   DstTurbConfigTypeData%TowerHt = SrcTurbConfigTypeData%TowerHt
+   DstTurbConfigTypeData%TowerBsPt = SrcTurbConfigTypeData%TowerBsPt
+   DstTurbConfigTypeData%PtfmRef = SrcTurbConfigTypeData%PtfmRef
 end subroutine
 
-subroutine WT_DestroyTurbConfig(TurbConfigData, ErrStat, ErrMsg)
-   type(TurbConfig), intent(inout) :: TurbConfigData
+subroutine WT_DestroyTurbConfigType(TurbConfigTypeData, ErrStat, ErrMsg)
+   type(TurbConfigType), intent(inout) :: TurbConfigTypeData
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
-   character(*), parameter        :: RoutineName = 'WT_DestroyTurbConfig'
+   character(*), parameter        :: RoutineName = 'WT_DestroyTurbConfigType'
    ErrStat = ErrID_None
    ErrMsg  = ''
 end subroutine
 
-subroutine WT_PackTurbConfig(RF, Indata)
+subroutine WT_PackTurbConfigType(RF, Indata)
    type(RegFile), intent(inout) :: RF
-   type(TurbConfig), intent(in) :: InData
-   character(*), parameter         :: RoutineName = 'WT_PackTurbConfig'
+   type(TurbConfigType), intent(in) :: InData
+   character(*), parameter         :: RoutineName = 'WT_PackTurbConfigType'
    if (RF%ErrStat >= AbortErrLev) return
    call RegPack(RF, InData%NumBl)
    call RegPack(RF, InData%TipRad)
@@ -303,10 +335,10 @@ subroutine WT_PackTurbConfig(RF, Indata)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
-subroutine WT_UnPackTurbConfig(RF, OutData)
+subroutine WT_UnPackTurbConfigType(RF, OutData)
    type(RegFile), intent(inout)    :: RF
-   type(TurbConfig), intent(inout) :: OutData
-   character(*), parameter            :: RoutineName = 'WT_UnPackTurbConfig'
+   type(TurbConfigType), intent(inout) :: OutData
+   character(*), parameter            :: RoutineName = 'WT_UnPackTurbConfigType'
    if (RF%ErrStat /= ErrID_None) return
    call RegUnpack(RF, OutData%NumBl); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%TipRad); if (RegCheckErr(RF, RoutineName)) return
@@ -321,33 +353,33 @@ subroutine WT_UnPackTurbConfig(RF, OutData)
    call RegUnpack(RF, OutData%PtfmRef); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
-subroutine WT_CopyTurbOpPoint(SrcTurbOpPointData, DstTurbOpPointData, CtrlCode, ErrStat, ErrMsg)
-   type(TurbOpPoint), intent(in) :: SrcTurbOpPointData
-   type(TurbOpPoint), intent(inout) :: DstTurbOpPointData
+subroutine WT_CopyTurbOpPointType(SrcTurbOpPointTypeData, DstTurbOpPointTypeData, CtrlCode, ErrStat, ErrMsg)
+   type(TurbOpPointType), intent(in) :: SrcTurbOpPointTypeData
+   type(TurbOpPointType), intent(inout) :: DstTurbOpPointTypeData
    integer(IntKi),  intent(in   ) :: CtrlCode
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
-   character(*), parameter        :: RoutineName = 'WT_CopyTurbOpPoint'
+   character(*), parameter        :: RoutineName = 'WT_CopyTurbOpPointType'
    ErrStat = ErrID_None
    ErrMsg  = ''
-   DstTurbOpPointData%RotSpeed = SrcTurbOpPointData%RotSpeed
-   DstTurbOpPointData%NacYaw = SrcTurbOpPointData%NacYaw
-   DstTurbOpPointData%BldPitch = SrcTurbOpPointData%BldPitch
+   DstTurbOpPointTypeData%RotSpeed = SrcTurbOpPointTypeData%RotSpeed
+   DstTurbOpPointTypeData%NacYaw = SrcTurbOpPointTypeData%NacYaw
+   DstTurbOpPointTypeData%BldPitch = SrcTurbOpPointTypeData%BldPitch
 end subroutine
 
-subroutine WT_DestroyTurbOpPoint(TurbOpPointData, ErrStat, ErrMsg)
-   type(TurbOpPoint), intent(inout) :: TurbOpPointData
+subroutine WT_DestroyTurbOpPointType(TurbOpPointTypeData, ErrStat, ErrMsg)
+   type(TurbOpPointType), intent(inout) :: TurbOpPointTypeData
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
-   character(*), parameter        :: RoutineName = 'WT_DestroyTurbOpPoint'
+   character(*), parameter        :: RoutineName = 'WT_DestroyTurbOpPointType'
    ErrStat = ErrID_None
    ErrMsg  = ''
 end subroutine
 
-subroutine WT_PackTurbOpPoint(RF, Indata)
+subroutine WT_PackTurbOpPointType(RF, Indata)
    type(RegFile), intent(inout) :: RF
-   type(TurbOpPoint), intent(in) :: InData
-   character(*), parameter         :: RoutineName = 'WT_PackTurbOpPoint'
+   type(TurbOpPointType), intent(in) :: InData
+   character(*), parameter         :: RoutineName = 'WT_PackTurbOpPointType'
    if (RF%ErrStat >= AbortErrLev) return
    call RegPack(RF, InData%RotSpeed)
    call RegPack(RF, InData%NacYaw)
@@ -355,43 +387,43 @@ subroutine WT_PackTurbOpPoint(RF, Indata)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
-subroutine WT_UnPackTurbOpPoint(RF, OutData)
+subroutine WT_UnPackTurbOpPointType(RF, OutData)
    type(RegFile), intent(inout)    :: RF
-   type(TurbOpPoint), intent(inout) :: OutData
-   character(*), parameter            :: RoutineName = 'WT_UnPackTurbOpPoint'
+   type(TurbOpPointType), intent(inout) :: OutData
+   character(*), parameter            :: RoutineName = 'WT_UnPackTurbOpPointType'
    if (RF%ErrStat /= ErrID_None) return
    call RegUnpack(RF, OutData%RotSpeed); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%NacYaw); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%BldPitch); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
-subroutine WT_CopyOutput(SrcOutputData, DstOutputData, CtrlCode, ErrStat, ErrMsg)
-   type(Output), intent(in) :: SrcOutputData
-   type(Output), intent(inout) :: DstOutputData
+subroutine WT_CopyOutFilesType(SrcOutFilesTypeData, DstOutFilesTypeData, CtrlCode, ErrStat, ErrMsg)
+   type(OutFilesType), intent(in) :: SrcOutFilesTypeData
+   type(OutFilesType), intent(inout) :: DstOutFilesTypeData
    integer(IntKi),  intent(in   ) :: CtrlCode
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
-   character(*), parameter        :: RoutineName = 'WT_CopyOutput'
+   character(*), parameter        :: RoutineName = 'WT_CopyOutFilesType'
    ErrStat = ErrID_None
    ErrMsg  = ''
-   DstOutputData%SendScreenToFile = SrcOutputData%SendScreenToFile
-   DstOutputData%OutFile = SrcOutputData%OutFile
-   DstOutputData%OutFmt = SrcOutputData%OutFmt
+   DstOutFilesTypeData%SendScreenToFile = SrcOutFilesTypeData%SendScreenToFile
+   DstOutFilesTypeData%OutFile = SrcOutFilesTypeData%OutFile
+   DstOutFilesTypeData%OutFmt = SrcOutFilesTypeData%OutFmt
 end subroutine
 
-subroutine WT_DestroyOutput(OutputData, ErrStat, ErrMsg)
-   type(Output), intent(inout) :: OutputData
+subroutine WT_DestroyOutFilesType(OutFilesTypeData, ErrStat, ErrMsg)
+   type(OutFilesType), intent(inout) :: OutFilesTypeData
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
-   character(*), parameter        :: RoutineName = 'WT_DestroyOutput'
+   character(*), parameter        :: RoutineName = 'WT_DestroyOutFilesType'
    ErrStat = ErrID_None
    ErrMsg  = ''
 end subroutine
 
-subroutine WT_PackOutput(RF, Indata)
+subroutine WT_PackOutFilesType(RF, Indata)
    type(RegFile), intent(inout) :: RF
-   type(Output), intent(in) :: InData
-   character(*), parameter         :: RoutineName = 'WT_PackOutput'
+   type(OutFilesType), intent(in) :: InData
+   character(*), parameter         :: RoutineName = 'WT_PackOutFilesType'
    if (RF%ErrStat >= AbortErrLev) return
    call RegPack(RF, InData%SendScreenToFile)
    call RegPack(RF, InData%OutFile)
@@ -399,45 +431,45 @@ subroutine WT_PackOutput(RF, Indata)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
-subroutine WT_UnPackOutput(RF, OutData)
+subroutine WT_UnPackOutFilesType(RF, OutData)
    type(RegFile), intent(inout)    :: RF
-   type(Output), intent(inout) :: OutData
-   character(*), parameter            :: RoutineName = 'WT_UnPackOutput'
+   type(OutFilesType), intent(inout) :: OutData
+   character(*), parameter            :: RoutineName = 'WT_UnPackOutFilesType'
    if (RF%ErrStat /= ErrID_None) return
    call RegUnpack(RF, OutData%SendScreenToFile); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%OutFile); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%OutFmt); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
-subroutine WT_CopyViz(SrcVizData, DstVizData, CtrlCode, ErrStat, ErrMsg)
-   type(Viz), intent(in) :: SrcVizData
-   type(Viz), intent(inout) :: DstVizData
+subroutine WT_CopyVizType(SrcVizTypeData, DstVizTypeData, CtrlCode, ErrStat, ErrMsg)
+   type(VizType), intent(in) :: SrcVizTypeData
+   type(VizType), intent(inout) :: DstVizTypeData
    integer(IntKi),  intent(in   ) :: CtrlCode
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
-   character(*), parameter        :: RoutineName = 'WT_CopyViz'
+   character(*), parameter        :: RoutineName = 'WT_CopyVizType'
    ErrStat = ErrID_None
    ErrMsg  = ''
-   DstVizData%WrVTK = SrcVizData%WrVTK
-   DstVizData%WrVTK_type = SrcVizData%WrVTK_type
-   DstVizData%WrVTK_DT = SrcVizData%WrVTK_DT
-   DstVizData%WrVTK_dir = SrcVizData%WrVTK_dir
-   DstVizData%VTKNacDim = SrcVizData%VTKNacDim
+   DstVizTypeData%WrVTK = SrcVizTypeData%WrVTK
+   DstVizTypeData%WrVTK_type = SrcVizTypeData%WrVTK_type
+   DstVizTypeData%WrVTK_DT = SrcVizTypeData%WrVTK_DT
+   DstVizTypeData%WrVTK_dir = SrcVizTypeData%WrVTK_dir
+   DstVizTypeData%VTKNacDim = SrcVizTypeData%VTKNacDim
 end subroutine
 
-subroutine WT_DestroyViz(VizData, ErrStat, ErrMsg)
-   type(Viz), intent(inout) :: VizData
+subroutine WT_DestroyVizType(VizTypeData, ErrStat, ErrMsg)
+   type(VizType), intent(inout) :: VizTypeData
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
-   character(*), parameter        :: RoutineName = 'WT_DestroyViz'
+   character(*), parameter        :: RoutineName = 'WT_DestroyVizType'
    ErrStat = ErrID_None
    ErrMsg  = ''
 end subroutine
 
-subroutine WT_PackViz(RF, Indata)
+subroutine WT_PackVizType(RF, Indata)
    type(RegFile), intent(inout) :: RF
-   type(Viz), intent(in) :: InData
-   character(*), parameter         :: RoutineName = 'WT_PackViz'
+   type(VizType), intent(in) :: InData
+   character(*), parameter         :: RoutineName = 'WT_PackVizType'
    if (RF%ErrStat >= AbortErrLev) return
    call RegPack(RF, InData%WrVTK)
    call RegPack(RF, InData%WrVTK_type)
@@ -447,10 +479,10 @@ subroutine WT_PackViz(RF, Indata)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
-subroutine WT_UnPackViz(RF, OutData)
+subroutine WT_UnPackVizType(RF, OutData)
    type(RegFile), intent(inout)    :: RF
-   type(Viz), intent(inout) :: OutData
-   character(*), parameter            :: RoutineName = 'WT_UnPackViz'
+   type(VizType), intent(inout) :: OutData
+   character(*), parameter            :: RoutineName = 'WT_UnPackVizType'
    if (RF%ErrStat /= ErrID_None) return
    call RegUnpack(RF, OutData%WrVTK); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%WrVTK_type); if (RegCheckErr(RF, RoutineName)) return
@@ -459,34 +491,34 @@ subroutine WT_UnPackViz(RF, OutData)
    call RegUnpack(RF, OutData%VTKNacDim); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
-subroutine WT_CopyIptFiles(SrcIptFilesData, DstIptFilesData, CtrlCode, ErrStat, ErrMsg)
-   type(IptFiles), intent(in) :: SrcIptFilesData
-   type(IptFiles), intent(inout) :: DstIptFilesData
+subroutine WT_CopyIptFilesType(SrcIptFilesTypeData, DstIptFilesTypeData, CtrlCode, ErrStat, ErrMsg)
+   type(IptFilesType), intent(in) :: SrcIptFilesTypeData
+   type(IptFilesType), intent(inout) :: DstIptFilesTypeData
    integer(IntKi),  intent(in   ) :: CtrlCode
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
-   character(*), parameter        :: RoutineName = 'WT_CopyIptFiles'
+   character(*), parameter        :: RoutineName = 'WT_CopyIptFilesType'
    ErrStat = ErrID_None
    ErrMsg  = ''
-   DstIptFilesData%SS_InputFile = SrcIptFilesData%SS_InputFile
-   DstIptFilesData%MD_InputFile = SrcIptFilesData%MD_InputFile
-   DstIptFilesData%AD_InputFile = SrcIptFilesData%AD_InputFile
-   DstIptFilesData%IfW_InputFile = SrcIptFilesData%IfW_InputFile
+   DstIptFilesTypeData%SS_InputFile = SrcIptFilesTypeData%SS_InputFile
+   DstIptFilesTypeData%MD_InputFile = SrcIptFilesTypeData%MD_InputFile
+   DstIptFilesTypeData%AD_InputFile = SrcIptFilesTypeData%AD_InputFile
+   DstIptFilesTypeData%IfW_InputFile = SrcIptFilesTypeData%IfW_InputFile
 end subroutine
 
-subroutine WT_DestroyIptFiles(IptFilesData, ErrStat, ErrMsg)
-   type(IptFiles), intent(inout) :: IptFilesData
+subroutine WT_DestroyIptFilesType(IptFilesTypeData, ErrStat, ErrMsg)
+   type(IptFilesType), intent(inout) :: IptFilesTypeData
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
-   character(*), parameter        :: RoutineName = 'WT_DestroyIptFiles'
+   character(*), parameter        :: RoutineName = 'WT_DestroyIptFilesType'
    ErrStat = ErrID_None
    ErrMsg  = ''
 end subroutine
 
-subroutine WT_PackIptFiles(RF, Indata)
+subroutine WT_PackIptFilesType(RF, Indata)
    type(RegFile), intent(inout) :: RF
-   type(IptFiles), intent(in) :: InData
-   character(*), parameter         :: RoutineName = 'WT_PackIptFiles'
+   type(IptFilesType), intent(in) :: InData
+   character(*), parameter         :: RoutineName = 'WT_PackIptFilesType'
    if (RF%ErrStat >= AbortErrLev) return
    call RegPack(RF, InData%SS_InputFile)
    call RegPack(RF, InData%MD_InputFile)
@@ -495,10 +527,10 @@ subroutine WT_PackIptFiles(RF, Indata)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
-subroutine WT_UnPackIptFiles(RF, OutData)
+subroutine WT_UnPackIptFilesType(RF, OutData)
    type(RegFile), intent(inout)    :: RF
-   type(IptFiles), intent(inout) :: OutData
-   character(*), parameter            :: RoutineName = 'WT_UnPackIptFiles'
+   type(IptFilesType), intent(inout) :: OutData
+   character(*), parameter            :: RoutineName = 'WT_UnPackIptFilesType'
    if (RF%ErrStat /= ErrID_None) return
    call RegUnpack(RF, OutData%SS_InputFile); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%MD_InputFile); if (RegCheckErr(RF, RoutineName)) return
@@ -517,25 +549,25 @@ subroutine WT_CopySimSettingsType(SrcSimSettingsTypeData, DstSimSettingsTypeData
    character(*), parameter        :: RoutineName = 'WT_CopySimSettingsType'
    ErrStat = ErrID_None
    ErrMsg  = ''
-   call WT_CopySim(SrcSimSettingsTypeData%Sim, DstSimSettingsTypeData%Sim, CtrlCode, ErrStat2, ErrMsg2)
+   call WT_CopySimType(SrcSimSettingsTypeData%Sim, DstSimSettingsTypeData%Sim, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
-   call WT_CopyEnv(SrcSimSettingsTypeData%Env, DstSimSettingsTypeData%Env, CtrlCode, ErrStat2, ErrMsg2)
+   call WT_CopyEnvType(SrcSimSettingsTypeData%Env, DstSimSettingsTypeData%Env, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
-   call WT_CopyTurbConfig(SrcSimSettingsTypeData%TCfg, DstSimSettingsTypeData%TCfg, CtrlCode, ErrStat2, ErrMsg2)
+   call WT_CopyTurbConfigType(SrcSimSettingsTypeData%TCfg, DstSimSettingsTypeData%TCfg, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
-   call WT_CopyTurbOpPoint(SrcSimSettingsTypeData%TOp, DstSimSettingsTypeData%TOp, CtrlCode, ErrStat2, ErrMsg2)
+   call WT_CopyTurbOpPointType(SrcSimSettingsTypeData%TOp, DstSimSettingsTypeData%TOp, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
-   call WT_CopyOutput(SrcSimSettingsTypeData%Outs, DstSimSettingsTypeData%Outs, CtrlCode, ErrStat2, ErrMsg2)
+   call WT_CopyOutFilesType(SrcSimSettingsTypeData%Outs, DstSimSettingsTypeData%Outs, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
-   call WT_CopyViz(SrcSimSettingsTypeData%Viz, DstSimSettingsTypeData%Viz, CtrlCode, ErrStat2, ErrMsg2)
+   call WT_CopyVizType(SrcSimSettingsTypeData%Viz, DstSimSettingsTypeData%Viz, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
-   call WT_CopyIptFiles(SrcSimSettingsTypeData%IptFile, DstSimSettingsTypeData%IptFile, CtrlCode, ErrStat2, ErrMsg2)
+   call WT_CopyIptFilesType(SrcSimSettingsTypeData%IptFile, DstSimSettingsTypeData%IptFile, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
 end subroutine
@@ -549,19 +581,19 @@ subroutine WT_DestroySimSettingsType(SimSettingsTypeData, ErrStat, ErrMsg)
    character(*), parameter        :: RoutineName = 'WT_DestroySimSettingsType'
    ErrStat = ErrID_None
    ErrMsg  = ''
-   call WT_DestroySim(SimSettingsTypeData%Sim, ErrStat2, ErrMsg2)
+   call WT_DestroySimType(SimSettingsTypeData%Sim, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   call WT_DestroyEnv(SimSettingsTypeData%Env, ErrStat2, ErrMsg2)
+   call WT_DestroyEnvType(SimSettingsTypeData%Env, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   call WT_DestroyTurbConfig(SimSettingsTypeData%TCfg, ErrStat2, ErrMsg2)
+   call WT_DestroyTurbConfigType(SimSettingsTypeData%TCfg, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   call WT_DestroyTurbOpPoint(SimSettingsTypeData%TOp, ErrStat2, ErrMsg2)
+   call WT_DestroyTurbOpPointType(SimSettingsTypeData%TOp, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   call WT_DestroyOutput(SimSettingsTypeData%Outs, ErrStat2, ErrMsg2)
+   call WT_DestroyOutFilesType(SimSettingsTypeData%Outs, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   call WT_DestroyViz(SimSettingsTypeData%Viz, ErrStat2, ErrMsg2)
+   call WT_DestroyVizType(SimSettingsTypeData%Viz, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   call WT_DestroyIptFiles(SimSettingsTypeData%IptFile, ErrStat2, ErrMsg2)
+   call WT_DestroyIptFilesType(SimSettingsTypeData%IptFile, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
 end subroutine
 
@@ -570,13 +602,13 @@ subroutine WT_PackSimSettingsType(RF, Indata)
    type(SimSettingsType), intent(in) :: InData
    character(*), parameter         :: RoutineName = 'WT_PackSimSettingsType'
    if (RF%ErrStat >= AbortErrLev) return
-   call WT_PackSim(RF, InData%Sim) 
-   call WT_PackEnv(RF, InData%Env) 
-   call WT_PackTurbConfig(RF, InData%TCfg) 
-   call WT_PackTurbOpPoint(RF, InData%TOp) 
-   call WT_PackOutput(RF, InData%Outs) 
-   call WT_PackViz(RF, InData%Viz) 
-   call WT_PackIptFiles(RF, InData%IptFile) 
+   call WT_PackSimType(RF, InData%Sim) 
+   call WT_PackEnvType(RF, InData%Env) 
+   call WT_PackTurbConfigType(RF, InData%TCfg) 
+   call WT_PackTurbOpPointType(RF, InData%TOp) 
+   call WT_PackOutFilesType(RF, InData%Outs) 
+   call WT_PackVizType(RF, InData%Viz) 
+   call WT_PackIptFilesType(RF, InData%IptFile) 
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -585,13 +617,286 @@ subroutine WT_UnPackSimSettingsType(RF, OutData)
    type(SimSettingsType), intent(inout) :: OutData
    character(*), parameter            :: RoutineName = 'WT_UnPackSimSettingsType'
    if (RF%ErrStat /= ErrID_None) return
-   call WT_UnpackSim(RF, OutData%Sim) ! Sim 
-   call WT_UnpackEnv(RF, OutData%Env) ! Env 
-   call WT_UnpackTurbConfig(RF, OutData%TCfg) ! TCfg 
-   call WT_UnpackTurbOpPoint(RF, OutData%TOp) ! TOp 
-   call WT_UnpackOutput(RF, OutData%Outs) ! Outs 
-   call WT_UnpackViz(RF, OutData%Viz) ! Viz 
-   call WT_UnpackIptFiles(RF, OutData%IptFile) ! IptFile 
+   call WT_UnpackSimType(RF, OutData%Sim) ! Sim 
+   call WT_UnpackEnvType(RF, OutData%Env) ! Env 
+   call WT_UnpackTurbConfigType(RF, OutData%TCfg) ! TCfg 
+   call WT_UnpackTurbOpPointType(RF, OutData%TOp) ! TOp 
+   call WT_UnpackOutFilesType(RF, OutData%Outs) ! Outs 
+   call WT_UnpackVizType(RF, OutData%Viz) ! Viz 
+   call WT_UnpackIptFilesType(RF, OutData%IptFile) ! IptFile 
+end subroutine
+
+subroutine WT_CopyCalcStepIOdataType(SrcCalcStepIOdataTypeData, DstCalcStepIOdataTypeData, CtrlCode, ErrStat, ErrMsg)
+   type(CalcStepIOdataType), intent(in) :: SrcCalcStepIOdataTypeData
+   type(CalcStepIOdataType), intent(inout) :: DstCalcStepIOdataTypeData
+   integer(IntKi),  intent(in   ) :: CtrlCode
+   integer(IntKi),  intent(  out) :: ErrStat
+   character(*),    intent(  out) :: ErrMsg
+   character(*), parameter        :: RoutineName = 'WT_CopyCalcStepIOdataType'
+   ErrStat = ErrID_None
+   ErrMsg  = ''
+   DstCalcStepIOdataTypeData%Time_c = SrcCalcStepIOdataTypeData%Time_c
+   DstCalcStepIOdataTypeData%PosAng_c = SrcCalcStepIOdataTypeData%PosAng_c
+   DstCalcStepIOdataTypeData%Vel_c = SrcCalcStepIOdataTypeData%Vel_c
+   DstCalcStepIOdataTypeData%Acc_c = SrcCalcStepIOdataTypeData%Acc_c
+   DstCalcStepIOdataTypeData%FrcMom_c = SrcCalcStepIOdataTypeData%FrcMom_c
+   DstCalcStepIOdataTypeData%FrcMom_SS = SrcCalcStepIOdataTypeData%FrcMom_SS
+   DstCalcStepIOdataTypeData%FrcMom_MD = SrcCalcStepIOdataTypeData%FrcMom_MD
+   DstCalcStepIOdataTypeData%FrcMom_ADI = SrcCalcStepIOdataTypeData%FrcMom_ADI
+end subroutine
+
+subroutine WT_DestroyCalcStepIOdataType(CalcStepIOdataTypeData, ErrStat, ErrMsg)
+   type(CalcStepIOdataType), intent(inout) :: CalcStepIOdataTypeData
+   integer(IntKi),  intent(  out) :: ErrStat
+   character(*),    intent(  out) :: ErrMsg
+   character(*), parameter        :: RoutineName = 'WT_DestroyCalcStepIOdataType'
+   ErrStat = ErrID_None
+   ErrMsg  = ''
+end subroutine
+
+subroutine WT_PackCalcStepIOdataType(RF, Indata)
+   type(RegFile), intent(inout) :: RF
+   type(CalcStepIOdataType), intent(in) :: InData
+   character(*), parameter         :: RoutineName = 'WT_PackCalcStepIOdataType'
+   if (RF%ErrStat >= AbortErrLev) return
+   call RegPack(RF, InData%Time_c)
+   call RegPack(RF, InData%PosAng_c)
+   call RegPack(RF, InData%Vel_c)
+   call RegPack(RF, InData%Acc_c)
+   call RegPack(RF, InData%FrcMom_c)
+   call RegPack(RF, InData%FrcMom_SS)
+   call RegPack(RF, InData%FrcMom_MD)
+   call RegPack(RF, InData%FrcMom_ADI)
+   if (RegCheckErr(RF, RoutineName)) return
+end subroutine
+
+subroutine WT_UnPackCalcStepIOdataType(RF, OutData)
+   type(RegFile), intent(inout)    :: RF
+   type(CalcStepIOdataType), intent(inout) :: OutData
+   character(*), parameter            :: RoutineName = 'WT_UnPackCalcStepIOdataType'
+   if (RF%ErrStat /= ErrID_None) return
+   call RegUnpack(RF, OutData%Time_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%PosAng_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%Vel_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%Acc_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%FrcMom_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%FrcMom_SS); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%FrcMom_MD); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%FrcMom_ADI); if (RegCheckErr(RF, RoutineName)) return
+end subroutine
+
+subroutine WT_CopyWrOutputDataType(SrcWrOutputDataTypeData, DstWrOutputDataTypeData, CtrlCode, ErrStat, ErrMsg)
+   type(WrOutputDataType), intent(in) :: SrcWrOutputDataTypeData
+   type(WrOutputDataType), intent(inout) :: DstWrOutputDataTypeData
+   integer(IntKi),  intent(in   ) :: CtrlCode
+   integer(IntKi),  intent(  out) :: ErrStat
+   character(*),    intent(  out) :: ErrMsg
+   integer(B4Ki)                  :: LB(1), UB(1)
+   integer(IntKi)                 :: ErrStat2
+   character(*), parameter        :: RoutineName = 'WT_CopyWrOutputDataType'
+   ErrStat = ErrID_None
+   ErrMsg  = ''
+   DstWrOutputDataTypeData%NumChans_cbind = SrcWrOutputDataTypeData%NumChans_cbind
+   DstWrOutputDataTypeData%NumChans_SS = SrcWrOutputDataTypeData%NumChans_SS
+   DstWrOutputDataTypeData%NumChans_MD = SrcWrOutputDataTypeData%NumChans_MD
+   DstWrOutputDataTypeData%NumChans_ADI = SrcWrOutputDataTypeData%NumChans_ADI
+   DstWrOutputDataTypeData%NumChans_all = SrcWrOutputDataTypeData%NumChans_all
+   if (allocated(SrcWrOutputDataTypeData%WriteOutputHdr_SS)) then
+      LB(1:1) = lbound(SrcWrOutputDataTypeData%WriteOutputHdr_SS)
+      UB(1:1) = ubound(SrcWrOutputDataTypeData%WriteOutputHdr_SS)
+      if (.not. allocated(DstWrOutputDataTypeData%WriteOutputHdr_SS)) then
+         allocate(DstWrOutputDataTypeData%WriteOutputHdr_SS(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstWrOutputDataTypeData%WriteOutputHdr_SS.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstWrOutputDataTypeData%WriteOutputHdr_SS = SrcWrOutputDataTypeData%WriteOutputHdr_SS
+   end if
+   if (allocated(SrcWrOutputDataTypeData%WriteOutputUnt_SS)) then
+      LB(1:1) = lbound(SrcWrOutputDataTypeData%WriteOutputUnt_SS)
+      UB(1:1) = ubound(SrcWrOutputDataTypeData%WriteOutputUnt_SS)
+      if (.not. allocated(DstWrOutputDataTypeData%WriteOutputUnt_SS)) then
+         allocate(DstWrOutputDataTypeData%WriteOutputUnt_SS(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstWrOutputDataTypeData%WriteOutputUnt_SS.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstWrOutputDataTypeData%WriteOutputUnt_SS = SrcWrOutputDataTypeData%WriteOutputUnt_SS
+   end if
+   if (allocated(SrcWrOutputDataTypeData%WriteOutputHdr_MD)) then
+      LB(1:1) = lbound(SrcWrOutputDataTypeData%WriteOutputHdr_MD)
+      UB(1:1) = ubound(SrcWrOutputDataTypeData%WriteOutputHdr_MD)
+      if (.not. allocated(DstWrOutputDataTypeData%WriteOutputHdr_MD)) then
+         allocate(DstWrOutputDataTypeData%WriteOutputHdr_MD(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstWrOutputDataTypeData%WriteOutputHdr_MD.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstWrOutputDataTypeData%WriteOutputHdr_MD = SrcWrOutputDataTypeData%WriteOutputHdr_MD
+   end if
+   if (allocated(SrcWrOutputDataTypeData%WriteOutputUnt_MD)) then
+      LB(1:1) = lbound(SrcWrOutputDataTypeData%WriteOutputUnt_MD)
+      UB(1:1) = ubound(SrcWrOutputDataTypeData%WriteOutputUnt_MD)
+      if (.not. allocated(DstWrOutputDataTypeData%WriteOutputUnt_MD)) then
+         allocate(DstWrOutputDataTypeData%WriteOutputUnt_MD(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstWrOutputDataTypeData%WriteOutputUnt_MD.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstWrOutputDataTypeData%WriteOutputUnt_MD = SrcWrOutputDataTypeData%WriteOutputUnt_MD
+   end if
+   if (allocated(SrcWrOutputDataTypeData%WriteOutputHdr_ADI)) then
+      LB(1:1) = lbound(SrcWrOutputDataTypeData%WriteOutputHdr_ADI)
+      UB(1:1) = ubound(SrcWrOutputDataTypeData%WriteOutputHdr_ADI)
+      if (.not. allocated(DstWrOutputDataTypeData%WriteOutputHdr_ADI)) then
+         allocate(DstWrOutputDataTypeData%WriteOutputHdr_ADI(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstWrOutputDataTypeData%WriteOutputHdr_ADI.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstWrOutputDataTypeData%WriteOutputHdr_ADI = SrcWrOutputDataTypeData%WriteOutputHdr_ADI
+   end if
+   if (allocated(SrcWrOutputDataTypeData%WriteOutputUnt_ADI)) then
+      LB(1:1) = lbound(SrcWrOutputDataTypeData%WriteOutputUnt_ADI)
+      UB(1:1) = ubound(SrcWrOutputDataTypeData%WriteOutputUnt_ADI)
+      if (.not. allocated(DstWrOutputDataTypeData%WriteOutputUnt_ADI)) then
+         allocate(DstWrOutputDataTypeData%WriteOutputUnt_ADI(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstWrOutputDataTypeData%WriteOutputUnt_ADI.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstWrOutputDataTypeData%WriteOutputUnt_ADI = SrcWrOutputDataTypeData%WriteOutputUnt_ADI
+   end if
+   if (allocated(SrcWrOutputDataTypeData%OutData_SS)) then
+      LB(1:1) = lbound(SrcWrOutputDataTypeData%OutData_SS)
+      UB(1:1) = ubound(SrcWrOutputDataTypeData%OutData_SS)
+      if (.not. allocated(DstWrOutputDataTypeData%OutData_SS)) then
+         allocate(DstWrOutputDataTypeData%OutData_SS(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstWrOutputDataTypeData%OutData_SS.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstWrOutputDataTypeData%OutData_SS = SrcWrOutputDataTypeData%OutData_SS
+   end if
+   if (allocated(SrcWrOutputDataTypeData%OutData_MD)) then
+      LB(1:1) = lbound(SrcWrOutputDataTypeData%OutData_MD)
+      UB(1:1) = ubound(SrcWrOutputDataTypeData%OutData_MD)
+      if (.not. allocated(DstWrOutputDataTypeData%OutData_MD)) then
+         allocate(DstWrOutputDataTypeData%OutData_MD(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstWrOutputDataTypeData%OutData_MD.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstWrOutputDataTypeData%OutData_MD = SrcWrOutputDataTypeData%OutData_MD
+   end if
+   if (allocated(SrcWrOutputDataTypeData%OutData_ADI)) then
+      LB(1:1) = lbound(SrcWrOutputDataTypeData%OutData_ADI)
+      UB(1:1) = ubound(SrcWrOutputDataTypeData%OutData_ADI)
+      if (.not. allocated(DstWrOutputDataTypeData%OutData_ADI)) then
+         allocate(DstWrOutputDataTypeData%OutData_ADI(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstWrOutputDataTypeData%OutData_ADI.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstWrOutputDataTypeData%OutData_ADI = SrcWrOutputDataTypeData%OutData_ADI
+   end if
+   DstWrOutputDataTypeData%OutName = SrcWrOutputDataTypeData%OutName
+   DstWrOutputDataTypeData%OutUn = SrcWrOutputDataTypeData%OutUn
+end subroutine
+
+subroutine WT_DestroyWrOutputDataType(WrOutputDataTypeData, ErrStat, ErrMsg)
+   type(WrOutputDataType), intent(inout) :: WrOutputDataTypeData
+   integer(IntKi),  intent(  out) :: ErrStat
+   character(*),    intent(  out) :: ErrMsg
+   character(*), parameter        :: RoutineName = 'WT_DestroyWrOutputDataType'
+   ErrStat = ErrID_None
+   ErrMsg  = ''
+   if (allocated(WrOutputDataTypeData%WriteOutputHdr_SS)) then
+      deallocate(WrOutputDataTypeData%WriteOutputHdr_SS)
+   end if
+   if (allocated(WrOutputDataTypeData%WriteOutputUnt_SS)) then
+      deallocate(WrOutputDataTypeData%WriteOutputUnt_SS)
+   end if
+   if (allocated(WrOutputDataTypeData%WriteOutputHdr_MD)) then
+      deallocate(WrOutputDataTypeData%WriteOutputHdr_MD)
+   end if
+   if (allocated(WrOutputDataTypeData%WriteOutputUnt_MD)) then
+      deallocate(WrOutputDataTypeData%WriteOutputUnt_MD)
+   end if
+   if (allocated(WrOutputDataTypeData%WriteOutputHdr_ADI)) then
+      deallocate(WrOutputDataTypeData%WriteOutputHdr_ADI)
+   end if
+   if (allocated(WrOutputDataTypeData%WriteOutputUnt_ADI)) then
+      deallocate(WrOutputDataTypeData%WriteOutputUnt_ADI)
+   end if
+   if (allocated(WrOutputDataTypeData%OutData_SS)) then
+      deallocate(WrOutputDataTypeData%OutData_SS)
+   end if
+   if (allocated(WrOutputDataTypeData%OutData_MD)) then
+      deallocate(WrOutputDataTypeData%OutData_MD)
+   end if
+   if (allocated(WrOutputDataTypeData%OutData_ADI)) then
+      deallocate(WrOutputDataTypeData%OutData_ADI)
+   end if
+end subroutine
+
+subroutine WT_PackWrOutputDataType(RF, Indata)
+   type(RegFile), intent(inout) :: RF
+   type(WrOutputDataType), intent(in) :: InData
+   character(*), parameter         :: RoutineName = 'WT_PackWrOutputDataType'
+   if (RF%ErrStat >= AbortErrLev) return
+   call RegPack(RF, InData%NumChans_cbind)
+   call RegPack(RF, InData%NumChans_SS)
+   call RegPack(RF, InData%NumChans_MD)
+   call RegPack(RF, InData%NumChans_ADI)
+   call RegPack(RF, InData%NumChans_all)
+   call RegPackAlloc(RF, InData%WriteOutputHdr_SS)
+   call RegPackAlloc(RF, InData%WriteOutputUnt_SS)
+   call RegPackAlloc(RF, InData%WriteOutputHdr_MD)
+   call RegPackAlloc(RF, InData%WriteOutputUnt_MD)
+   call RegPackAlloc(RF, InData%WriteOutputHdr_ADI)
+   call RegPackAlloc(RF, InData%WriteOutputUnt_ADI)
+   call RegPackAlloc(RF, InData%OutData_SS)
+   call RegPackAlloc(RF, InData%OutData_MD)
+   call RegPackAlloc(RF, InData%OutData_ADI)
+   call RegPack(RF, InData%OutName)
+   call RegPack(RF, InData%OutUn)
+   if (RegCheckErr(RF, RoutineName)) return
+end subroutine
+
+subroutine WT_UnPackWrOutputDataType(RF, OutData)
+   type(RegFile), intent(inout)    :: RF
+   type(WrOutputDataType), intent(inout) :: OutData
+   character(*), parameter            :: RoutineName = 'WT_UnPackWrOutputDataType'
+   integer(B4Ki)   :: LB(1), UB(1)
+   integer(IntKi)  :: stat
+   logical         :: IsAllocAssoc
+   if (RF%ErrStat /= ErrID_None) return
+   call RegUnpack(RF, OutData%NumChans_cbind); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%NumChans_SS); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%NumChans_MD); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%NumChans_ADI); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%NumChans_all); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%WriteOutputHdr_SS); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%WriteOutputUnt_SS); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%WriteOutputHdr_MD); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%WriteOutputUnt_MD); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%WriteOutputHdr_ADI); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%WriteOutputUnt_ADI); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%OutData_SS); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%OutData_MD); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%OutData_ADI); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%OutName); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%OutUn); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
 subroutine WT_CopyMeshesMotion(SrcMeshesMotionData, DstMeshesMotionData, CtrlCode, ErrStat, ErrMsg)

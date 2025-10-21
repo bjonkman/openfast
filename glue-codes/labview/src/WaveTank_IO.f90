@@ -33,6 +33,48 @@ MODULE WaveTank_IO
    use WaveTank_Types
 
    implicit none
+   private
+
+   public :: ParseInputFile
+   public :: ValidateInputFile
+   public :: TransferOutChanNamesUnits
+   public :: InitOutputFile
+   public :: WriteOutputLine
+
+   ! These channels are output by default
+   integer(IntKi), parameter :: NumDefChans = 43
+   character(OutStrLenM1), parameter  :: DefChanNames(NumDefChans) =  (/ "Time          ",   &
+                              "Ptfm_x        ","Ptfm_y        ","Ptfm_z        ",   &  ! position (absolute global)
+                              "Ptfm_Rx       ","Ptfm_Ry       ","Ptfm_Rz       ",   &  ! Euler angles phi,theta,psi
+                              "Ptfm_Vx       ","Ptfm_Vy       ","Ptfm_Vz       ",   &  ! translation vel
+                              "Ptfm_RVx      ","Ptfm_RVy      ","Ptfm_RVz      ",   &  ! rotation vel
+                              "Ptfm_Ax       ","Ptfm_Ay       ","Ptfm_Az       ",   &  ! translation acc
+                              "Ptfm_RAx      ","Ptfm_RAy      ","Ptfm_RAz      ",   &  ! rotation acc
+                              "Ptfm_Fx       ","Ptfm_Fy       ","Ptfm_Fz       ",   &  ! Forces total
+                              "Ptfm_Mx       ","Ptfm_My       ","Ptfm_Mz       ",   &  ! Moments total
+                              "SS_Fx         ","SS_Fy         ","SS_Fz         ",   &  ! Forces from SS
+                              "SS_Mx         ","SS_My         ","SS_Mz         ",   &  ! Moments from SS
+                              "MD_Fx         ","MD_Fy         ","MD_Fz         ",   &  ! Forces from MD
+                              "MD_Mx         ","MD_My         ","MD_Mz         ",   &  ! Moments from MD
+                              "ADI_Fx        ","ADI_Fy        ","ADI_Fz        ",   &  ! Forces from ADI
+                              "ADI_Mx        ","ADI_My        ","ADI_Mz        "    &  ! Moments from ADI
+                           /)
+   character(OutStrLenM1), parameter  :: DefChanUnits(NumDefChans) =  (/ "(s)           ",   &
+                              "(m)           ","(m)           ","(m)           ",   &
+                              "(rad)         ","(rad)         ","(rad)         ",   &
+                              "(m/s)         ","(m/s)         ","(m/s)         ",   &
+                              "(rad/s)       ","(rad/s)       ","(rad/s)       ",   &
+                              "(m/s^2)       ","(m/s^2)       ","(m/s^2)       ",   &
+                              "(rad/s^2)     ","(rad/s^2)     ","(rad/s^2)     ",   &
+                              "(N)           ","(N)           ","(N)           ",   &  ! Forces total
+                              "(N-m)         ","(N-m)         ","(N-m)         ",   &  ! Moments total
+                              "(N)           ","(N)           ","(N)           ",   &  ! Forces from SS
+                              "(N-m)         ","(N-m)         ","(N-m)         ",   &  ! Moments from SS
+                              "(N)           ","(N)           ","(N)           ",   &  ! Forces from MD
+                              "(N-m)         ","(N-m)         ","(N-m)         ",   &  ! Moments from MD
+                              "(N)           ","(N)           ","(N)           ",   &  ! Forces from ADI
+                              "(N-m)         ","(N-m)         ","(N-m)         "    &  ! Moments from ADI
+                           /)
 
 contains
 
@@ -167,4 +209,146 @@ contains
    end function Failed
 end subroutine
 
+
+!> Transfer names or units from c character arrays into fortran character arrays for output file writing
+subroutine TransferOutChanNamesUnits(NumChans, name, NamesUnits_C, NamesUnits, ErrStat, ErrMsg)
+   integer(IntKi),                  intent(in   )  :: NumChans
+   character(*),                    intent(in   )  :: name
+   character(c_char),               intent(in   )  :: NamesUnits_C(:)
+   character(ChanLen), allocatable, intent(  out)  :: NamesUnits(:)
+   integer(IntKi),                  intent(  out)  :: ErrStat
+   character(ErrMsgLen),            intent(  out)  :: ErrMsg
+   integer(IntKi) :: i,idxStart,idxEnd
+   call AllocAry(NamesUnits, NumChans, name, ErrStat, ErrMsg)
+   if (ErrStat >= AbortErrLev) return
+   do i=1,NumChans
+      idxStart = (i-1)*ChanLen + 1
+      idxEnd   = i*ChanLen
+      NamesUnits(i) = transfer(NamesUnits_C(idxStart:idxEnd),NamesUnits(i))
+   enddo
+end subroutine
+
+
+!> open the output file and populate the header
+subroutine  InitOutputFile(WrOutputData, ErrStat, ErrMsg)
+   type(WrOutputDataType), intent(inout)  :: WrOutputData
+   integer(IntKi),         intent(  out)  :: ErrStat
+   character(ErrMsgLen),   intent(  out)  :: ErrMsg
+   integer(IntKi)          :: i
+   integer(IntKi)          :: ErrStat2
+   character(ErrMsgLen)    :: ErrMsg2
+   character(*), parameter :: RoutineName = 'InitOutputFile'
+   if (WrOutputData%OutUn > 0) then
+      ErrStat = ErrID_Warn
+      ErrMsg   = "Output file "//trim(WrOutputData%OutName)//" already open"
+      return
+   endif
+   
+   call GetNewUnit(WrOutputData%OutUn,ErrStat2,ErrMsg2)
+   call OpenFOutFile (WrOutputData%OutUn, trim(WrOutputData%OutName), ErrStat2, ErrMsg2)
+   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   if (ErrStat >= AbortErrLev) return
+
+!FIXME: add version info here
+   ! write header line
+   write (WrOutputData%OutUn,'(/,A)')  'Simulation run on '//CurDate()//' at '//CurTime()//' using the WaveTank c-binding interface'
+   write (WrOutputData%OutUn,'()')
+   write (WrOutputData%OutUn,'()')
+   write (WrOutputData%OutUn,'()')
+   write (WrOutputData%OutUn,'()')
+   
+   !......................................................
+   ! Write the names of the output parameters on one line:
+   !......................................................
+   ! default outputs
+   call WrFileNR(WrOutputData%OutUn, DefChanNames(1))   ! time channel
+   do i=2,NumDefChans
+      call WrFileNR(WrOutputData%OutUn, tab//DefChanNames(i))
+   enddo
+   ! SS
+   do i=1,WrOutputData%NumChans_SS
+      call WrFileNR(WrOutputData%OutUn, tab//WrOutputData%WriteOutputHdr_SS(i))
+   enddo
+   ! MD
+   do i=1,WrOutputData%NumChans_MD
+      call WrFileNR(WrOutputData%OutUn, tab//WrOutputData%WriteOutputHdr_MD(i))
+   enddo
+   ! ADI
+   do i=1,WrOutputData%NumChans_ADI
+      call WrFileNR(WrOutputData%OutUn, tab//WrOutputData%WriteOutputHdr_ADI(i))
+   enddo
+   write (WrOutputData%OutUn,'()')
+
+   !......................................................
+   ! Write the units of the output parameters on one line:
+   !......................................................
+   ! default outputs
+   call WrFileNR(WrOutputData%OutUn, DefChanUnits(1))   ! time channel
+   do i=2,NumDefChans
+      call WrFileNR(WrOutputData%OutUn, tab//DefChanUnits(i))
+   enddo
+   ! SS
+   do i=1,WrOutputData%NumChans_SS
+      call WrFileNR(WrOutputData%OutUn, tab//WrOutputData%WriteOutputUnt_SS(i))
+   enddo
+   ! MD
+   do i=1,WrOutputData%NumChans_MD
+      call WrFileNR(WrOutputData%OutUn, tab//WrOutputData%WriteOutputUnt_MD(i))
+   enddo
+   ! ADI
+   do i=1,WrOutputData%NumChans_ADI
+      call WrFileNR(WrOutputData%OutUn, tab//WrOutputData%WriteOutputUnt_ADI(i))
+   enddo
+   write (WrOutputData%OutUn,'()')
+
+end subroutine
+
+
+subroutine WriteOutputLine(OutFmt, CalcStepIO, WrOutputData, ErrStat, ErrMsg)
+   character(*),              intent(in   )  :: OutFmt
+   type(CalcStepIOdataType),  intent(in   )  :: CalcStepIO
+   type(WrOutputDataType),    intent(in   )  :: WrOutputData
+   integer(IntKi),            intent(  out)  :: ErrStat
+   character(ErrMsgLen),      intent(  out)  :: ErrMsg
+   integer(IntKi)                            :: OutUnit
+   integer(IntKi)                            :: errStat2             ! Status of error message (we're going to ignore errors in writing to the file)
+   character(ErrMsgLen)                      :: errMsg2              ! Error message if ErrStat /= ErrID_None
+   character(200)                            :: frmt                 ! A string to hold a format specifier
+   character(15)                             :: tmpStr               ! temporary string to print the time output as text
+
+   ErrStat = ErrID_None
+   ErrMSg  = ""
+
+   frmt = '"'//tab//'"'//trim(OutFmt)      ! format for array elements from individual modules
+   OutUnit = WrOutputData%OutUn
+   if (OutUnit <= 0_IntKi) then
+      ErrStat = ErrID_Severe
+      ErrMSg  = 'Cannot write to output file '//trim(WrOutputData%OutName)
+      return
+   endif
+   
+   ! time
+   write( tmpStr, '(F15.6)' ) CalcStepIO%Time_c
+   call WrFileNR( OutUnit, tmpStr )
+   ! position / orientation euler angles, velocity, accel, resulting force/moment
+   call WrNumAryFileNR(OutUnit, CalcStepIO%PosAng_c,   frmt, errStat2, errMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, CalcStepIO%Vel_c,      frmt, errStat2, errMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, CalcStepIO%Acc_c,      frmt, errStat2, errMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_c,   frmt, errStat2, errMsg2); if (Failed()) return ! total
+   call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_SS,  frmt, errStat2, errMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_MD,  frmt, errStat2, errMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_ADI, frmt, errStat2, errMsg2); if (Failed()) return
+   ! channels from modules
+   call WrNumAryFileNR(OutUnit, WrOutputData%OutData_SS,  frmt, errStat2, ErrMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, WrOutputData%OutData_MD,  frmt, errStat2, ErrMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, WrOutputData%OutData_ADI, frmt, errStat2, ErrMsg2); if (Failed()) return
+   ! write a new line (advance to the next line)
+   write (OutUnit,'()')
+contains
+   logical function Failed()
+        call SetErrStat(errStat2, errMsg2, errStat, errMsg, 'WriteOutputLine') 
+        Failed =  errStat >= AbortErrLev
+   end function Failed
+end subroutine
+ 
 END MODULE WaveTank_IO

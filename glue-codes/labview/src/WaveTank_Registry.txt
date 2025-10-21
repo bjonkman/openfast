@@ -13,14 +13,14 @@
 include    Registry_NWTC_Library.txt
 #
 
-typedef  WaveTank/WT          Sim            c_double          DT                   -  -  -  "timestep" -
+typedef  WaveTank/WT          SimType       c_double          DT                   -  -  -  "timestep" -
 typedef  ^                    ^              c_double          TMax                 -  -  -  "Max sim time" -
 typedef  ^                    ^              c_int             MHK                  -  -  -  "MHK turbine type (switch) {0=Not an MHK turbine; 1=Fixed MHK turbine; 2=Floating MHK turbine}" (-)
 typedef  ^                    ^              c_int             InterpOrd            -  1  -  "Interpolation order" -
 typedef  ^                    ^              c_int             DebugLevel           -  -  -  "Debug level for outputs" -
 typedef  ^                    ^              character(1024)   OutRootName          -  -  -  "Rootname for outputs" -
 
-typedef  ^                    Env            c_float           Gravity              -  -  -  "gravitational constant (positive for down)" (m/s^2)
+typedef  ^                    EnvType        c_float           Gravity              -  -  -  "gravitational constant (positive for down)" (m/s^2)
 typedef  ^                    ^              ^                 WtrDens              -  -  -  "Water density" (kg/m^3)
 typedef  ^                    ^              ^                 WtrVisc              -  -  -  "fluid viscosity" (m^2/s)
 typedef  ^                    ^              ^                 SpdSound             -  -  -  "Speed of sound in working fluid" (m/s)
@@ -29,7 +29,7 @@ typedef  ^                    ^              ^                 Pvap             
 typedef  ^                    ^              ^                 WtrDpth              -  -  -  "Water depth" (m)
 typedef  ^                    ^              ^                 MSL2SWL              -  -  -  "Mean sea level to still water level" (m)
 
-typedef  ^                    TurbConfig     c_int             NumBl                -  -  -  "Number of blades" (-)
+typedef  ^                 TurbConfigType    c_int             NumBl                -  -  -  "Number of blades" (-)
 typedef  ^                    ^              c_float           TipRad               -  -  -  "The distance from the rotor apex to the blade tip" (m)
 typedef  ^                    ^              ^                 HubRad               -  -  -  "The distance from the rotor apex to the blade root" (m)
 typedef  ^                    ^              ^                 PreCone              -  -  -  "Blade cone angle" (deg)
@@ -41,34 +41,63 @@ typedef  ^                    ^              ^                 TowerHt          
 typedef  ^                    ^              ^                 TowerBsPt            3  -  -  "Tower base location relative to MSL. Consider absolute difference to PtfmRef [floating MHK]" (m)
 typedef  ^                    ^              ^                 PtfmRef              3  -  -  "Location of platform reference point, relative to MSL.  Motions and loads all connect to this point" (m)
 
-typedef  ^                    TurbOpPoint    c_float           RotSpeed             -  -  -  "Rotor speed" (RPM)
+typedef  ^                 TurbOpPointType   c_float           RotSpeed             -  -  -  "Rotor speed" (RPM)
 typedef  ^                    ^              ^                 NacYaw               -  -  -  "Initial or fixed nacelle-yaw angle" (deg)
 typedef  ^                    ^              ^                 BldPitch             -  -  -  "Fixed blade pitch for full simulation" (deg)
 
-typedef  ^                    Output         logical           SendScreenToFile     -  -  -  "send to file <OutRootName>.screen.log if true" (-)
+typedef  ^                    OutFilesType   logical           SendScreenToFile     -  -  -  "send to file <OutRootName>.screen.log if true" (-)
 typedef  ^                    ^              c_int             OutFile              -  -  -  "0: no output file of channels, 1: output file in text format (at DT)" (-)
 typedef  ^                    ^              character(20)     OutFmt               -  -  -  "Format used for text tabular output, excluding the time channel. (quoted string)" (-)
 
-typedef  ^                    Viz            c_int             WrVTK                -  -  -  "Write VTK?" -
+typedef  ^                    VizType        c_int             WrVTK                -  -  -  "Write VTK?" -
 typedef  ^                    ^              ^                 WrVTK_type           -  -  -  "Write VTK outputs as [1: surface, 2: lines, 3: both]" -
 typedef  ^                    ^              c_double          WrVTK_DT             -  -  -  "Time step between VTK writes" -
 typedef  ^                    ^              character(1024)   WrVTK_dir            -  -  -  "Directory for VTK writing" -
 typedef  ^                    ^              c_float           VTKNacDim            6  -  -  "Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz]" (m)
 
-typedef  ^                    IptFiles       character(1024)   SS_InputFile         -  -  -  "SeaState   input file" (-)
+typedef  ^                    IptFilesType   character(1024)   SS_InputFile         -  -  -  "SeaState   input file" (-)
 typedef  ^                    ^              ^                 MD_InputFile         -  -  -  "MoorDyn    input file" (-)
 typedef  ^                    ^              ^                 AD_InputFile         -  -  -  "AeroDyn    input file" (-)
 typedef  ^                    ^              ^                 IfW_InputFile        -  -  -  "InflowWind input file" (-)
 
 
-typedef  ^                 SimSettingsType   Sim               Sim                  -  -  -  "Simulation settings" -
-typedef  ^                    ^              Env               Env                  -  -  -  "Environment settings" -
-typedef  ^                    ^              TurbConfig        TCfg                 -  -  -  "Turbine configuration" -
-typedef  ^                    ^              TurbOpPoint       TOp                  -  -  -  "Turbine operating point" -
-typedef  ^                    ^              Output            Outs                 -  -  -  "Output settings" -
-typedef  ^                    ^              Viz               Viz                  -  -  -  "Vizualization settings" -
-typedef  ^                    ^              IptFiles          IptFile              -  -  -  "Input files for each module" -
+typedef  ^                 SimSettingsType   SimType          Sim                  -  -  -  "Simulation settings" -
+typedef  ^                    ^              EnvType          Env                  -  -  -  "Environment settings" -
+typedef  ^                    ^              TurbConfigType   TCfg                 -  -  -  "Turbine configuration" -
+typedef  ^                    ^              TurbOpPointType  TOp                  -  -  -  "Turbine operating point" -
+typedef  ^                    ^              OutFilesType     Outs                 -  -  -  "Output settings" -
+typedef  ^                    ^              VizType          Viz                  -  -  -  "Vizualization settings" -
+typedef  ^                    ^              IptFilesType     IptFile              -  -  -  "Input files for each module" -
 
+
+# Storage for IO to CalcStep (simplifies output - probably not necessary, but here it is anyhow)
+typedef  ^              CalcStepIOdataType   c_double          Time_c               -  -  -  "IN:  time"                                        "(s)"
+typedef  ^                    ^              c_float           PosAng_c             6  -  -  "IN:  Position + Euler Ang [x,y,z,phi,theta,psi]"  "[(m) (rad)]"
+typedef  ^                    ^              ^                 Vel_c                6  -  -  "IN:  Velocity             [Vx,Vy,Vz,RVx,RVy,RVz]" "[(m/s) (rad/s)]"
+typedef  ^                    ^              ^                 Acc_c                6  -  -  "IN:  Acceleration         [Ax,Ay,Az,RAx,RAy,RAz]" "[(m/s^2) (rad/s^2)]"
+typedef  ^                    ^              ^                 FrcMom_c             6  -  -  "OUT: Acceleration         [Fx,Fy,Fz,Mx,My,Mz]"    "[(N) (N-m)]"
+typedef  ^                    ^              ReKi              FrcMom_SS            6  -  -  "calculated forces/moments from SS" -
+typedef  ^                    ^              ^                 FrcMom_MD            6  -  -  "calculated forces/moments from MD" -
+typedef  ^                    ^              ^                 FrcMom_ADI           6  -  -  "calculated forces/moments from ADI" -
+
+
+# storage for output file data (num chans, WriteOutputHdr, out arrays per module, etc)
+typedef  ^                 WrOutputDataType  IntKi             NumChans_cbind       -  0  -  "Number of output channels from c-bind" -
+typedef  ^                    ^              ^                 NumChans_SS          -  0  -  "Number of output channels from SS" -
+typedef  ^                    ^              ^                 NumChans_MD          -  0  -  "Number of output channels from MD" -
+typedef  ^                    ^              ^                 NumChans_ADI         -  0  -  "Number of output channels from ADI" -
+typedef  ^                    ^              ^                 NumChans_all         -  0  -  "Total number of channels (sum of above)" -
+typedef  ^                    ^           character(ChanLen)   WriteOutputHdr_SS    :  -  -  "output file header names from SS" -
+typedef  ^                    ^              ^                 WriteOutputUnt_SS    :  -  -  "output file header units from SS" -
+typedef  ^                    ^              ^                 WriteOutputHdr_MD    :  -  -  "output file header names from MD" -
+typedef  ^                    ^              ^                 WriteOutputUnt_MD    :  -  -  "output file header units from MD" -
+typedef  ^                    ^              ^                 WriteOutputHdr_ADI   :  -  -  "output file header names from ADI" -
+typedef  ^                    ^              ^                 WriteOutputUnt_ADI   :  -  -  "output file header units from ADI" -
+typedef  ^                    ^              ReKi              OutData_SS           :  -  -  "output data from SS" -
+typedef  ^                    ^              ^                 OutData_MD           :  -  -  "output data from MD" -
+typedef  ^                    ^              ^                 OutData_ADI          :  -  -  "output data from ADI" -
+typedef  ^                    ^              character(1024)   OutName              -  -  -  "Output file name" -
+typedef  ^                    ^              IntKi             OutUn                -  -1 -  "Output unit" -
 
 
 # Mesh structures and mappings
