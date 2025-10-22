@@ -50,6 +50,7 @@ subroutine StructCreate(SimSettings, MeshMotions, MeshLoads, MeshMaps, StructTmp
    integer(IntKi)                                  :: ErrStat2
    character(ErrMsgLen)                            :: ErrMsg2
    character(*),           parameter               :: RoutineName = 'WaveTank::StructCreate'
+   real(ReKi)                                      :: TmpPos(3)
    real(DbKi)                                      :: Orient(3,3) ! temporary orientation
    type(TurbConfigType),   pointer                 :: TrbCfg      ! to shorten notation
    type(TurbInitCondType), pointer                 :: TrbInit     ! to shorten notation
@@ -67,8 +68,9 @@ subroutine StructCreate(SimSettings, MeshMotions, MeshLoads, MeshMaps, StructTmp
 
 
    ! create PRP platform point
+   TmpPos = real(TrbCfg%PtfmRefPos,ReKi)  ! c_float to ReKi
    Orient=WT_EulerToDCM_fromInput(TrbCfg%PtfmRefOrient)
-   call CreateInputPointMesh(MeshMotions%PtfmPtMotion, TrbCfg%PtfmRefPos, Orient, ErrStat2, ErrMsg2, hasMotion=.true., hasLoads=.false.); if (Failed()) return
+   call CreateInputPointMesh(MeshMotions%PtfmPtMotion, TmpPos, Orient, ErrStat2, ErrMsg2, hasMotion=.true., hasLoads=.false.); if (Failed()) return
 
    !
 
@@ -137,10 +139,10 @@ subroutine WrVTK_Struct_Ref(SimSettings, MeshMotions, MeshLoads, ErrStat, ErrMsg
    integer(IntKi)                                  :: ErrStat2
    character(ErrMsgLen)                            :: ErrMsg2
    character(*),           parameter               :: RoutineName = 'WaveTank::WrVTK_Struct_Ref'
-   real(ReKi)                                      :: RefPt(3)
+   real(SiKi)                                      :: RefPt(3)
    ErrStat = ErrID_None
    ErrMsg  = ''
-   RefPt   = (/ 0.0_ReKi, 0.0_ReKi, 0.0_ReKi /)
+   RefPt   = (/ 0.0_SiKi, 0.0_SiKi, 0.0_SiKi /)
    ! Platform point
    call MeshWrVTKreference(RefPt, MeshMotions%PtfmPtMotion, trim(SimSettings%Viz%WrVTK_dir)//PathSep//trim(SimSettings%Sim%OutRootName)//'.Struct'//'.PtfmPtMotion', ErrStat2, ErrMsg2); if (Failed()) return
 contains
@@ -160,10 +162,10 @@ subroutine WrVTK_Struct(n_Global, SimSettings, MeshMotions, MeshLoads, ErrStat, 
    integer(IntKi)                                  :: ErrStat2
    character(ErrMsgLen)                            :: ErrMsg2
    character(*),           parameter               :: RoutineName = 'WaveTank::WrVTK_Struct'
-   real(ReKi)                                      :: RefPt(3)
+   real(SiKi)                                      :: RefPt(3)
    ErrStat = ErrID_None
    ErrMsg  = ''
-   RefPt   = (/ 0.0_ReKi, 0.0_ReKi, 0.0_ReKi /)
+   RefPt   = (/ 0.0_SiKi, 0.0_SiKi, 0.0_SiKi /)
    ! Platform point
    call MeshWrVTK(RefPt, MeshMotions%PtfmPtMotion, trim(SimSettings%Viz%WrVTK_dir)//PathSep//trim(SimSettings%Sim%OutRootName)//'.Struct'//'.PtfmPtMotion', n_Global, .true., ErrStat2, ErrMsg2, Twidth=SimSettings%Viz%Twidth); if (Failed()) return
 contains
