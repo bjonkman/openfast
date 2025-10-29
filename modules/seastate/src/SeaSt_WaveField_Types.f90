@@ -54,6 +54,7 @@ IMPLICIT NONE
     REAL(ReKi) , DIMENSION(1:4)  :: delta = 0.0_ReKi      !< size between 2 consecutive grid points in each grid direction [s,m,m,m]
     REAL(ReKi) , DIMENSION(1:4)  :: pZero = 0.0_ReKi      !< fixed position of the XYZ grid (i.e., XYZ coordinates of m%V(:,1,1,1,:)) [m]
     REAL(ReKi)  :: Z_Depth = 0.0_ReKi      !< grid depth [m]
+    REAL(DbKi)  :: WaveTimeShift = 0      !< Add this to the time to effectively phase shift the wave (useful for hybrid tank testing). Positive value only (advance time) [(s)]
   END TYPE SeaSt_WaveField_ParameterType
 ! =======================
 ! =========  SeaSt_WaveField_MiscVarType  =======
@@ -122,6 +123,7 @@ subroutine SeaSt_WaveField_CopyParam(SrcParamData, DstParamData, CtrlCode, ErrSt
    DstParamData%delta = SrcParamData%delta
    DstParamData%pZero = SrcParamData%pZero
    DstParamData%Z_Depth = SrcParamData%Z_Depth
+   DstParamData%WaveTimeShift = SrcParamData%WaveTimeShift
 end subroutine
 
 subroutine SeaSt_WaveField_DestroyParam(ParamData, ErrStat, ErrMsg)
@@ -142,6 +144,7 @@ subroutine SeaSt_WaveField_PackParam(RF, Indata)
    call RegPack(RF, InData%delta)
    call RegPack(RF, InData%pZero)
    call RegPack(RF, InData%Z_Depth)
+   call RegPack(RF, InData%WaveTimeShift)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -154,6 +157,7 @@ subroutine SeaSt_WaveField_UnPackParam(RF, OutData)
    call RegUnpack(RF, OutData%delta); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%pZero); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%Z_Depth); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%WaveTimeShift); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
 subroutine SeaSt_WaveField_CopyMisc(SrcMiscData, DstMiscData, CtrlCode, ErrStat, ErrMsg)
