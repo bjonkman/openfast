@@ -42,7 +42,7 @@ MODULE WaveTank_IO
    public :: WriteOutputLine
 
    ! These channels are output by default
-   integer(IntKi), parameter :: NumDefChans = 47
+   integer(IntKi), parameter :: NumDefChans = 48
    character(OutStrLenM1), parameter  :: DefChanNames(NumDefChans) =  (/ "Time          ",   &
                               "Ptfm_x        ","Ptfm_y        ","Ptfm_z        ",   &  ! position (absolute global)
                               "Ptfm_Rx       ","Ptfm_Ry       ","Ptfm_Rz       ",   &  ! Euler angles phi,theta,psi
@@ -59,7 +59,7 @@ MODULE WaveTank_IO
                               "ADI_Fx        ","ADI_Fy        ","ADI_Fz        ",   &  ! Forces from ADI
                               "ADI_Mx        ","ADI_My        ","ADI_Mz        ",   &  ! Moments from ADI
                               "Azimuth       ","RotSpeed      ","BlPitch       ",   &
-                              "NacYaw        "                                      &
+                              "NacYaw        ","BuoyElev      "                     &
                            /)
    character(OutStrLenM1), parameter  :: DefChanUnits(NumDefChans) =  (/ "(s)           ",   &
                               "(m)           ","(m)           ","(m)           ",   &
@@ -77,7 +77,7 @@ MODULE WaveTank_IO
                               "(N)           ","(N)           ","(N)           ",   &  ! Forces from ADI
                               "(N-m)         ","(N-m)         ","(N-m)         ",   &  ! Moments from ADI
                               "(deg)         ","(RPM)         ","(deg)         ",   &
-                              "(deg)         "                                      &
+                              "(deg)         ","(m)           "                     &
                            /)
 
 contains
@@ -102,61 +102,64 @@ subroutine ParseInputFile(FileInfo_In, SimSettings, ErrStat, ErrMsg)
    CurLine = 1
    ! Separator/header lines skipped automatically
    ! ----- Simulation control -------------
-   call ParseVar( FileInfo_In, CurLine, 'DT',               SimSettings%Sim%DT,                ErrStat2, ErrMsg2); if(Failed()) return;  ! timestep (unused)
-   call ParseVar( FileInfo_In, CurLine, 'TMax',             SimSettings%Sim%TMax,              ErrStat2, ErrMsg2); if(Failed()) return;  ! Max sim time (unused)
-   call ParseVar( FileInfo_In, CurLine, 'MHK',              SimSettings%Sim%MHK,               ErrStat2, ErrMsg2); if(Failed()) return;  ! MHK turbine type (switch) {0=Not an MHK turbine; 1=Fixed MHK turbine; 2=Floating MHK turbine}
-   call ParseVar( FileInfo_In, CurLine, 'InterpOrd',        SimSettings%Sim%InterpOrd,         ErrStat2, ErrMsg2); if(Failed()) return;  ! Interpolation order [unused]
-   call ParseVar( FileInfo_In, CurLine, 'ScaleFact',        SimSettings%Sim%ScaleFact,         ErrStat2, ErrMsg2); if(Failed()) return;  ! scaling factor for scaling full size model to wavetank scale results (>1 expected) [unused]
-   call ParseVar( FileInfo_In, CurLine, 'DebugLevel',       SimSettings%Sim%DebugLevel,        ErrStat2, ErrMsg2); if(Failed()) return;  ! 0: none, 1: I/O summary, 2: +positions/orientations passed, 3:, 4: +all meshes
-   call ParseVar( FileInfo_In, CurLine, 'OutRootName',      SimSettings%Sim%OutRootName,       ErrStat2, ErrMsg2); if(Failed()) return;  ! Root name for any summary or other files
+   call ParseVar( FileInfo_In, CurLine, 'DT',               SimSettings%Sim%DT,                    ErrStat2, ErrMsg2); if(Failed()) return;  ! timestep (unused)
+   call ParseVar( FileInfo_In, CurLine, 'TMax',             SimSettings%Sim%TMax,                  ErrStat2, ErrMsg2); if(Failed()) return;  ! Max sim time (unused)
+   call ParseVar( FileInfo_In, CurLine, 'MHK',              SimSettings%Sim%MHK,                   ErrStat2, ErrMsg2); if(Failed()) return;  ! MHK turbine type (switch) {0=Not an MHK turbine; 1=Fixed MHK turbine; 2=Floating MHK turbine}
+   call ParseVar( FileInfo_In, CurLine, 'InterpOrd',        SimSettings%Sim%InterpOrd,             ErrStat2, ErrMsg2); if(Failed()) return;  ! Interpolation order [unused]
+   call ParseVar( FileInfo_In, CurLine, 'ScaleFact',        SimSettings%Sim%ScaleFact,             ErrStat2, ErrMsg2); if(Failed()) return;  ! scaling factor for scaling full size model to wavetank scale results (>1 expected) [unused]
+   call ParseVar( FileInfo_In, CurLine, 'DebugLevel',       SimSettings%Sim%DebugLevel,            ErrStat2, ErrMsg2); if(Failed()) return;  ! 0: none, 1: I/O summary, 2: +positions/orientations passed, 3:, 4: +all meshes
+   call ParseVar( FileInfo_In, CurLine, 'OutRootName',      SimSettings%Sim%OutRootName,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Root name for any summary or other files
    ! -------- Environment ----------------
-   call ParseVar( FileInfo_In, CurLine, 'Gravity',          SimSettings%Env%Gravity,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Gravitational acceleration (m/s^2)
-   call ParseVar( FileInfo_In, CurLine, 'WtrDens',          SimSettings%Env%WtrDens,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Water density (kg/m^3)
-   call ParseVar( FileInfo_In, CurLine, 'WtrVisc',          SimSettings%Env%WtrVisc,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Kinematic viscosity of working fluid (m^2/s)
-   call ParseVar( FileInfo_In, CurLine, 'SpdSound',         SimSettings%Env%SpdSound,          ErrStat2, ErrMsg2); if(Failed()) return;  ! Speed of sound in working fluid (m/s)
-   call ParseVar( FileInfo_In, CurLine, 'Patm',             SimSettings%Env%Patm,              ErrStat2, ErrMsg2); if(Failed()) return;  ! Atmospheric pressure (Pa) [used only for an MHK turbine cavitation check]
-   call ParseVar( FileInfo_In, CurLine, 'Pvap',             SimSettings%Env%Pvap,              ErrStat2, ErrMsg2); if(Failed()) return;  !  Vapour pressure of working fluid (Pa) [used only for an MHK turbine cavitation check]
-   call ParseVar( FileInfo_In, CurLine, 'WtrDpth',          SimSettings%Env%WtrDpth,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Water depth (m)
-   call ParseVar( FileInfo_In, CurLine, 'MSL2SWL',          SimSettings%Env%MSL2SWL,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Offset between still-water level and mean sea level (m) [positive upward]
+   call ParseVar( FileInfo_In, CurLine, 'Gravity',          SimSettings%Env%Gravity,               ErrStat2, ErrMsg2); if(Failed()) return;  ! Gravitational acceleration (m/s^2)
+   call ParseVar( FileInfo_In, CurLine, 'WtrDens',          SimSettings%Env%WtrDens,               ErrStat2, ErrMsg2); if(Failed()) return;  ! Water density (kg/m^3)
+   call ParseVar( FileInfo_In, CurLine, 'WtrVisc',          SimSettings%Env%WtrVisc,               ErrStat2, ErrMsg2); if(Failed()) return;  ! Kinematic viscosity of working fluid (m^2/s)
+   call ParseVar( FileInfo_In, CurLine, 'SpdSound',         SimSettings%Env%SpdSound,              ErrStat2, ErrMsg2); if(Failed()) return;  ! Speed of sound in working fluid (m/s)
+   call ParseVar( FileInfo_In, CurLine, 'Patm',             SimSettings%Env%Patm,                  ErrStat2, ErrMsg2); if(Failed()) return;  ! Atmospheric pressure (Pa) [used only for an MHK turbine cavitation check]
+   call ParseVar( FileInfo_In, CurLine, 'Pvap',             SimSettings%Env%Pvap,                  ErrStat2, ErrMsg2); if(Failed()) return;  !  Vapour pressure of working fluid (Pa) [used only for an MHK turbine cavitation check]
+   call ParseVar( FileInfo_In, CurLine, 'WtrDpth',          SimSettings%Env%WtrDpth,               ErrStat2, ErrMsg2); if(Failed()) return;  ! Water depth (m)
+   call ParseVar( FileInfo_In, CurLine, 'MSL2SWL',          SimSettings%Env%MSL2SWL,               ErrStat2, ErrMsg2); if(Failed()) return;  ! Offset between still-water level and mean sea level (m) [positive upward]
    ! -------- SeaState -------------------
-   call ParseVar( FileInfo_In, CurLine, 'SS_InputFile',     SimSettings%IptFile%SS_InputFile,  ErrStat2, ErrMsg2); if(Failed()) return;  ! SeaState input file
+   call ParseVar( FileInfo_In, CurLine, 'SS_InputFile',     SimSettings%ModSettings%SS_InputFile,  ErrStat2, ErrMsg2); if(Failed()) return;  ! SeaState input file
+   call ParseVar( FileInfo_In, CurLine, 'WaveTimeShift',    SimSettings%ModSettings%WaveTimeShift, ErrStat2, ErrMsg2); if(Failed()) return;  ! Shift the SeaState wavetime by this amount (for phase shifting waves to match tank)
    ! -------- MoorDyn --------------------
-   call ParseVar( FileInfo_In, CurLine, 'MD_InputFile',     SimSettings%IptFile%MD_InputFile,  ErrStat2, ErrMsg2); if(Failed()) return;  ! MoorDyn input file
+   call ParseVar( FileInfo_In, CurLine, 'MD_InputFile',     SimSettings%ModSettings%MD_InputFile,  ErrStat2, ErrMsg2); if(Failed()) return;  ! MoorDyn input file
    ! -------- AeroDyn + InflowWind -------
-   call ParseVar( FileInfo_In, CurLine, 'AD_InputFile',     SimSettings%IptFile%AD_InputFile,  ErrStat2, ErrMsg2); if(Failed()) return;  ! AeroDyn input file
-   call ParseVar( FileInfo_In, CurLine, 'IfW_InputFile',    SimSettings%IptFile%IfW_InputFile, ErrStat2, ErrMsg2); if(Failed()) return;  ! InflowWind input file
+   call ParseVar( FileInfo_In, CurLine, 'AD_InputFile',     SimSettings%ModSettings%AD_InputFile,  ErrStat2, ErrMsg2); if(Failed()) return;  ! AeroDyn input file
+   call ParseVar( FileInfo_In, CurLine, 'IfW_InputFile',    SimSettings%ModSettings%IfW_InputFile, ErrStat2, ErrMsg2); if(Failed()) return;  ! InflowWind input file
    ! -------- Turbine Configuration ------
-   call ParseVar( FileInfo_In, CurLine, 'NumBl',            SimSettings%TrbCfg%NumBl,          ErrStat2, ErrMsg2); if(Failed()) return;  ! Number of blades (-)
-   call ParseVar( FileInfo_In, CurLine, 'TipRad',           SimSettings%TrbCfg%TipRad,         ErrStat2, ErrMsg2); if(Failed()) return;  ! The distance from the rotor apex to the blade tip (meters)
-   call ParseVar( FileInfo_In, CurLine, 'HubRad',           SimSettings%TrbCfg%HubRad,         ErrStat2, ErrMsg2); if(Failed()) return;  ! The distance from the rotor apex to the blade root (meters)
-   call ParseVar( FileInfo_In, CurLine, 'PreCone',          SimSettings%TrbCfg%PreCone,        ErrStat2, ErrMsg2); if(Failed()) return;  ! Blade cone angle (degrees)
-   call ParseVar( FileInfo_In, CurLine, 'OverHang',         SimSettings%TrbCfg%OverHang,       ErrStat2, ErrMsg2); if(Failed()) return;  ! Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades] (meters)
-   call ParseVar( FileInfo_In, CurLine, 'ShftGagL',         SimSettings%TrbCfg%ShftGagL,       ErrStat2, ErrMsg2); if(Failed()) return;  ! Distance from rotor apex [3 blades] or teeter pin [2 blades] to shaft strain gages [positive for upwind rotors] (meters)
-   call ParseVar( FileInfo_In, CurLine, 'ShftTilt',         SimSettings%TrbCfg%ShftTilt,       ErrStat2, ErrMsg2); if(Failed()) return;  ! Rotor shaft tilt angle (degrees)
-   call ParseVar( FileInfo_In, CurLine, 'Twr2Shft',         SimSettings%TrbCfg%Twr2Shft,       ErrStat2, ErrMsg2); if(Failed()) return;  ! Vertical distance from the tower-top to the rotor shaft (meters)
-   call ParseVar( FileInfo_In, CurLine, 'TowerHt',          SimSettings%TrbCfg%TowerHt,        ErrStat2, ErrMsg2); if(Failed()) return;  ! Height of tower relative MSL
-   call ParseAry( FileInfo_In, CurLine, 'TowerBsHt',        SimSettings%TrbCfg%TowerBsPt,    3,ErrStat2, ErrMsg2); if(Failed()) return;  ! Height of tower base relative to ground level [onshore], MSL [floating MHK] (meters)
-   call ParseAry( FileInfo_In, CurLine, 'PtfmRefPos',       SimSettings%TrbCfg%PtfmRefPos,   3,ErrStat2, ErrMsg2); if(Failed()) return;  ! Location of platform reference point, relative to MSL.  Motions and loads all connect to this point
-   call ParseAry( FileInfo_In, CurLine, 'PtfmRefOrient',    SimSettings%TrbCfg%PtfmRefOrient,3,ErrStat2, ErrMsg2); if(Failed()) return;  ! Orientation of platform reference point, Euler angle set of roll,pitch,yaw" (rad)
+   call ParseVar( FileInfo_In, CurLine, 'NumBl',            SimSettings%TrbCfg%NumBl,              ErrStat2, ErrMsg2); if(Failed()) return;  ! Number of blades (-)
+   call ParseVar( FileInfo_In, CurLine, 'TipRad',           SimSettings%TrbCfg%TipRad,             ErrStat2, ErrMsg2); if(Failed()) return;  ! The distance from the rotor apex to the blade tip (meters)
+   call ParseVar( FileInfo_In, CurLine, 'HubRad',           SimSettings%TrbCfg%HubRad,             ErrStat2, ErrMsg2); if(Failed()) return;  ! The distance from the rotor apex to the blade root (meters)
+   call ParseVar( FileInfo_In, CurLine, 'PreCone',          SimSettings%TrbCfg%PreCone,            ErrStat2, ErrMsg2); if(Failed()) return;  ! Blade cone angle (degrees)
+   call ParseVar( FileInfo_In, CurLine, 'OverHang',         SimSettings%TrbCfg%OverHang,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades] (meters)
+   call ParseVar( FileInfo_In, CurLine, 'ShftGagL',         SimSettings%TrbCfg%ShftGagL,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Distance from rotor apex [3 blades] or teeter pin [2 blades] to shaft strain gages [positive for upwind rotors] (meters)
+   call ParseVar( FileInfo_In, CurLine, 'ShftTilt',         SimSettings%TrbCfg%ShftTilt,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Rotor shaft tilt angle (degrees)
+   call ParseVar( FileInfo_In, CurLine, 'Twr2Shft',         SimSettings%TrbCfg%Twr2Shft,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Vertical distance from the tower-top to the rotor shaft (meters)
+   call ParseVar( FileInfo_In, CurLine, 'TowerHt',          SimSettings%TrbCfg%TowerHt,            ErrStat2, ErrMsg2); if(Failed()) return;  ! Height of tower relative MSL
+   call ParseAry( FileInfo_In, CurLine, 'TowerBsHt',        SimSettings%TrbCfg%TowerBsPt,     3,   ErrStat2, ErrMsg2); if(Failed()) return;  ! Height of tower base relative to ground level [onshore], MSL [floating MHK] (meters)
+   call ParseAry( FileInfo_In, CurLine, 'PtfmRefPos',       SimSettings%TrbCfg%PtfmRefPos,    3,   ErrStat2, ErrMsg2); if(Failed()) return;  ! Location of platform reference point, relative to MSL.  Motions and loads all connect to this point
+   call ParseAry( FileInfo_In, CurLine, 'PtfmRefOrient',    SimSettings%TrbCfg%PtfmRefOrient, 3,   ErrStat2, ErrMsg2); if(Failed()) return;  ! Orientation of platform reference point, Euler angle set of roll,pitch,yaw" (rad)
    ! -------- Turbine Operating Point ----
-   call ParseVar( FileInfo_In, CurLine, 'RotSpeed',         SimSettings%TrbInit%RotSpeed,      ErrStat2, ErrMsg2); if(Failed()) return;  ! Rotational speed of rotor in rotor coordinates (rpm)
-   call ParseVar( FileInfo_In, CurLine, 'NacYaw',           SimSettings%TrbInit%NacYaw,        ErrStat2, ErrMsg2); if(Failed()) return;  ! Initial or fixed nacelle-yaw angle (deg read)
-   call ParseVar( FileInfo_In, CurLine, 'BldPitch',         SimSettings%TrbInit%BldPitch,      ErrStat2, ErrMsg2); if(Failed()) return;  ! Blade 1 pitch (deg read)
-   call ParseVar( FileInfo_In, CurLine, 'Azimuth',          SimSettings%TrbInit%Azimuth,       ErrStat2, ErrMsg2); if(Failed()) return;  ! Initial azimuth (deg read)
+   call ParseVar( FileInfo_In, CurLine, 'RotSpeed',         SimSettings%TrbInit%RotSpeed,          ErrStat2, ErrMsg2); if(Failed()) return;  ! Rotational speed of rotor in rotor coordinates (rpm)
+   call ParseVar( FileInfo_In, CurLine, 'NacYaw',           SimSettings%TrbInit%NacYaw,            ErrStat2, ErrMsg2); if(Failed()) return;  ! Initial or fixed nacelle-yaw angle (deg read)
+   call ParseVar( FileInfo_In, CurLine, 'BldPitch',         SimSettings%TrbInit%BldPitch,          ErrStat2, ErrMsg2); if(Failed()) return;  ! Blade 1 pitch (deg read)
+   call ParseVar( FileInfo_In, CurLine, 'Azimuth',          SimSettings%TrbInit%Azimuth,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Initial azimuth (deg read)
    ! angles are read as degrees, store as radians internally
    SimSettings%TrbInit%NacYaw    = D2R * SimSettings%TrbInit%NacYaw
    SimSettings%TrbInit%BldPitch  = D2R * SimSettings%TrbInit%BldPitch
    SimSettings%TrbInit%Azimuth   = D2R * SimSettings%TrbInit%Azimuth
+   ! -------- Wave Buoy------------------
+   call ParseAry( FileInfo_In, CurLine, 'WaveBuoyLoc',      SimSettings%WaveBuoy%XYLoc,      2,    ErrStat2, ErrMsg2); if(Failed()) return;  ! Location of the wave elevation measurement buoy. SeaState data returned at every timestep at this location (m)
    ! -------- Output ---------------------
-   call ParseVar( FileInfo_In, CurLine, 'SendScreenToFile', SimSettings%Outs%SendScreenToFile, ErrStat2, ErrMsg2); if(Failed()) return;  ! send to file <OutRootName>.screen.log if true
-   call ParseVar( FileInfo_In, CurLine, 'OutFile',          SimSettings%Outs%OutFile,          ErrStat2, ErrMsg2); if(Failed()) return;  ! 0: no output file of channels, 1: output file in text format (at default DT) 
-   call ParseVar( FileInfo_In, CurLine, 'OutFmt',           SimSettings%Outs%OutFmt,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Format used for text tabular output, excluding the time channel. (quoted string)
+   call ParseVar( FileInfo_In, CurLine, 'SendScreenToFile', SimSettings%Outs%SendScreenToFile,     ErrStat2, ErrMsg2); if(Failed()) return;  ! send to file <OutRootName>.screen.log if true
+   call ParseVar( FileInfo_In, CurLine, 'OutFile',          SimSettings%Outs%OutFile,              ErrStat2, ErrMsg2); if(Failed()) return;  ! 0: no output file of channels, 1: output file in text format (at default DT) 
+   call ParseVar( FileInfo_In, CurLine, 'OutFmt',           SimSettings%Outs%OutFmt,               ErrStat2, ErrMsg2); if(Failed()) return;  ! Format used for text tabular output, excluding the time channel. (quoted string)
    ! -------- VTK output -----------------
-   call ParseVar( FileInfo_In, CurLine, 'WrVTK_Dir',        SimSettings%Viz%WrVTK_Dir,         ErrStat2, ErrMsg2); if(Failed()) return;  ! output directory for visualization
-   call ParseVar( FileInfo_In, CurLine, 'WrVTK',            SimSettings%Viz%WrVTK,             ErrStat2, ErrMsg2); if(Failed()) return;  ! VTK visualization data output: (switch) {0=none; 1=initialization data only; 2=animation; 3=mode shapes}
-   call ParseVar( FileInfo_In, CurLine, 'WrVTK_type',       SimSettings%Viz%WrVTK_type,        ErrStat2, ErrMsg2); if(Failed()) return;  ! Type of VTK visualization data: (switch) {1=surfaces; 2=basic meshes (lines/points); 3=all meshes (debug)} [unused if WrVTK=0]
-   call ParseVar( FileInfo_In, CurLine, 'WrVTK_DT',         SimSettings%Viz%WrVTK_DT,          ErrStat2, ErrMsg2); if(Failed()) return;  ! DT for writing VTK files
-   call ParseAry( FileInfo_In, CurLine, 'VTKNacDim',        SimSettings%Viz%VTKNacDim,   6,    ErrStat2, ErrMsg2); if(Failed()) return;  !  Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz] (m)
+   call ParseVar( FileInfo_In, CurLine, 'WrVTK_Dir',        SimSettings%Viz%WrVTK_Dir,             ErrStat2, ErrMsg2); if(Failed()) return;  ! output directory for visualization
+   call ParseVar( FileInfo_In, CurLine, 'WrVTK',            SimSettings%Viz%WrVTK,                 ErrStat2, ErrMsg2); if(Failed()) return;  ! VTK visualization data output: (switch) {0=none; 1=initialization data only; 2=animation; 3=mode shapes}
+   call ParseVar( FileInfo_In, CurLine, 'WrVTK_type',       SimSettings%Viz%WrVTK_type,            ErrStat2, ErrMsg2); if(Failed()) return;  ! Type of VTK visualization data: (switch) {1=surfaces; 2=basic meshes (lines/points); 3=all meshes (debug)} [unused if WrVTK=0]
+   call ParseVar( FileInfo_In, CurLine, 'WrVTK_DT',         SimSettings%Viz%WrVTK_DT,              ErrStat2, ErrMsg2); if(Failed()) return;  ! DT for writing VTK files
+   call ParseAry( FileInfo_In, CurLine, 'VTKNacDim',        SimSettings%Viz%VTKNacDim,        6,   ErrStat2, ErrMsg2); if(Failed()) return;  !  Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz] (m)
 
 contains
    logical function Failed()
@@ -196,11 +199,14 @@ subroutine ValidateInputFile(SimSettings, ErrStat, ErrMsg)
    !------------------------
    ! Input files
    !------------------------
-   inquire(file=SimSettings%IptFile%SS_InputFile,  exist=file_exists);  if (.not. file_exists) call SetErrStat(ErrID_Fatal,"Cannot find SeaState input file "//trim(SimSettings%IptFile%SS_InputFile ),ErrStat,ErrMsg,RoutineName)
-   inquire(file=SimSettings%IptFile%MD_InputFile,  exist=file_exists);  if (.not. file_exists) call SetErrStat(ErrID_Fatal,"Cannot find SeaState input file "//trim(SimSettings%IptFile%MD_InputFile ),ErrStat,ErrMsg,RoutineName) 
-   inquire(file=SimSettings%IptFile%AD_InputFile,  exist=file_exists);  if (.not. file_exists) call SetErrStat(ErrID_Fatal,"Cannot find SeaState input file "//trim(SimSettings%IptFile%AD_InputFile ),ErrStat,ErrMsg,RoutineName)
-   inquire(file=SimSettings%IptFile%IfW_InputFile, exist=file_exists);  if (.not. file_exists) call SetErrStat(ErrID_Fatal,"Cannot find SeaState input file "//trim(SimSettings%IptFile%IfW_InputFile),ErrStat,ErrMsg,RoutineName)
+   inquire(file=SimSettings%ModSettings%SS_InputFile,  exist=file_exists);  if (.not. file_exists) call SetErrStat(ErrID_Fatal,"Cannot find SeaState input file "  //trim(SimSettings%ModSettings%SS_InputFile ),ErrStat,ErrMsg,RoutineName)
+   inquire(file=SimSettings%ModSettings%MD_InputFile,  exist=file_exists);  if (.not. file_exists) call SetErrStat(ErrID_Fatal,"Cannot find MoorDyn input file "   //trim(SimSettings%ModSettings%MD_InputFile ),ErrStat,ErrMsg,RoutineName) 
+   inquire(file=SimSettings%ModSettings%AD_InputFile,  exist=file_exists);  if (.not. file_exists) call SetErrStat(ErrID_Fatal,"Cannot find AeroDyn input file "   //trim(SimSettings%ModSettings%AD_InputFile ),ErrStat,ErrMsg,RoutineName)
+   inquire(file=SimSettings%ModSettings%IfW_InputFile, exist=file_exists);  if (.not. file_exists) call SetErrStat(ErrID_Fatal,"Cannot find InflowWind input file "//trim(SimSettings%ModSettings%IfW_InputFile),ErrStat,ErrMsg,RoutineName)
    if (ErrStat >= AbortErrLev) return
+
+   ! Wave time shift must be positive
+   if (SimSettings%ModSettings%WaveTimeShift < 0.0_DbKi) call SetErrStat(ErrID_Fatal, "WaveTimeShift must be >= 0",Errstat,ErrMsg,RoutineName)
 
    !------------------------
    ! Turbine Operating point
@@ -328,7 +334,7 @@ subroutine WriteOutputLine(OutFmt, CalcStepIO, StructTmp, WrOutputData, ErrStat,
    character(ErrMsgLen)                      :: errMsg2              ! Error message if ErrStat /= ErrID_None
    character(200)                            :: frmt                 ! A string to hold a format specifier
    character(15)                             :: tmpStr               ! temporary string to print the time output as text
-   real(ReKi)                                :: TmpAry(4)            ! temporary array for RotSpeed, BlPitch, NacYaw, Azimuth
+   real(ReKi)                                :: TmpAry5(5)           ! temporary array for RotSpeed, BlPitch, NacYaw, Azimuth, BuoyWaveElev
 
    ErrStat = ErrID_None
    ErrMSg  = ""
@@ -352,8 +358,8 @@ subroutine WriteOutputLine(OutFmt, CalcStepIO, StructTmp, WrOutputData, ErrStat,
    call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_SS,  frmt, errStat2, errMsg2); if (Failed()) return
    call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_MD,  frmt, errStat2, errMsg2); if (Failed()) return
    call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_ADI, frmt, errStat2, errMsg2); if (Failed()) return
-   TmpAry = (/ R2D*StructTmp%Azimuth, StructTmp%RotSpeed, R2D*StructTmp%BldPitch, R2D*StructTmp%NacYaw /)
-   call WrNumAryFileNR(OutUnit, TmpAry,                frmt, errStat2, errMsg2); if (Failed()) return
+   TmpAry5 = (/ R2D*StructTmp%Azimuth, StructTmp%RotSpeed, R2D*StructTmp%BldPitch, R2D*StructTmp%NacYaw, CalcStepIO%BuoyWaveElev /)
+   call WrNumAryFileNR(OutUnit, TmpAry5,               frmt, errStat2, errMsg2); if (Failed()) return
    ! channels from modules
    call WrNumAryFileNR(OutUnit, WrOutputData%OutData_SS,  frmt, errStat2, ErrMsg2); if (Failed()) return
    call WrNumAryFileNR(OutUnit, WrOutputData%OutData_MD,  frmt, errStat2, ErrMsg2); if (Failed()) return

@@ -81,6 +81,11 @@ IMPLICIT NONE
     REAL(ReKi)  :: Azimuth = 0      !< Initial azimuth (actual azimuth calculated and not stored) - read as deg, convert to rad [(rad)]
   END TYPE TurbInitCondType
 ! =======================
+! =========  WaveBuoyType  =======
+  TYPE, PUBLIC :: WaveBuoyType
+    REAL(ReKi) , DIMENSION(1:2)  :: XYLoc = 0.0_ReKi      !< Location of the wave elevation measurement buoy. SeaState data returned at every timestep at this location [(m)]
+  END TYPE WaveBuoyType
+! =======================
 ! =========  OutFilesType  =======
   TYPE, PUBLIC :: OutFilesType
     LOGICAL  :: SendScreenToFile = .false.      !< send to file <OutRootName>.screen.log if true [(-)]
@@ -98,13 +103,14 @@ IMPLICIT NONE
     INTEGER(IntKi)  :: Twidth = 6      !< Time width -- hard coded for now [(-)]
   END TYPE VizType
 ! =======================
-! =========  IptFilesType  =======
-  TYPE, PUBLIC :: IptFilesType
+! =========  ModSettings  =======
+  TYPE, PUBLIC :: ModSettings
     character(1024)  :: SS_InputFile      !< SeaState   input file [(-)]
+    REAL(DbKi)  :: WaveTimeShift = 0.0_R8Ki      !< Shift the SeaState wavetime by this amount (for phase shifting waves to match tank) [(s)]
     character(1024)  :: MD_InputFile      !< MoorDyn    input file [(-)]
     character(1024)  :: AD_InputFile      !< AeroDyn    input file [(-)]
     character(1024)  :: IfW_InputFile      !< InflowWind input file [(-)]
-  END TYPE IptFilesType
+  END TYPE ModSettings
 ! =======================
 ! =========  SimSettingsType  =======
   TYPE, PUBLIC :: SimSettingsType
@@ -112,9 +118,10 @@ IMPLICIT NONE
     TYPE(EnvType)  :: Env      !< Environment settings [-]
     TYPE(TurbConfigType)  :: TrbCfg      !< Turbine configuration [-]
     TYPE(TurbInitCondType)  :: TrbInit      !< Turbine initial operating point [-]
+    TYPE(WaveBuoyType)  :: WaveBuoy      !< Wave elevation buoy locat (x-y) [(m)]
     TYPE(OutFilesType)  :: Outs      !< Output settings [-]
     TYPE(VizType)  :: Viz      !< Vizualization settings [-]
-    TYPE(IptFilesType)  :: IptFile      !< Input files for each module [-]
+    TYPE(ModSettings)  :: ModSettings      !< Input files for each module [-]
   END TYPE SimSettingsType
 ! =======================
 ! =========  CalcStepIOdataType  =======
@@ -127,6 +134,7 @@ IMPLICIT NONE
     REAL(ReKi) , DIMENSION(1:6)  :: FrcMom_SS = 0.0_ReKi      !< calculated forces/moments from SS [-]
     REAL(ReKi) , DIMENSION(1:6)  :: FrcMom_MD = 0.0_ReKi      !< calculated forces/moments from MD [-]
     REAL(ReKi) , DIMENSION(1:6)  :: FrcMom_ADI = 0.0_ReKi      !< calculated forces/moments from ADI [-]
+    REAL(ReKi)  :: BuoyWaveElev = 0.0_ReKi      !< calculated wave elevation at buoy [-]
   END TYPE CalcStepIOdataType
 ! =======================
 ! =========  WrOutputDataType  =======
@@ -418,6 +426,44 @@ subroutine WT_UnPackTurbInitCondType(RF, OutData)
    call RegUnpack(RF, OutData%Azimuth); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
+subroutine WT_CopyWaveBuoyType(SrcWaveBuoyTypeData, DstWaveBuoyTypeData, CtrlCode, ErrStat, ErrMsg)
+   type(WaveBuoyType), intent(in) :: SrcWaveBuoyTypeData
+   type(WaveBuoyType), intent(inout) :: DstWaveBuoyTypeData
+   integer(IntKi),  intent(in   ) :: CtrlCode
+   integer(IntKi),  intent(  out) :: ErrStat
+   character(*),    intent(  out) :: ErrMsg
+   character(*), parameter        :: RoutineName = 'WT_CopyWaveBuoyType'
+   ErrStat = ErrID_None
+   ErrMsg  = ''
+   DstWaveBuoyTypeData%XYLoc = SrcWaveBuoyTypeData%XYLoc
+end subroutine
+
+subroutine WT_DestroyWaveBuoyType(WaveBuoyTypeData, ErrStat, ErrMsg)
+   type(WaveBuoyType), intent(inout) :: WaveBuoyTypeData
+   integer(IntKi),  intent(  out) :: ErrStat
+   character(*),    intent(  out) :: ErrMsg
+   character(*), parameter        :: RoutineName = 'WT_DestroyWaveBuoyType'
+   ErrStat = ErrID_None
+   ErrMsg  = ''
+end subroutine
+
+subroutine WT_PackWaveBuoyType(RF, Indata)
+   type(RegFile), intent(inout) :: RF
+   type(WaveBuoyType), intent(in) :: InData
+   character(*), parameter         :: RoutineName = 'WT_PackWaveBuoyType'
+   if (RF%ErrStat >= AbortErrLev) return
+   call RegPack(RF, InData%XYLoc)
+   if (RegCheckErr(RF, RoutineName)) return
+end subroutine
+
+subroutine WT_UnPackWaveBuoyType(RF, OutData)
+   type(RegFile), intent(inout)    :: RF
+   type(WaveBuoyType), intent(inout) :: OutData
+   character(*), parameter            :: RoutineName = 'WT_UnPackWaveBuoyType'
+   if (RF%ErrStat /= ErrID_None) return
+   call RegUnpack(RF, OutData%XYLoc); if (RegCheckErr(RF, RoutineName)) return
+end subroutine
+
 subroutine WT_CopyOutFilesType(SrcOutFilesTypeData, DstOutFilesTypeData, CtrlCode, ErrStat, ErrMsg)
    type(OutFilesType), intent(in) :: SrcOutFilesTypeData
    type(OutFilesType), intent(inout) :: DstOutFilesTypeData
@@ -515,48 +561,51 @@ subroutine WT_UnPackVizType(RF, OutData)
    call RegUnpack(RF, OutData%Twidth); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
-subroutine WT_CopyIptFilesType(SrcIptFilesTypeData, DstIptFilesTypeData, CtrlCode, ErrStat, ErrMsg)
-   type(IptFilesType), intent(in) :: SrcIptFilesTypeData
-   type(IptFilesType), intent(inout) :: DstIptFilesTypeData
+subroutine WT_CopyModSettings(SrcModSettingsData, DstModSettingsData, CtrlCode, ErrStat, ErrMsg)
+   type(ModSettings), intent(in) :: SrcModSettingsData
+   type(ModSettings), intent(inout) :: DstModSettingsData
    integer(IntKi),  intent(in   ) :: CtrlCode
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
-   character(*), parameter        :: RoutineName = 'WT_CopyIptFilesType'
+   character(*), parameter        :: RoutineName = 'WT_CopyModSettings'
    ErrStat = ErrID_None
    ErrMsg  = ''
-   DstIptFilesTypeData%SS_InputFile = SrcIptFilesTypeData%SS_InputFile
-   DstIptFilesTypeData%MD_InputFile = SrcIptFilesTypeData%MD_InputFile
-   DstIptFilesTypeData%AD_InputFile = SrcIptFilesTypeData%AD_InputFile
-   DstIptFilesTypeData%IfW_InputFile = SrcIptFilesTypeData%IfW_InputFile
+   DstModSettingsData%SS_InputFile = SrcModSettingsData%SS_InputFile
+   DstModSettingsData%WaveTimeShift = SrcModSettingsData%WaveTimeShift
+   DstModSettingsData%MD_InputFile = SrcModSettingsData%MD_InputFile
+   DstModSettingsData%AD_InputFile = SrcModSettingsData%AD_InputFile
+   DstModSettingsData%IfW_InputFile = SrcModSettingsData%IfW_InputFile
 end subroutine
 
-subroutine WT_DestroyIptFilesType(IptFilesTypeData, ErrStat, ErrMsg)
-   type(IptFilesType), intent(inout) :: IptFilesTypeData
+subroutine WT_DestroyModSettings(ModSettingsData, ErrStat, ErrMsg)
+   type(ModSettings), intent(inout) :: ModSettingsData
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
-   character(*), parameter        :: RoutineName = 'WT_DestroyIptFilesType'
+   character(*), parameter        :: RoutineName = 'WT_DestroyModSettings'
    ErrStat = ErrID_None
    ErrMsg  = ''
 end subroutine
 
-subroutine WT_PackIptFilesType(RF, Indata)
+subroutine WT_PackModSettings(RF, Indata)
    type(RegFile), intent(inout) :: RF
-   type(IptFilesType), intent(in) :: InData
-   character(*), parameter         :: RoutineName = 'WT_PackIptFilesType'
+   type(ModSettings), intent(in) :: InData
+   character(*), parameter         :: RoutineName = 'WT_PackModSettings'
    if (RF%ErrStat >= AbortErrLev) return
    call RegPack(RF, InData%SS_InputFile)
+   call RegPack(RF, InData%WaveTimeShift)
    call RegPack(RF, InData%MD_InputFile)
    call RegPack(RF, InData%AD_InputFile)
    call RegPack(RF, InData%IfW_InputFile)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
-subroutine WT_UnPackIptFilesType(RF, OutData)
+subroutine WT_UnPackModSettings(RF, OutData)
    type(RegFile), intent(inout)    :: RF
-   type(IptFilesType), intent(inout) :: OutData
-   character(*), parameter            :: RoutineName = 'WT_UnPackIptFilesType'
+   type(ModSettings), intent(inout) :: OutData
+   character(*), parameter            :: RoutineName = 'WT_UnPackModSettings'
    if (RF%ErrStat /= ErrID_None) return
    call RegUnpack(RF, OutData%SS_InputFile); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%WaveTimeShift); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%MD_InputFile); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%AD_InputFile); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%IfW_InputFile); if (RegCheckErr(RF, RoutineName)) return
@@ -585,13 +634,16 @@ subroutine WT_CopySimSettingsType(SrcSimSettingsTypeData, DstSimSettingsTypeData
    call WT_CopyTurbInitCondType(SrcSimSettingsTypeData%TrbInit, DstSimSettingsTypeData%TrbInit, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
+   call WT_CopyWaveBuoyType(SrcSimSettingsTypeData%WaveBuoy, DstSimSettingsTypeData%WaveBuoy, CtrlCode, ErrStat2, ErrMsg2)
+   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   if (ErrStat >= AbortErrLev) return
    call WT_CopyOutFilesType(SrcSimSettingsTypeData%Outs, DstSimSettingsTypeData%Outs, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
    call WT_CopyVizType(SrcSimSettingsTypeData%Viz, DstSimSettingsTypeData%Viz, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
-   call WT_CopyIptFilesType(SrcSimSettingsTypeData%IptFile, DstSimSettingsTypeData%IptFile, CtrlCode, ErrStat2, ErrMsg2)
+   call WT_CopyModSettings(SrcSimSettingsTypeData%ModSettings, DstSimSettingsTypeData%ModSettings, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
 end subroutine
@@ -613,11 +665,13 @@ subroutine WT_DestroySimSettingsType(SimSettingsTypeData, ErrStat, ErrMsg)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    call WT_DestroyTurbInitCondType(SimSettingsTypeData%TrbInit, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   call WT_DestroyWaveBuoyType(SimSettingsTypeData%WaveBuoy, ErrStat2, ErrMsg2)
+   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    call WT_DestroyOutFilesType(SimSettingsTypeData%Outs, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    call WT_DestroyVizType(SimSettingsTypeData%Viz, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   call WT_DestroyIptFilesType(SimSettingsTypeData%IptFile, ErrStat2, ErrMsg2)
+   call WT_DestroyModSettings(SimSettingsTypeData%ModSettings, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
 end subroutine
 
@@ -630,9 +684,10 @@ subroutine WT_PackSimSettingsType(RF, Indata)
    call WT_PackEnvType(RF, InData%Env) 
    call WT_PackTurbConfigType(RF, InData%TrbCfg) 
    call WT_PackTurbInitCondType(RF, InData%TrbInit) 
+   call WT_PackWaveBuoyType(RF, InData%WaveBuoy) 
    call WT_PackOutFilesType(RF, InData%Outs) 
    call WT_PackVizType(RF, InData%Viz) 
-   call WT_PackIptFilesType(RF, InData%IptFile) 
+   call WT_PackModSettings(RF, InData%ModSettings) 
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -645,9 +700,10 @@ subroutine WT_UnPackSimSettingsType(RF, OutData)
    call WT_UnpackEnvType(RF, OutData%Env) ! Env 
    call WT_UnpackTurbConfigType(RF, OutData%TrbCfg) ! TrbCfg 
    call WT_UnpackTurbInitCondType(RF, OutData%TrbInit) ! TrbInit 
+   call WT_UnpackWaveBuoyType(RF, OutData%WaveBuoy) ! WaveBuoy 
    call WT_UnpackOutFilesType(RF, OutData%Outs) ! Outs 
    call WT_UnpackVizType(RF, OutData%Viz) ! Viz 
-   call WT_UnpackIptFilesType(RF, OutData%IptFile) ! IptFile 
+   call WT_UnpackModSettings(RF, OutData%ModSettings) ! ModSettings 
 end subroutine
 
 subroutine WT_CopyCalcStepIOdataType(SrcCalcStepIOdataTypeData, DstCalcStepIOdataTypeData, CtrlCode, ErrStat, ErrMsg)
@@ -667,6 +723,7 @@ subroutine WT_CopyCalcStepIOdataType(SrcCalcStepIOdataTypeData, DstCalcStepIOdat
    DstCalcStepIOdataTypeData%FrcMom_SS = SrcCalcStepIOdataTypeData%FrcMom_SS
    DstCalcStepIOdataTypeData%FrcMom_MD = SrcCalcStepIOdataTypeData%FrcMom_MD
    DstCalcStepIOdataTypeData%FrcMom_ADI = SrcCalcStepIOdataTypeData%FrcMom_ADI
+   DstCalcStepIOdataTypeData%BuoyWaveElev = SrcCalcStepIOdataTypeData%BuoyWaveElev
 end subroutine
 
 subroutine WT_DestroyCalcStepIOdataType(CalcStepIOdataTypeData, ErrStat, ErrMsg)
@@ -691,6 +748,7 @@ subroutine WT_PackCalcStepIOdataType(RF, Indata)
    call RegPack(RF, InData%FrcMom_SS)
    call RegPack(RF, InData%FrcMom_MD)
    call RegPack(RF, InData%FrcMom_ADI)
+   call RegPack(RF, InData%BuoyWaveElev)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -707,6 +765,7 @@ subroutine WT_UnPackCalcStepIOdataType(RF, OutData)
    call RegUnpack(RF, OutData%FrcMom_SS); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%FrcMom_MD); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%FrcMom_ADI); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%BuoyWaveElev); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
 subroutine WT_CopyWrOutputDataType(SrcWrOutputDataTypeData, DstWrOutputDataTypeData, CtrlCode, ErrStat, ErrMsg)

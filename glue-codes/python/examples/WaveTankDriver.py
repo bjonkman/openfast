@@ -236,6 +236,7 @@ class WaveTankLib(OpenFASTInterfaceType):
         # returned values
         self.rootname_c = create_string_buffer(self.IntfStrLen)
         self.vtkdir_c   = create_string_buffer(self.IntfStrLen)
+        self.buoyWaveElev_c = c_float(0)        # wave elevation at buoy
 
     def _initialize_routines(self):
         self.WaveTank_Init.argtypes = [
@@ -253,6 +254,7 @@ class WaveTankLib(OpenFASTInterfaceType):
             POINTER(c_float),       # intent(in   ) :: vel(6)
             POINTER(c_float),       # intent(in   ) :: acc(6)
             POINTER(c_float),       # intent(  out) :: FrcMom(6)
+            POINTER(c_float),       # intent(  out) :: buoyWaveElev
             POINTER(c_int),         # integer(c_int),         intent(  out) :: ErrStat_C
             POINTER(c_char),        # character(kind=c_char), intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
@@ -426,6 +428,7 @@ class WaveTankLib(OpenFASTInterfaceType):
             motion_arrays['body_vel_c'],            # IN -> body vel [TVx, TVy, TVz, RVx, RVy, RVz]
             motion_arrays['body_acc_c'],            # IN -> body acc [TAx, TAy, TAz, RAx, RAy, RAz]
             tmp_loads_c,                            # OUT <- body forces and moments [Fx,Fy,Fz,Mx,My,Mz]
+            byref(self.buoyWaveElev_c),             # OUT <- buoy wave elevation
             byref(self.error_status_c),             # OUT <- error status code
             self.error_message_c                    # OUT <- error message buffer
         )

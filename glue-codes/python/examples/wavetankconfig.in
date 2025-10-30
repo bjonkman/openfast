@@ -20,6 +20,7 @@
           0    MSL2SWL          - Offset between still-water level and mean sea level (m) [positive upward]
 ! -------- SeaState -------------------
 "../../../reg_tests/r-test/glue-codes/openfast/MHK_RM1_Floating/SeaState.dat"                      SS_InputFile   - SeaState input file
+         4     WaveTimeShift    - Shift the SeaState wavetime by this amount (for phase shifting waves to match tank) (s)
 ! -------- MoorDyn --------------------
 "../../../reg_tests/r-test/glue-codes/openfast/MHK_RM1_Floating/MHK_RM1_Floating_MoorDyn.dat"      MD_InputFile   - MoorDyn input file
 ! -------- AeroDyn + InflowWind -------
@@ -42,7 +43,9 @@
       11.5     RotSpeed         - Rotational speed of rotor in rotor coordinates (rpm)
          0     NacYaw           - Initial or fixed nacelle-yaw angle (degrees)
          0     BldPitch         - Blade 1 pitch (deg)
-         0     Azimuth          - Initial azimuth (actual azimuth calculated and not stored)
+         0     Azimuth          - Initial rotor azimuth
+! -------- Wave Buoy------------------
+      -1,0     WaveBuoyLoc      - Location of the wave elevation measurement buoy. SeaState data returned at every timestep at this location (m)
 ! -------- Output ---------------------
      false     SendScreenToFile - send to file <OutRootName>.screen.log if true
          3     OutFile          - 0: no output file of channels, 1: output file in text format (at default DT) 

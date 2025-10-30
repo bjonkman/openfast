@@ -1295,19 +1295,7 @@ SUBROUTINE ADI_C_End(ErrStat_C,ErrMsg_C) BIND (C, NAME='ADI_C_End')
       if (allocated(ADI%u))             deallocate(ADI%u)
    endif
 
-   ! Destroy any other copies of states (rerun on (STATE_CURR) is ok)
-   call ADI_DestroyContState(   ADI%x(         STATE_LAST), ErrStat_F2, ErrMsg_F2 );  call SetErrStat( ErrStat_F2, ErrMsg_F2, ErrStat_F, ErrMsg_F, RoutineName )
-   call ADI_DestroyContState(   ADI%x(         STATE_CURR), ErrStat_F2, ErrMsg_F2 );  call SetErrStat( ErrStat_F2, ErrMsg_F2, ErrStat_F, ErrMsg_F, RoutineName )
-   call ADI_DestroyContState(   ADI%x(         STATE_PRED), ErrStat_F2, ErrMsg_F2 );  call SetErrStat( ErrStat_F2, ErrMsg_F2, ErrStat_F, ErrMsg_F, RoutineName )
-   call ADI_DestroyDiscState(   ADI%xd(        STATE_LAST), ErrStat_F2, ErrMsg_F2 );  call SetErrStat( ErrStat_F2, ErrMsg_F2, ErrStat_F, ErrMsg_F, RoutineName )
-   call ADI_DestroyDiscState(   ADI%xd(        STATE_CURR), ErrStat_F2, ErrMsg_F2 );  call SetErrStat( ErrStat_F2, ErrMsg_F2, ErrStat_F, ErrMsg_F, RoutineName )
-   call ADI_DestroyDiscState(   ADI%xd(        STATE_PRED), ErrStat_F2, ErrMsg_F2 );  call SetErrStat( ErrStat_F2, ErrMsg_F2, ErrStat_F, ErrMsg_F, RoutineName )
-   call ADI_DestroyConstrState( ADI%z(         STATE_LAST), ErrStat_F2, ErrMsg_F2 );  call SetErrStat( ErrStat_F2, ErrMsg_F2, ErrStat_F, ErrMsg_F, RoutineName )
-   call ADI_DestroyConstrState( ADI%z(         STATE_CURR), ErrStat_F2, ErrMsg_F2 );  call SetErrStat( ErrStat_F2, ErrMsg_F2, ErrStat_F, ErrMsg_F, RoutineName )
-   call ADI_DestroyConstrState( ADI%z(         STATE_PRED), ErrStat_F2, ErrMsg_F2 );  call SetErrStat( ErrStat_F2, ErrMsg_F2, ErrStat_F, ErrMsg_F, RoutineName )
-   call ADI_DestroyOtherState(  ADI%OtherState(STATE_LAST), ErrStat_F2, ErrMsg_F2 );  call SetErrStat( ErrStat_F2, ErrMsg_F2, ErrStat_F, ErrMsg_F, RoutineName )
-   call ADI_DestroyOtherState(  ADI%OtherState(STATE_CURR), ErrStat_F2, ErrMsg_F2 );  call SetErrStat( ErrStat_F2, ErrMsg_F2, ErrStat_F, ErrMsg_F, RoutineName )
-   call ADI_DestroyOtherState(  ADI%OtherState(STATE_PRED), ErrStat_F2, ErrMsg_F2 );  call SetErrStat( ErrStat_F2, ErrMsg_F2, ErrStat_F, ErrMsg_F, RoutineName )
+   call ADI_DestroyData(ADI, ErrStat_F2, ErrMsg_F2 );  call SetErrStat( ErrStat_F2, ErrMsg_F2, ErrStat_F, ErrMsg_F, RoutineName )
 
    ! if deallocate other items now
    !if (allocated(InputTimes))    deallocate(InputTimes)

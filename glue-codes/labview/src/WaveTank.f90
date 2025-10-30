@@ -30,7 +30,7 @@ MODULE WaveTankTesting
 
    use ISO_C_BINDING
    use NWTC_Library
-   use SeaState_C_Binding, ONLY: SeaSt_C_PreInit, SeaSt_C_Init, SeaSt_C_CalcOutput, SeaSt_C_End, MaxOutPts, SeaSt_C_GetWaveFieldPointer
+   use SeaState_C_Binding, ONLY: SeaSt_C_PreInit, SeaSt_C_Init, SeaSt_C_CalcOutput, SeaSt_C_End, MaxOutPts, SeaSt_C_GetWaveFieldPointer, SeaSt_C_GetSurfElev
    use SeaSt_WaveField_Types, ONLY: SeaSt_WaveFieldType
    use AeroDyn_Inflow_C_BINDING, ONLY: ADI_C_PreInit, ADI_C_SetupRotor, ADI_C_Init, ADI_C_End, MaxADIOutputs, ADI_C_SetRotorMotion, ADI_C_UpdateStates, ADI_C_CalcOutput, ADI_C_GetRotorLoads
    use MoorDyn_C, ONLY: MD_C_Init, MD_C_End, MD_C_SetWaveFieldData, MD_C_UpdateStates, MD_C_CalcOutput
@@ -178,6 +178,7 @@ subroutine WaveTank_Init(  &
 
    ! debugging
    if (SimSettings%Sim%DebugLevel > 0_c_int) call ShowPassedData()
+   if (SimSettings%Sim%DebugLevel > 2_c_int) call Print_FileInfo_Struct(CU,FileInfo_In)
 
    ! VTK directory
    WrVTK_Dir_C = c_null_char
@@ -208,7 +209,7 @@ subroutine WaveTank_Init(  &
       SimSettings%Env%WtrDens,      &
       SimSettings%Env%WtrDpth,      &
       SimSettings%Env%MSL2SWL,      &
-      SimSettings%Sim%DebugLevel,   &
+      SimSettings%Sim%DebugLevel-1, &     ! adjust down 1 for SS
       WrVTK_Dir_C,                  &
       SimSettings%Viz%WrVTK,        &
       SimSettings%Viz%WrVTK_DT,     &
@@ -221,7 +222,7 @@ subroutine WaveTank_Init(  &
    endif
 
    SS_InputFile_C = c_null_char
-   SS_InputFile_C = transfer(trim(SimSettings%IptFile%SS_InputFile ), SS_InputFile_C )
+   SS_InputFile_C = transfer(trim(SimSettings%ModSettings%SS_InputFile ), SS_InputFile_C )
    OutRootName_C  = transfer(trim(SimSettings%Sim%OutRootName)//'.SeaSt'//c_null_char, OutRootName_C)
    call SeaSt_C_Init(            &
       SS_InputFile_C,            &
@@ -265,7 +266,7 @@ subroutine WaveTank_Init(  &
 !FIXME: 6 DOF with 3xPos, 3xEulerAngle
    InitPtfmPosOri = 0.0_c_float
    MD_InputFile_C = c_null_char
-   MD_InputFile_C = transfer(trim(SimSettings%IptFile%MD_InputFile ), MD_InputFile_C )
+   MD_InputFile_C = transfer(trim(SimSettings%ModSettings%MD_InputFile ), MD_InputFile_C )
    OutRootName_C  = transfer(trim(SimSettings%Sim%OutRootName)//'.MD'//c_null_char, OutRootName_C)
    call MD_C_Init(                           &
       0_c_int,                               &   !< InputFilePassed: 0 for file, 1 for string
@@ -282,6 +283,7 @@ subroutine WaveTank_Init(  &
       MD_WriteOutputUnt_C,                   &
       ErrStat_C2, ErrMsg_C2                  &
    )
+!FIXME: add this:      SimSettings%Sim%DebugLevel-1, &     ! adjust down 1 for MD
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'MD_C_Init')
    if (ErrStat_C >= AbortErrLev_C) then
       call CleanUp()
@@ -309,7 +311,7 @@ subroutine WaveTank_Init(  &
       SimSettings%Env%WtrDpth,               &
       SimSettings%Env%MSL2SWL,               &
       SimSettings%Sim%MHK,                   &
-      SimSettings%Sim%DebugLevel,            &
+      SimSettings%Sim%DebugLevel-1,          &     ! adjust down 1 for ADI
       ErrStat_C2, ErrMsg_C2                  &
    )
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_PreInit')
@@ -349,9 +351,9 @@ tmpInitMeshOri = tmpBldRootOri      !FIXME: blade pitch
    endif
 
    AD_InputFile_C  = c_null_char
-   AD_InputFile_C  = transfer(trim(SimSettings%IptFile%AD_InputFile ), AD_InputFile_C )
+   AD_InputFile_C  = transfer(trim(SimSettings%ModSettings%AD_InputFile ), AD_InputFile_C )
    IfW_InputFile_C = c_null_char
-   IfW_InputFile_C = transfer(trim(SimSettings%IptFile%IfW_InputFile), IfW_InputFile_C)
+   IfW_InputFile_C = transfer(trim(SimSettings%ModSettings%IfW_InputFile), IfW_InputFile_C)
    OutRootName_C = transfer(trim(SimSettings%Sim%OutRootName)//'.ADI'//c_null_char, OutRootName_C)
    call ADI_C_Init(                          &
       0,                                     &  ! ADinputFilePassed; 0 for file, 1 for string
@@ -422,13 +424,17 @@ contains
    end subroutine Cleanup
    subroutine ShowPassedData()
       call WrScr("-----------------------------------------------------------")
-      call WrScr("Interface debugging:  WaveTank_Init")
+      call WrScr("Interface debugging:  WaveTank_Init input values")
       call WrScr("   --------------------------------------------------------")
       call WrScr("   WT_InputFile_C         -> "//trim(InputFile))
+      call WrScr("   --------------------------------------------------------")
    end subroutine ShowPassedData
    subroutine ShowReturnData()
-      call WrScr("   RootName_C             -> "//trim(SimSettings%Sim%OutRootName))
-      call WrScr("   WrVTK_Dir_C            -> "//trim(SimSettings%Viz%WrVTK_Dir))
+      call WrScr("-----------------------------------------------------------")
+      call WrScr("Interface debugging:  WaveTank_Init returned values")
+      call WrScr("   --------------------------------------------------------")
+      call WrScr("   RootName_C             <- "//trim(SimSettings%Sim%OutRootName))
+      call WrScr("   WrVTK_Dir_C            <- "//trim(SimSettings%Viz%WrVTK_Dir))
       call WrScr("-----------------------------------------------------------")
    end subroutine
 end subroutine WaveTank_Init
@@ -443,7 +449,8 @@ subroutine WaveTank_CalcStep( &
    pos_c,                     &
    vel_c,                     &
    acc_c,                     &
-   loads_C,                   &
+   loads_c,                   &
+   buoyWaveElev_c,            &
    ErrStat_C,                 &
    ErrMsg_C                   &
 ) BIND (C, NAME='WaveTank_CalcStep')
@@ -452,16 +459,18 @@ subroutine WaveTank_CalcStep( &
 !GCC$ ATTRIBUTES DLLEXPORT :: WaveTank_CalcStep
 #endif
    real(c_double),         intent(in   ) :: time_c
-   real(c_float),          intent(in   ) :: pos_c(6)     ! [x,y,z,roll,pitch,yaw]
-   real(c_float),          intent(in   ) :: vel_c(6)     ! [x_dot,y_dot,z_dot,roll_dot,pitch_dot,yaw_dot]
-   real(c_float),          intent(in   ) :: acc_c(6)     ! [x_ddot,y_ddot,z_ddot,roll_ddot,pitch_ddot,yaw_ddot]
-   real(c_float),          intent(  out) :: loads_c(6)   ! [Fx,Fy,Fz,Mx,My,Mz]
+   real(c_float),          intent(in   ) :: pos_c(6)        ! [x,y,z,roll,pitch,yaw]
+   real(c_float),          intent(in   ) :: vel_c(6)        ! [x_dot,y_dot,z_dot,roll_dot,pitch_dot,yaw_dot]
+   real(c_float),          intent(in   ) :: acc_c(6)        ! [x_ddot,y_ddot,z_ddot,roll_ddot,pitch_ddot,yaw_ddot]
+   real(c_float),          intent(  out) :: loads_c(6)      ! [Fx,Fy,Fz,Mx,My,Mz]
+   real(c_float),          intent(  out) :: buoyWaveElev_c  ! wave elevation at buoy
    integer(c_int),         intent(  out) :: ErrStat_C
    character(c_char),      intent(  out) :: ErrMsg_C(ErrMsgLen_C)
    integer(c_int)                        :: ErrStat_C2(ErrMsgLen_C)
    character(c_char)                     :: ErrMsg_C2
    integer(IntKi)                        :: ErrStat_F2
    character(ErrMsgLen)                  :: ErrMsg_F2
+   real(c_float)                         :: tmpPos_C(2)     ! temporary for wave buoy position
 
    ! Initialize error handling
    ErrStat_C = ErrID_None
@@ -498,6 +507,13 @@ subroutine WaveTank_CalcStep( &
    endif
 
 
+   !--------------------------------------
+   ! Wave elevation at buoy
+   !--------------------------------------
+   tmpPos_C = real(SimSettings%WaveBuoy%XYLoc, c_float)
+   call SeaSt_C_GetSurfElev(Time_C, tmpPos_C, buoyWaveElev_c, ErrStat_C,ErrMsg_C); if (Failed()) return
+
+   
 !FIXME: setup new method for handling this
 !FIXME: turb off HHVel
 !   real(c_float) :: md_outputs(MD_NumChannels_C)
@@ -731,7 +747,7 @@ contains
    subroutine ShowPassedData()
       character(120) :: TmpStr
       call WrScr("-----------------------------------------------------------")
-      call WrScr("Interface debugging:  WaveTank_CalcStep")
+      call WrScr("Interface debugging:  WaveTank_CalcStep input values")
       call WrScr("   --------------------------------------------------------")
       call WrScr("   time_c    -> "//trim(Num2LStr(time_c)))
       write(TmpStr,'("(", *(f10.5, :, ","))') pos_c;  TmpStr=trim(TmpStr)//" )"
@@ -740,11 +756,16 @@ contains
       call WrScr("   vel_c     -> "//trim(TmpStr))
       write(TmpStr,'("(", *(f10.5, :, ","))') acc_c;  TmpStr=trim(TmpStr)//" )"
       call WrScr("   acc_c     -> "//trim(TmpStr))
+      call WrScr("   --------------------------------------------------------")
    end subroutine ShowPassedData
    subroutine ShowReturnData()
       character(120) :: TmpStr
+      call WrScr("-----------------------------------------------------------")
+      call WrScr("Interface debugging:  WaveTank_CalcStep returned values")
+      call WrScr("   --------------------------------------------------------")
       write(TmpStr,'("(", *(f10.5, :, ","))') loads_c;  TmpStr=trim(TmpStr)//" )"
-      call WrScr("   loads_c   -> "//trim(TmpStr))
+      call WrScr("   loads_c        <- "//trim(TmpStr))
+      call WrScr("   buoyWaveElev_c <- "//trim(Num2LStr(buoyWaveElev_c)))
       call WrScr("-----------------------------------------------------------")
    end subroutine
 end subroutine

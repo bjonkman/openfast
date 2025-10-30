@@ -43,11 +43,12 @@ typedef  ^                    ^              ^                 TowerBsPt        
 typedef  ^                    ^              ^                 PtfmRefPos           3  -  -  "Location of platform reference point, relative to MSL.  Motions and loads all connect to this point" (m)
 typedef  ^                    ^              ^                 PtfmRefOrient        3  -  -  "Orientation of platform reference point, Euler angle set of roll,pitch,yaw" (rad)
 
-
 typedef  ^                 TurbInitCondType  ReKi              RotSpeed             -  -  -  "Rotor speed" (RPM)
 typedef  ^                    ^              ^                 NacYaw               -  -  -  "Initial or fixed nacelle-yaw angle - read as deg, convert to rad" (rad)
 typedef  ^                    ^              ^                 BldPitch             -  -  -  "Fixed blade pitch for full simulation - read as deg, convert to rad" (rad)
 typedef  ^                    ^              ^                 Azimuth              -  0  -  "Initial azimuth (actual azimuth calculated and not stored) - read as deg, convert to rad" (rad)
+
+typedef  ^                    WaveBuoyType   ReKi              XYLoc                2  -  -  "Location of the wave elevation measurement buoy. SeaState data returned at every timestep at this location" (m)
 
 typedef  ^                    OutFilesType   logical           SendScreenToFile     -  -  -  "send to file <OutRootName>.screen.log if true" (-)
 typedef  ^                    ^              c_int             OutFile              -  -  -  "0: no output file of channels, 1: output file in text format (at DT)" (-)
@@ -60,8 +61,9 @@ typedef  ^                    ^              character(1024)   WrVTK_dir        
 typedef  ^                    ^              c_float           VTKNacDim            6  -  -  "Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz]" (m)
 typedef  ^                    ^              IntKi             Twidth               -  6  -  "Time width -- hard coded for now" (-)
 
-typedef  ^                    IptFilesType   character(1024)   SS_InputFile         -  -  -  "SeaState   input file" (-)
-typedef  ^                    ^              ^                 MD_InputFile         -  -  -  "MoorDyn    input file" (-)
+typedef  ^                    ModSettings    character(1024)   SS_InputFile         -  -  -  "SeaState   input file" (-)
+typedef  ^                    ^              DbKi              WaveTimeShift        -  -  -  "Shift the SeaState wavetime by this amount (for phase shifting waves to match tank)" (s)
+typedef  ^                    ^              character(1024)   MD_InputFile         -  -  -  "MoorDyn    input file" (-)
 typedef  ^                    ^              ^                 AD_InputFile         -  -  -  "AeroDyn    input file" (-)
 typedef  ^                    ^              ^                 IfW_InputFile        -  -  -  "InflowWind input file" (-)
 
@@ -70,9 +72,10 @@ typedef  ^                 SimSettingsType   SimType          Sim               
 typedef  ^                    ^              EnvType          Env                  -  -  -  "Environment settings" -
 typedef  ^                    ^              TurbConfigType   TrbCfg               -  -  -  "Turbine configuration" -
 typedef  ^                    ^              TurbInitCondType TrbInit              -  -  -  "Turbine initial operating point" -
+typedef  ^                    ^              WaveBuoyType     WaveBuoy             -  -  -  "Wave elevation buoy locat (x-y)" (m)
 typedef  ^                    ^              OutFilesType     Outs                 -  -  -  "Output settings" -
 typedef  ^                    ^              VizType          Viz                  -  -  -  "Vizualization settings" -
-typedef  ^                    ^              IptFilesType     IptFile              -  -  -  "Input files for each module" -
+typedef  ^                    ^              ModSettings      ModSettings          -  -  -  "Input files for each module" -
 
 
 # Storage for IO to CalcStep (simplifies output - probably not necessary, but here it is anyhow)
@@ -84,6 +87,7 @@ typedef  ^                    ^              ^                 FrcMom_c         
 typedef  ^                    ^              ReKi              FrcMom_SS            6  -  -  "calculated forces/moments from SS" -
 typedef  ^                    ^              ^                 FrcMom_MD            6  -  -  "calculated forces/moments from MD" -
 typedef  ^                    ^              ^                 FrcMom_ADI           6  -  -  "calculated forces/moments from ADI" -
+typedef  ^                    ^              ^                 BuoyWaveElev         -  -  -  "calculated wave elevation at buoy" -
 
 
 # storage for output file data (num chans, WriteOutputHdr, out arrays per module, etc)
