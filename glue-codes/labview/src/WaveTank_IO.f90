@@ -129,7 +129,6 @@ subroutine ParseInputFile(FileInfo_In, SimSettings, ErrStat, ErrMsg)
    call ParseVar( FileInfo_In, CurLine, 'IfW_InputFile',    SimSettings%ModSettings%IfW_InputFile, ErrStat2, ErrMsg2); if(Failed()) return;  ! InflowWind input file
    ! -------- Turbine Configuration ------
    call ParseVar( FileInfo_In, CurLine, 'NumBl',            SimSettings%TrbCfg%NumBl,              ErrStat2, ErrMsg2); if(Failed()) return;  ! Number of blades (-)
-   call ParseVar( FileInfo_In, CurLine, 'TipRad',           SimSettings%TrbCfg%TipRad,             ErrStat2, ErrMsg2); if(Failed()) return;  ! The distance from the rotor apex to the blade tip (meters)
    call ParseVar( FileInfo_In, CurLine, 'HubRad',           SimSettings%TrbCfg%HubRad,             ErrStat2, ErrMsg2); if(Failed()) return;  ! The distance from the rotor apex to the blade root (meters)
    call ParseVar( FileInfo_In, CurLine, 'PreCone',          SimSettings%TrbCfg%PreCone,            ErrStat2, ErrMsg2); if(Failed()) return;  ! Blade cone angle (degrees)
    call ParseVar( FileInfo_In, CurLine, 'OverHang',         SimSettings%TrbCfg%OverHang,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades] (meters)

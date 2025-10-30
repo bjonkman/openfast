@@ -32,8 +32,7 @@ typedef  ^                    ^              ^                 WtrDpth          
 typedef  ^                    ^              ^                 MSL2SWL              -  -  -  "Mean sea level to still water level" (m)
 
 typedef  ^                 TurbConfigType    IntKi             NumBl                -  -  -  "Number of blades" (-)
-typedef  ^                    ^              ReKi              TipRad               -  -  -  "The distance from the rotor apex to the blade tip" (m)
-typedef  ^                    ^              ^                 HubRad               -  -  -  "The distance from the rotor apex to the blade root" (m)
+typedef  ^                    ^              ReKi              HubRad               -  -  -  "The distance from the rotor apex to the blade root" (m)
 typedef  ^                    ^              ^                 PreCone              -  -  -  "Blade cone angle" (deg)
 typedef  ^                    ^              ^                 OverHang             -  -  -  "Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades]" (m)
 typedef  ^                    ^              ^                 ShftTilt             -  -  -  "Rotor shaft tilt angle" (deg)

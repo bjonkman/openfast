@@ -61,7 +61,6 @@ IMPLICIT NONE
 ! =========  TurbConfigType  =======
   TYPE, PUBLIC :: TurbConfigType
     INTEGER(IntKi)  :: NumBl = 0_IntKi      !< Number of blades [(-)]
-    REAL(ReKi)  :: TipRad = 0.0_ReKi      !< The distance from the rotor apex to the blade tip [(m)]
     REAL(ReKi)  :: HubRad = 0.0_ReKi      !< The distance from the rotor apex to the blade root [(m)]
     REAL(ReKi)  :: PreCone = 0.0_ReKi      !< Blade cone angle [(deg)]
     REAL(ReKi)  :: OverHang = 0.0_ReKi      !< Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades] [(m)]
@@ -325,7 +324,6 @@ subroutine WT_CopyTurbConfigType(SrcTurbConfigTypeData, DstTurbConfigTypeData, C
    ErrStat = ErrID_None
    ErrMsg  = ''
    DstTurbConfigTypeData%NumBl = SrcTurbConfigTypeData%NumBl
-   DstTurbConfigTypeData%TipRad = SrcTurbConfigTypeData%TipRad
    DstTurbConfigTypeData%HubRad = SrcTurbConfigTypeData%HubRad
    DstTurbConfigTypeData%PreCone = SrcTurbConfigTypeData%PreCone
    DstTurbConfigTypeData%OverHang = SrcTurbConfigTypeData%OverHang
@@ -352,7 +350,6 @@ subroutine WT_PackTurbConfigType(RF, Indata)
    character(*), parameter         :: RoutineName = 'WT_PackTurbConfigType'
    if (RF%ErrStat >= AbortErrLev) return
    call RegPack(RF, InData%NumBl)
-   call RegPack(RF, InData%TipRad)
    call RegPack(RF, InData%HubRad)
    call RegPack(RF, InData%PreCone)
    call RegPack(RF, InData%OverHang)
@@ -371,7 +368,6 @@ subroutine WT_UnPackTurbConfigType(RF, OutData)
    character(*), parameter            :: RoutineName = 'WT_UnPackTurbConfigType'
    if (RF%ErrStat /= ErrID_None) return
    call RegUnpack(RF, OutData%NumBl); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpack(RF, OutData%TipRad); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%HubRad); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%PreCone); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%OverHang); if (RegCheckErr(RF, RoutineName)) return

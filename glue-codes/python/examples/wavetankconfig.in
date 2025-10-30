@@ -29,7 +29,6 @@
 "../../../reg_tests/r-test/glue-codes/openfast/MHK_RM1_Floating/MHK_RM1_Floating_InflowWind.dat"   IfW_InputFile  - InflowWind input file
 ! -------- Turbine Configuration ------
           2    NumBl            - Number of blades (-)
-         10    TipRad           - The distance from the rotor apex to the blade tip (m)
           1    HubRad           - The distance from the rotor apex to the blade root (m)
           0    PreCone          - Blade cone angle (deg)
       -4.91    OverHang         - Distance from yaw axis (tower centerline) to rotor apex (m)
