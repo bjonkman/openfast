@@ -106,7 +106,8 @@ subroutine ParseInputFile(FileInfo_In, SimSettings, ErrStat, ErrMsg)
    call ParseVar( FileInfo_In, CurLine, 'TMax',             SimSettings%Sim%TMax,                  ErrStat2, ErrMsg2); if(Failed()) return;  ! Max sim time (unused)
    call ParseVar( FileInfo_In, CurLine, 'MHK',              SimSettings%Sim%MHK,                   ErrStat2, ErrMsg2); if(Failed()) return;  ! MHK turbine type (switch) {0=Not an MHK turbine; 1=Fixed MHK turbine; 2=Floating MHK turbine}
    call ParseVar( FileInfo_In, CurLine, 'InterpOrd',        SimSettings%Sim%InterpOrd,             ErrStat2, ErrMsg2); if(Failed()) return;  ! Interpolation order [unused]
-   call ParseVar( FileInfo_In, CurLine, 'ScaleFact',        SimSettings%Sim%ScaleFact,             ErrStat2, ErrMsg2); if(Failed()) return;  ! scaling factor for scaling full size model to wavetank scale results (>1 expected) [unused]
+   call ParseVar( FileInfo_In, CurLine, 'ScaleFact',        SimSettings%Sim%ScaleFact,             ErrStat2, ErrMsg2); if(Failed()) return;  ! scaling factor for scaling full size model to wavetank scale results (Froude scaling: lambda = full_dimension / scale_dimension) [>1 expected] (-)
+   call ParseVar( FileInfo_In, CurLine, 'DensFact',         SimSettings%Sim%DensFact,              ErrStat2, ErrMsg2); if(Failed()) return;  ! ratio of density - Density_full/Density_model (rho_F/rho_M).  Used with Froude scaling of forces/moments" (-)
    call ParseVar( FileInfo_In, CurLine, 'DebugLevel',       SimSettings%Sim%DebugLevel,            ErrStat2, ErrMsg2); if(Failed()) return;  ! 0: none, 1: I/O summary, 2: +positions/orientations passed, 3:, 4: +all meshes
    call ParseVar( FileInfo_In, CurLine, 'OutRootName',      SimSettings%Sim%OutRootName,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Root name for any summary or other files
    ! -------- Environment ----------------
@@ -132,11 +133,11 @@ subroutine ParseInputFile(FileInfo_In, SimSettings, ErrStat, ErrMsg)
    call ParseVar( FileInfo_In, CurLine, 'HubRad',           SimSettings%TrbCfg%HubRad,             ErrStat2, ErrMsg2); if(Failed()) return;  ! The distance from the rotor apex to the blade root (meters)
    call ParseVar( FileInfo_In, CurLine, 'PreCone',          SimSettings%TrbCfg%PreCone,            ErrStat2, ErrMsg2); if(Failed()) return;  ! Blade cone angle (degrees)
    call ParseVar( FileInfo_In, CurLine, 'OverHang',         SimSettings%TrbCfg%OverHang,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades] (meters)
-   call ParseVar( FileInfo_In, CurLine, 'ShftGagL',         SimSettings%TrbCfg%ShftGagL,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Distance from rotor apex [3 blades] or teeter pin [2 blades] to shaft strain gages [positive for upwind rotors] (meters)
    call ParseVar( FileInfo_In, CurLine, 'ShftTilt',         SimSettings%TrbCfg%ShftTilt,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Rotor shaft tilt angle (degrees)
-   call ParseVar( FileInfo_In, CurLine, 'Twr2Shft',         SimSettings%TrbCfg%Twr2Shft,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Vertical distance from the tower-top to the rotor shaft (meters)
+   SimSettings%TrbCfg%ShftTilt    = D2R * SimSettings%TrbCfg%ShftTilt
+   call ParseVar( FileInfo_In, CurLine, 'Twr2Shft',         SimSettings%TrbCfg%Twr2Shft,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Vertical distance from the tower-top to the rotor shaft, center of nacelle (meters)
    call ParseVar( FileInfo_In, CurLine, 'TowerHt',          SimSettings%TrbCfg%TowerHt,            ErrStat2, ErrMsg2); if(Failed()) return;  ! Height of tower relative MSL
-   call ParseAry( FileInfo_In, CurLine, 'TowerBsHt',        SimSettings%TrbCfg%TowerBsPt,     3,   ErrStat2, ErrMsg2); if(Failed()) return;  ! Height of tower base relative to ground level [onshore], MSL [floating MHK] (meters)
+   call ParseAry( FileInfo_In, CurLine, 'TowerBsPt',        SimSettings%TrbCfg%TowerBsPt,     3,   ErrStat2, ErrMsg2); if(Failed()) return;  ! Height of tower base relative to PtfmRefPos in x,y, and water surface in z (meters)
    call ParseAry( FileInfo_In, CurLine, 'PtfmRefPos',       SimSettings%TrbCfg%PtfmRefPos,    3,   ErrStat2, ErrMsg2); if(Failed()) return;  ! Location of platform reference point, relative to MSL.  Motions and loads all connect to this point
    call ParseAry( FileInfo_In, CurLine, 'PtfmRefOrient',    SimSettings%TrbCfg%PtfmRefOrient, 3,   ErrStat2, ErrMsg2); if(Failed()) return;  ! Orientation of platform reference point, Euler angle set of roll,pitch,yaw" (rad)
    ! -------- Turbine Operating Point ----
@@ -186,7 +187,31 @@ subroutine ValidateInputFile(SimSettings, ErrStat, ErrMsg)
    ! Sim Control
    !------------------------
    if (SimSettings%Sim%MHK /= 2_c_int)          call SetErrStat(ErrID_Fatal, "WaveTank module only works for floating MHK turbines at present (MHK=2).",ErrStat,ErrMsg,RoutineName)
-   if (SimSettings%Sim%ScaleFact < 1.0_c_float) call SetErrStat(ErrID_Fatal, "ScaleFact should be > 1 [unused at present]", ErrStat,ErrMsg,RoutineName)
+   if (SimSettings%Sim%ScaleFact < 1.0_c_float) call SetErrStat(ErrID_Fatal, "ScaleFact should be > 1", ErrStat,ErrMsg,RoutineName)
+   if (SimSettings%Sim%ScaleFact > 1.0_c_float) then
+      call SetErrStat(ErrID_Warn,  "ScaleFact should be == 1 for now.  Scaling is untested and incomplete!!!!", ErrStat,ErrMsg,RoutineName)
+      call WrScr("/---------------------------------------------------------\")
+      call WrScr("|---  WARNING ----  WARNING  ---- WARNING ---- WARNING ---|")
+      call WrScr("|---------------------------------------------------------|")
+      call WrScr("|                                                         |")
+      call WrScr("|  Froude scaling is not complete, nor is it tested!!!!   |")
+      call WrScr("|                                                         |")
+      call WrScr("|  At present, only some inputs are scaled, but equations |")
+      call WrScr("|  have not been verified yet.  This is useful just for   |")
+      call WrScr("|  observing motions are occuring, but will corrupt your  |")
+      call WrScr("|  simulation.                                            |")
+      call WrScr("|                                                         |")
+      call WrScr("|  Set ScaleFact=1.0 in your input file.                  |")
+      call WrScr("|                                                         |")
+      call WrScr("|  TODO:                                                  |")
+      call WrScr("|    - verify equations in FroudeScaling* functions       |")
+      call WrScr("|    - scale resulting forces / moments                   |")
+      call WrScr("|    - add scaled time, pos, vel, acc, frc, mom to output |")
+      call WrScr("|      channels and add subscripting to differentiate     |")
+      call WrScr("|                                                         |")
+      call WrScr("\---------------------------------------------------------/")
+   endif
+
 
    !------------------------
    ! Environment

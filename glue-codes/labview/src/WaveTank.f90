@@ -158,6 +158,9 @@ subroutine WaveTank_Init(  &
    integer(c_int)    :: MD_NumChannels_C
    integer(c_int)    :: ADI_NumChannels_C
 
+   ! set constants
+   call NWTC_Init()
+
    ! Initialize error handling
    ErrStat_C = ErrID_None
    ErrMsg_C  = " "//C_NULL_CHAR
@@ -167,8 +170,6 @@ subroutine WaveTank_Init(  &
    InputFile = InputFile(1:i)
    call ProcessComFile(InputFile,  FileInfo_In, ErrStat_F2, ErrMsg_F2); if (Failed()) return
    call ParseInputFile(FileInfo_In, SimSettings, ErrStat_F2, ErrMsg_F2); if (Failed()) return
-
-   call ValidateInputFile(SimSettings, ErrStat_F2, ErrMsg_F2); if (Failed()) return
 
    ! return rootname
    RootName_C = c_null_char
@@ -181,6 +182,9 @@ subroutine WaveTank_Init(  &
       call OpenFOutFile(ScreenLogOutput_Un, ScreenLogOutput_File, ErrStat_F2, ErrMsg_F2); if (Failed()) return
       call SetConsoleUnit(ScreenLogOutput_Un)   ! this will redirect all screen output to a file instead
    endif
+
+   ! validate the settings now that the screen can be written to file
+   call ValidateInputFile(SimSettings, ErrStat_F2, ErrMsg_F2); if (Failed()) return
 
    ! debugging
    if (SimSettings%Sim%DebugLevel > 0_c_int) call ShowPassedData()
@@ -208,6 +212,10 @@ subroutine WaveTank_Init(  &
       call WrVTK_Struct_Ref(SimSettings, MeshMotions, MeshLoads, ErrStat_F2, ErrMsg_F2)
       if (Failed()) return
    endif
+
+   ! map the structural meshes (write vtk first in case of issues)
+   call StructCreateMeshMaps(MeshMotions, MeshLoads, MeshMaps, ErrStat_F2, ErrMsg_F2)
+   if (Failed()) return
 
 
    !------------------------------
@@ -485,6 +493,7 @@ subroutine WaveTank_CalcStep( &
    integer(IntKi)                        :: ErrStat_F2
    character(ErrMsgLen)                  :: ErrMsg_F2
    real(c_float)                         :: tmpPos_C(2)     ! temporary for wave buoy position
+   integer(IntKi)                        :: i               ! generic counter
 
    ! Initialize error handling
    ErrStat_C = ErrID_None
@@ -507,7 +516,8 @@ subroutine WaveTank_CalcStep( &
    !--------------------------------------
    ! Update motion meshes
    !--------------------------------------
-!FIXME: add this
+   call StructMotionUpdate(SimSettings, CalcStepIO, MeshMotions, MeshMaps, StructTmp, ErrStat_F2, ErrMsg_F2)
+   if (Failed()) return
 
 
    !--------------------------------------

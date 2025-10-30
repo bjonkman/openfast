@@ -17,7 +17,8 @@ typedef  WaveTank/WT          SimType        c_double          DT               
 typedef  ^                    ^              c_double          TMax                 -  -  -  "Max sim time" -
 typedef  ^                    ^              c_int             MHK                  -  -  -  "MHK turbine type (switch) {0=Not an MHK turbine; 1=Fixed MHK turbine; 2=Floating MHK turbine}" (-)
 typedef  ^                    ^              c_int             InterpOrd            -  1  -  "Interpolation order" -
-typedef  ^                    ^              c_float           ScaleFact            -  1  -  "scaling factor for scaling full size model to wavetank scale results (>1)" (-)
+typedef  ^                    ^              c_float           ScaleFact            -  1  -  "scaling factor for scaling full size model to wavetank scale results (Froude scaling: lambda = full_dimension / scale_dimension) (>1 expected) (-)
+typedef  ^                    ^              c_float           DensFact             -  1  -  "ratio of density - Density_full/Density_model (rho_F/rho_M).  Used with Froude scaling of forces/moments" (-)
 typedef  ^                    ^              c_int             DebugLevel           -  -  -  "Debug level for outputs" -
 typedef  ^                    ^              character(1024)   OutRootName          -  -  -  "Rootname for outputs" -
 
@@ -35,7 +36,6 @@ typedef  ^                    ^              ReKi              TipRad           
 typedef  ^                    ^              ^                 HubRad               -  -  -  "The distance from the rotor apex to the blade root" (m)
 typedef  ^                    ^              ^                 PreCone              -  -  -  "Blade cone angle" (deg)
 typedef  ^                    ^              ^                 OverHang             -  -  -  "Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades]" (m)
-typedef  ^                    ^              ^                 ShftGagL             -  -  -  "Distance from rotor apex [3 blades] or teeter pin [2 blades] to shaft strain gages [positive for upwind rotors]" (m)
 typedef  ^                    ^              ^                 ShftTilt             -  -  -  "Rotor shaft tilt angle" (deg)
 typedef  ^                    ^              ^                 Twr2Shft             -  -  -  "Vertical distance from the tower-top to the rotor shaft" (m)
 typedef  ^                    ^              ^                 TowerHt              -  -  -  "Height of tower relative MSL" (m)
@@ -78,7 +78,7 @@ typedef  ^                    ^              VizType          Viz               
 typedef  ^                    ^              ModSettings      ModSettings          -  -  -  "Input files for each module" -
 
 
-# Storage for IO to CalcStep (simplifies output - probably not necessary, but here it is anyhow)
+# Storage for IO to CalcStep
 typedef  ^              CalcStepIOdataType   c_double          Time_c               -  -  -  "IN:  time"                                        "(s)"
 typedef  ^                    ^              c_float           PosAng_c             6  -  -  "IN:  Position + Euler Ang [x,y,z,phi,theta,psi]"  "[(m) (rad)]"
 typedef  ^                    ^              ^                 Vel_c                6  -  -  "IN:  Velocity             [Vx,Vy,Vz,RVx,RVy,RVz]" "[(m/s) (rad/s)]"

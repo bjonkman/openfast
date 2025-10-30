@@ -40,7 +40,8 @@ IMPLICIT NONE
     REAL(c_double)  :: TMax = 0.0_R8Ki      !< Max sim time [-]
     INTEGER(c_int)  :: MHK = 0_IntKi      !< MHK turbine type (switch) {0=Not an MHK turbine; 1=Fixed MHK turbine; 2=Floating MHK turbine} [(-)]
     INTEGER(c_int)  :: InterpOrd = 1      !< Interpolation order [-]
-    REAL(c_float)  :: ScaleFact = 1      !< scaling factor for scaling full size model to wavetank scale results (>1) [(-)]
+    REAL(c_float)  :: ScaleFact = 1 
+    REAL(c_float)  :: DensFact = 1      !< ratio of density - Density_full/Density_model (rho_F/rho_M).  Used with Froude scaling of forces/moments [(-)]
     INTEGER(c_int)  :: DebugLevel = 0_IntKi      !< Debug level for outputs [-]
     character(1024)  :: OutRootName      !< Rootname for outputs [-]
   END TYPE SimType
@@ -64,7 +65,6 @@ IMPLICIT NONE
     REAL(ReKi)  :: HubRad = 0.0_ReKi      !< The distance from the rotor apex to the blade root [(m)]
     REAL(ReKi)  :: PreCone = 0.0_ReKi      !< Blade cone angle [(deg)]
     REAL(ReKi)  :: OverHang = 0.0_ReKi      !< Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades] [(m)]
-    REAL(ReKi)  :: ShftGagL = 0.0_ReKi      !< Distance from rotor apex [3 blades] or teeter pin [2 blades] to shaft strain gages [positive for upwind rotors] [(m)]
     REAL(ReKi)  :: ShftTilt = 0.0_ReKi      !< Rotor shaft tilt angle [(deg)]
     REAL(ReKi)  :: Twr2Shft = 0.0_ReKi      !< Vertical distance from the tower-top to the rotor shaft [(m)]
     REAL(ReKi)  :: TowerHt = 0.0_ReKi      !< Height of tower relative MSL [(m)]
@@ -211,6 +211,7 @@ subroutine WT_CopySimType(SrcSimTypeData, DstSimTypeData, CtrlCode, ErrStat, Err
    DstSimTypeData%MHK = SrcSimTypeData%MHK
    DstSimTypeData%InterpOrd = SrcSimTypeData%InterpOrd
    DstSimTypeData%ScaleFact = SrcSimTypeData%ScaleFact
+   DstSimTypeData%DensFact = SrcSimTypeData%DensFact
    DstSimTypeData%DebugLevel = SrcSimTypeData%DebugLevel
    DstSimTypeData%OutRootName = SrcSimTypeData%OutRootName
 end subroutine
@@ -234,6 +235,7 @@ subroutine WT_PackSimType(RF, Indata)
    call RegPack(RF, InData%MHK)
    call RegPack(RF, InData%InterpOrd)
    call RegPack(RF, InData%ScaleFact)
+   call RegPack(RF, InData%DensFact)
    call RegPack(RF, InData%DebugLevel)
    call RegPack(RF, InData%OutRootName)
    if (RegCheckErr(RF, RoutineName)) return
@@ -249,6 +251,7 @@ subroutine WT_UnPackSimType(RF, OutData)
    call RegUnpack(RF, OutData%MHK); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%InterpOrd); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%ScaleFact); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%DensFact); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%DebugLevel); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%OutRootName); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
@@ -326,7 +329,6 @@ subroutine WT_CopyTurbConfigType(SrcTurbConfigTypeData, DstTurbConfigTypeData, C
    DstTurbConfigTypeData%HubRad = SrcTurbConfigTypeData%HubRad
    DstTurbConfigTypeData%PreCone = SrcTurbConfigTypeData%PreCone
    DstTurbConfigTypeData%OverHang = SrcTurbConfigTypeData%OverHang
-   DstTurbConfigTypeData%ShftGagL = SrcTurbConfigTypeData%ShftGagL
    DstTurbConfigTypeData%ShftTilt = SrcTurbConfigTypeData%ShftTilt
    DstTurbConfigTypeData%Twr2Shft = SrcTurbConfigTypeData%Twr2Shft
    DstTurbConfigTypeData%TowerHt = SrcTurbConfigTypeData%TowerHt
@@ -354,7 +356,6 @@ subroutine WT_PackTurbConfigType(RF, Indata)
    call RegPack(RF, InData%HubRad)
    call RegPack(RF, InData%PreCone)
    call RegPack(RF, InData%OverHang)
-   call RegPack(RF, InData%ShftGagL)
    call RegPack(RF, InData%ShftTilt)
    call RegPack(RF, InData%Twr2Shft)
    call RegPack(RF, InData%TowerHt)
@@ -374,7 +375,6 @@ subroutine WT_UnPackTurbConfigType(RF, OutData)
    call RegUnpack(RF, OutData%HubRad); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%PreCone); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%OverHang); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpack(RF, OutData%ShftGagL); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%ShftTilt); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%Twr2Shft); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%TowerHt); if (RegCheckErr(RF, RoutineName)) return
