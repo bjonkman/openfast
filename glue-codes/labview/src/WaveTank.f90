@@ -67,6 +67,7 @@ MODULE WaveTankTesting
 
    ! time stuff
    integer(IntKi)          :: VTKn_Global    ! global timestep for VTK
+   integer(IntKi)          :: VTKn_last      ! last global timestep for VTK
 
 !FIXME: replace all this with meshes
 !   REAL(C_FLOAT), DIMENSION(3,3) :: FloaterPositions = 0.0_C_FLOAT
@@ -89,6 +90,11 @@ real(c_double) :: tmpInitMeshOri(18)
 real(c_float)  :: tmpBldRootPos(6), tmpHubPos(3), tmpNacPos(3), tmpInitMeshPos(6)
 integer(c_int) :: tmpNumMeshPts = 2
 integer(c_int) :: tmpMeshPtToBladeNum(2) = (/ 1_c_int, 2_c_int /)
+
+   ! temporary storage of output channels
+   real(c_float), allocatable :: OutData_SS_c(:)
+   real(c_float), allocatable :: OutData_MD_c(:)
+   real(c_float), allocatable :: OutData_ADI_c(:)
 
 !TODO:
 !     - add echo file
@@ -196,6 +202,9 @@ subroutine WaveTank_Init(  &
 
    ! output VTK for struct model (if requested)
    if (SimSettings%Viz%WrVTK > 0_c_int) then
+      ! create directory if doesn't exist
+      call MKDIR( trim(SimSettings%Viz%WrVTK_Dir) )
+      ! write mesh refs
       call WrVTK_Struct_Ref(SimSettings, MeshMotions, MeshLoads, ErrStat_F2, ErrMsg_F2)
       if (Failed()) return
    endif
@@ -229,6 +238,7 @@ subroutine WaveTank_Init(  &
       OutRootName_C,             &
       1000_c_int,                & !FIXME: do we need the number of timesteps???
       SimSettings%Sim%DT,        &
+      SimSettings%ModSettings%WaveTimeShift, & 
       SS_NumChannels_C,          &
       SS_WriteOutputHdr_C,       &
       SS_WriteOutputUnt_C,       &
@@ -283,7 +293,8 @@ subroutine WaveTank_Init(  &
       MD_WriteOutputUnt_C,                   &
       ErrStat_C2, ErrMsg_C2                  &
    )
-!FIXME: add this:      SimSettings%Sim%DebugLevel-1, &     ! adjust down 1 for MD
+!FIXME: add this when updating MD interface
+!      SimSettings%Sim%DebugLevel-1, &     ! adjust down 1 for MD
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'MD_C_Init')
    if (ErrStat_C >= AbortErrLev_C) then
       call CleanUp()
@@ -335,7 +346,7 @@ tmpInitMeshOri = tmpBldRootOri      !FIXME: blade pitch
       tmpIdent9          ,     &  ! HubOri
       tmpNacPos          ,     &  ! NacPos
       tmpIdent9          ,     &  ! NacOri
-      SimSettings%TrbCfg%NumBl,              &  ! NumBlades
+      int(SimSettings%TrbCfg%NumBl,c_int),   &  ! NumBlades
       tmpBldRootPos      ,     &  ! BldRootPos
       tmpBldRootOri      ,     &  ! BldRootOri
       tmpNumMeshPts      ,     &  ! NumMeshPts
@@ -399,10 +410,13 @@ tmpInitMeshOri = tmpBldRootOri      !FIXME: blade pitch
       WrOutputData%OutName = trim(SimSettings%Sim%OutRootName)//'.out'
       call InitOutputFile(WrOutputData,ErrStat_F2,ErrMsg_F2); if (Failed()) return
 
-      ! allocate storage for output channels from each of the modules
-      call AllocAry(WrOutputData%OutData_SS,  WrOutputData%Numchans_SS,  'OutData_SS',  ErrStat_F2, ErrMsg_F2); if (Failed()) return
-      call AllocAry(WrOutputData%OutData_MD,  WrOutputData%Numchans_MD,  'OutData_MD',  ErrStat_F2, ErrMsg_F2); if (Failed()) return
-      call AllocAry(WrOutputData%OutData_ADI, WrOutputData%Numchans_ADI, 'OutData_ADI', ErrStat_F2, ErrMsg_F2); if (Failed()) return
+      ! allocate storage for output channels from each of the modules, and c_float versions
+      call AllocAry(WrOutputData%OutData_SS,    WrOutputData%Numchans_SS,  'OutData_SS',    ErrStat_F2, ErrMsg_F2); if (Failed()) return
+      call AllocAry(WrOutputData%OutData_SS_c,  WrOutputData%Numchans_SS,  'OutData_SS_c',  ErrStat_F2, ErrMsg_F2); if (Failed()) return
+      call AllocAry(WrOutputData%OutData_MD,    WrOutputData%Numchans_MD,  'OutData_MD',    ErrStat_F2, ErrMsg_F2); if (Failed()) return
+      call AllocAry(WrOutputData%OutData_MD_c,  WrOutputData%Numchans_MD,  'OutData_MD_c',  ErrStat_F2, ErrMsg_F2); if (Failed()) return
+      call AllocAry(WrOutputData%OutData_ADI,   WrOutputData%Numchans_ADI, 'OutData_ADI',   ErrStat_F2, ErrMsg_F2); if (Failed()) return
+      call AllocAry(WrOutputData%OutData_ADI_c, WrOutputData%Numchans_ADI, 'OutData_ADI_c', ErrStat_F2, ErrMsg_F2); if (Failed()) return
    endif
 
    !------------------------------
@@ -466,8 +480,8 @@ subroutine WaveTank_CalcStep( &
    real(c_float),          intent(  out) :: buoyWaveElev_c  ! wave elevation at buoy
    integer(c_int),         intent(  out) :: ErrStat_C
    character(c_char),      intent(  out) :: ErrMsg_C(ErrMsgLen_C)
-   integer(c_int)                        :: ErrStat_C2(ErrMsgLen_C)
-   character(c_char)                     :: ErrMsg_C2
+   integer(c_int)                        :: ErrStat_C2
+   character(c_char)                     :: ErrMsg_C2(ErrMsgLen_C)
    integer(IntKi)                        :: ErrStat_F2
    character(ErrMsgLen)                  :: ErrMsg_F2
    real(c_float)                         :: tmpPos_C(2)     ! temporary for wave buoy position
@@ -495,25 +509,41 @@ subroutine WaveTank_CalcStep( &
    !--------------------------------------
 !FIXME: add this
 
+
+   !--------------------------------------
+   ! Wave elevation at buoy, update buoy
+   !--------------------------------------
+   tmpPos_C = real(SimSettings%WaveBuoy%XYLoc, c_float)
+   call SeaSt_C_GetSurfElev(Time_C, tmpPos_C, buoyWaveElev_c, ErrStat_C2, ErrMsg_C2)
+   call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'WaveTank_CalcStep::SeaSt_C_GetSurfElev')
+   if (ErrStat_C >= AbortErrLev_C) return
+   MeshMotions%WaveBuoyMotion%TranslationDisp(:,1) = (/ 0.0_ReKi, 0.0_ReKi, real(buoyWaveElev_c, ReKi) /)
+
+ 
    !--------------------------------------
    ! Write VTK if requested
    !     Do this here in case failed calcs
    !--------------------------------------
    if (SimSettings%Viz%WrVTK > 0_c_int) then
-      ! Increment VTK time counter
-      VTKn_Global = VTKn_Global+1_IntKi
-      call WrVTK_Struct(VTKn_Global, SimSettings, MeshMotions, MeshLoads, ErrStat_F2, ErrMsg_F2)
-      if (Failed()) return
+      ! only write on desired time interval (same logic used in c-binding modules)
+      VTKn_Global = nint(Time_C / SimSettings%Viz%WrVTK_DT)
+      if (VTKn_Global /= VTKn_last) then   ! already wrote this one
+         VTKn_last = VTKn_Global           ! store the current number to make sure we don't write it twice
+         call WrVTK_Struct(VTKn_Global, SimSettings, MeshMotions, MeshLoads, ErrStat_F2, ErrMsg_F2)
+         if (Failed()) return
+      endif
    endif
 
-
+  
    !--------------------------------------
-   ! Wave elevation at buoy
+   ! call SeaState_Calc (writes vis)
    !--------------------------------------
-   tmpPos_C = real(SimSettings%WaveBuoy%XYLoc, c_float)
-   call SeaSt_C_GetSurfElev(Time_C, tmpPos_C, buoyWaveElev_c, ErrStat_C,ErrMsg_C); if (Failed()) return
+   call SeaSt_C_CalcOutput(Time_C, WrOutputData%OutData_SS_c, ErrStat_C, ErrMsg_C)
+   call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'WaveTank_CalcStep::SeaSt_C_CalcOutput')
+   if (ErrStat_C >= AbortErrLev_C) return
+   ! transfer data for writing out
+   WrOutputData%OutData_SS = real(WrOutputData%OutData_SS_c, ReKi)
 
-   
 !FIXME: setup new method for handling this
 !FIXME: turb off HHVel
 !   real(c_float) :: md_outputs(MD_NumChannels_C)

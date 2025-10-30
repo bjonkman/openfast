@@ -20,7 +20,7 @@
           0    MSL2SWL          - Offset between still-water level and mean sea level (m) [positive upward]
 ! -------- SeaState -------------------
 "../../../reg_tests/r-test/glue-codes/openfast/MHK_RM1_Floating/SeaState.dat"                      SS_InputFile   - SeaState input file
-         4     WaveTimeShift    - Shift the SeaState wavetime by this amount (for phase shifting waves to match tank) (s)
+         0     WaveTimeShift    - Shift the SeaState wavetime by this amount (for phase shifting waves to match tank) (s)
 ! -------- MoorDyn --------------------
 "../../../reg_tests/r-test/glue-codes/openfast/MHK_RM1_Floating/MHK_RM1_Floating_MoorDyn.dat"      MD_InputFile   - MoorDyn input file
 ! -------- AeroDyn + InflowWind -------
@@ -28,24 +28,24 @@
 "../../../reg_tests/r-test/glue-codes/openfast/MHK_RM1_Floating/MHK_RM1_Floating_InflowWind.dat"   IfW_InputFile  - InflowWind input file
 ! -------- Turbine Configuration ------
           2    NumBl            - Number of blades (-)
-         10    TipRad           - The distance from the rotor apex to the blade tip (meters)
-          1    HubRad           - The distance from the rotor apex to the blade root (meters)
-          0    PreCone          - Blade cone angle (degrees)
-      -4.91    OverHang         - Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades] (meters)
-          0    ShftGagL         - Distance from rotor apex [3 blades] or teeter pin [2 blades] to shaft strain gages [positive for upwind rotors] (meters)
-          0    ShftTilt         - Rotor shaft tilt angle (degrees)
-       -1.2    Twr2Shft         - Vertical distance from the tower-top to the rotor shaft (meters)
-        -24    TowerHt          - Height of tower relative MSL
-    10,0,-9    TowerBsPt        - Height of tower base  [onshore], MSL [floating MHK] (meters)
+         10    TipRad           - The distance from the rotor apex to the blade tip (m)
+          1    HubRad           - The distance from the rotor apex to the blade root (m)
+          0    PreCone          - Blade cone angle (deg)
+      -4.91    OverHang         - Distance from yaw axis to rotor apex (m)
+          0    ShftGagL         - Distance from rotor apex [3 blades] or teeter pin [2 blades] to shaft strain gages [positive for upwind rotors] (m)
+          0    ShftTilt         - Rotor shaft tilt angle (deg)
+       -1.2    Twr2Shft         - Vertical distance from the tower-top to the rotor shaft (m)
+        -24    TowerHt          - Height of tower relative MSL, vertically aligned with TowerBsPt
+    10,0,0     TowerBsPt        - Height of tower base location (m) 
       0,0,0    PtfmRefPos       - Location of platform reference point, relative to MSL.  Motions and loads all connect to this point
-      0,0,0    PtfmRefOrient    - Orientation of platform reference point, Euler angle set of roll,pitch,yaw (rad)
+      0,0,0    PtfmRefOrient    - Orientation of platform reference point, Euler angle set of roll,pitch,yaw (deg)
 ! -------- Turbine initial conditions -
       11.5     RotSpeed         - Rotational speed of rotor in rotor coordinates (rpm)
          0     NacYaw           - Initial or fixed nacelle-yaw angle (degrees)
          0     BldPitch         - Blade 1 pitch (deg)
          0     Azimuth          - Initial rotor azimuth
 ! -------- Wave Buoy------------------
-      -1,0     WaveBuoyLoc      - Location of the wave elevation measurement buoy. SeaState data returned at every timestep at this location (m)
+     -15,0     WaveBuoyLoc      - Location of the wave elevation measurement buoy. SeaState data returned at every timestep at this location (m)
 ! -------- Output ---------------------
      false     SendScreenToFile - send to file <OutRootName>.screen.log if true
          3     OutFile          - 0: no output file of channels, 1: output file in text format (at default DT) 

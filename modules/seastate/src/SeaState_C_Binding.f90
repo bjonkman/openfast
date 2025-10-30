@@ -196,7 +196,7 @@ end subroutine SeaSt_C_PreInit
 
 
 !> Initialize the library (PreInit must be called first)
-subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, NumChannels_C, OutputChannelNames_C, OutputChannelUnits_C, ErrStat_C, ErrMsg_C) BIND (C, NAME='SeaSt_C_Init')
+subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, WaveTimeShift_C, NumChannels_C, OutputChannelNames_C, OutputChannelUnits_C, ErrStat_C, ErrMsg_C) BIND (C, NAME='SeaSt_C_Init')
 #ifndef IMPLICIT_DLLEXPORT
 !DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_Init
 !GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_Init
@@ -205,6 +205,7 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, Nu
    character(kind=c_char),     intent(in   ) :: OutRootName_C(IntfStrLen)
    integer(c_int),             intent(in   ) :: NSteps_C
    real(c_double),             intent(in   ) :: TimeInterval_C
+   real(c_double),             intent(in   ) :: WaveTimeShift_C
    integer(c_int),             intent(  out) :: NumChannels_C
    character(kind=c_char),     intent(  out) :: OutputChannelNames_C(ChanLen*MaxOutPts+1)
    character(kind=c_char),     intent(  out) :: OutputChannelUnits_C(ChanLen*MaxOutPts+1)
@@ -258,6 +259,7 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, Nu
    InitInp%WaveFieldMod  = 0        ! does not currently support moving platform.  Not really necessary though since can directly get data in absolute coords
    InitInp%PtfmLocationX = 0.0_ReKi
    InitInp%PtfmLocationY = 0.0_ReKi
+   InitInp%WaveTimeShift = real(WaveTimeShift_C,DbKi)
 
    call SeaSt_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOutData, ErrStat2, ErrMsg2 )
       if (Failed()) return
@@ -304,6 +306,7 @@ contains
       call WrScr("   OutRootName_C           -> "//trim(InitInp%OutRootName))
       call WrScr("   NSteps_C                -> "//trim(Num2LStr(NSteps_C)))
       call WrScr("   TimeInterval_C          -> "//trim(Num2LStr(TimeInterval_C)))
+      call WrScr("   WaveTimeShift_C         -> "//trim(Num2LStr(WaveTimeShift_C)))
       call WrScr("-----------------------------------------------------------")
    end subroutine ShowPassedData
 

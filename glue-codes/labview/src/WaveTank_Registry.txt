@@ -30,8 +30,8 @@ typedef  ^                    ^              ^                 Pvap             
 typedef  ^                    ^              ^                 WtrDpth              -  -  -  "Water depth" (m)
 typedef  ^                    ^              ^                 MSL2SWL              -  -  -  "Mean sea level to still water level" (m)
 
-typedef  ^                 TurbConfigType    c_int             NumBl                -  -  -  "Number of blades" (-)
-typedef  ^                    ^              c_float           TipRad               -  -  -  "The distance from the rotor apex to the blade tip" (m)
+typedef  ^                 TurbConfigType    IntKi             NumBl                -  -  -  "Number of blades" (-)
+typedef  ^                    ^              ReKi              TipRad               -  -  -  "The distance from the rotor apex to the blade tip" (m)
 typedef  ^                    ^              ^                 HubRad               -  -  -  "The distance from the rotor apex to the blade root" (m)
 typedef  ^                    ^              ^                 PreCone              -  -  -  "Blade cone angle" (deg)
 typedef  ^                    ^              ^                 OverHang             -  -  -  "Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades]" (m)
@@ -102,6 +102,9 @@ typedef  ^                    ^              ^                 WriteOutputHdr_MD
 typedef  ^                    ^              ^                 WriteOutputUnt_MD    :  -  -  "output file header units from MD" -
 typedef  ^                    ^              ^                 WriteOutputHdr_ADI   :  -  -  "output file header names from ADI" -
 typedef  ^                    ^              ^                 WriteOutputUnt_ADI   :  -  -  "output file header units from ADI" -
+typedef  ^                    ^              c_float           OutData_SS_c         :  -  -  "output data from SS as passed c_float" -
+typedef  ^                    ^              ^                 OutData_MD_c         :  -  -  "output data from MD as passed c_float" -
+typedef  ^                    ^              ^                 OutData_ADI_c        :  -  -  "output data from ADI as passed c_float" -
 typedef  ^                    ^              ReKi              OutData_SS           :  -  -  "output data from SS" -
 typedef  ^                    ^              ^                 OutData_MD           :  -  -  "output data from MD" -
 typedef  ^                    ^              ^                 OutData_ADI          :  -  -  "output data from ADI" -
@@ -114,6 +117,7 @@ typedef  ^                 MeshesMotionType  MeshType    PtfmPtMotion           
 typedef  ^                    ^              ^           TowerMotion                -  -  -  "Tower mesh (used only for vis)" -
 typedef  ^                    ^              ^           HubMotion                  -  -  -  "Hub mesh (for mappings, no loadings)" -
 typedef  ^                    ^              ^           BladeRootMotion            :  -  -  "Blade root motions" -
+typedef  ^                    ^              ^           WaveBuoyMotion             -  -  -  "wave measurement buoy motion (sensor only)" -
 
 typedef  ^                 MeshesLoadsType   MeshType    PtfmPtLoads                -  -  -  "Platform principle ref point loads output" -
 typedef  ^                    ^              ^           TowerLoads                 -  -  -  "Tower mesh (unused)" -

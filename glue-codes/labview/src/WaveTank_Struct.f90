@@ -67,16 +67,52 @@ subroutine StructCreate(SimSettings, MeshMotions, MeshLoads, MeshMaps, StructTmp
    StructTmp%Azimuth  = TrbInit%Azimuth
 
 
-   ! create PRP platform point
-   TmpPos = real(TrbCfg%PtfmRefPos,ReKi)  ! c_float to ReKi
+   !-------------------------------
+   ! Wave measurement buoy
+   TmpPos = 0.0_ReKi
+   TmpPos(1:2) = SimSettings%WaveBuoy%XYLoc(1:2)
+   call Eye(Orient, ErrStat2, ErrMsg2);   if (Failed()) return
+   call CreateInputPointMesh(MeshMotions%WaveBuoyMotion, TmpPos, Orient, ErrStat2, ErrMsg2, hasMotion=.true., hasLoads=.false.); if (Failed()) return
+
+
+   !-------------------------------
+   ! create PRP platform mesh point
+   TmpPos = TrbCfg%PtfmRefPos
    Orient=WT_EulerToDCM_fromInput(TrbCfg%PtfmRefOrient)
    call CreateInputPointMesh(MeshMotions%PtfmPtMotion, TmpPos, Orient, ErrStat2, ErrMsg2, hasMotion=.true., hasLoads=.false.); if (Failed()) return
 
-   !
+   !-------------------------------
+   ! create 2 point tower mesh
+   call MeshCreate ( BlankMesh = MeshMotions%TowerMotion, IOS=COMPONENT_INPUT, Nnodes=2, ErrStat=ErrStat2, ErrMess=ErrMsg2,  &
+               Orientation = .true., TranslationDisp = .true., TranslationVel = .true., TranslationAcc  = .TRUE. )
+   if (Failed()) return
+
+   ! Tower bottom
+   TmpPos = real(TrbCfg%TowerBsPt,ReKi)   ! c_float to ReKi
+   call MeshPositionNode(MeshMotions%TowerMotion, 1, TmpPos, errStat2, errMsg2)  ! orientation is identity by default
+   if (Failed()) return
+
+   ! Tower top -- assumes vertical tower
+   TmpPos(3) = real(TrbCfg%TowerHt,ReKi)   ! c_float to ReKi
+   call MeshPositionNode(MeshMotions%TowerMotion, 2, TmpPos, errStat2, errMsg2)  ! orientation is identity by default
+   if (Failed()) return
+
+   ! create line element
+   call MeshConstructElement( MeshMotions%TowerMotion, ELEMENT_LINE2, errStat2, errMsg2, p1=1, p2=2 )
+   if (Failed()) return
+  
+   ! commit mesh          
+   call MeshCommit(MeshMotions%TowerMotion, errStat2, errMsg2 )
+
+   ! initialize location
+   MeshMotions%TowerMotion%Orientation     = MeshMotions%TowerMotion%RefOrientation
+   MeshMotions%TowerMotion%TranslationDisp = 0.0_R8Ki
+   MeshMotions%TowerMotion%TranslationVel  = 0.0_ReKi
+ 
+
+   !-------------------------------
 
 
-
-   ! Rotor
 
  
 contains
@@ -139,12 +175,18 @@ subroutine WrVTK_Struct_Ref(SimSettings, MeshMotions, MeshLoads, ErrStat, ErrMsg
    integer(IntKi)                                  :: ErrStat2
    character(ErrMsgLen)                            :: ErrMsg2
    character(*),           parameter               :: RoutineName = 'WaveTank::WrVTK_Struct_Ref'
+   character(1024)                                 :: DirRootName
    real(SiKi)                                      :: RefPt(3)
    ErrStat = ErrID_None
    ErrMsg  = ''
    RefPt   = (/ 0.0_SiKi, 0.0_SiKi, 0.0_SiKi /)
+   DirRootName = trim(SimSettings%Viz%WrVTK_dir)//PathSep//trim(SimSettings%Sim%OutRootName)
+   ! Wave elevation measurement buoy
+   call MeshWrVTKreference(RefPt, MeshMotions%WaveBuoyMotion, trim(DirRootName)//'.WaveBuoyMotion', ErrStat2, ErrMsg2); if (Failed()) return
    ! Platform point
-   call MeshWrVTKreference(RefPt, MeshMotions%PtfmPtMotion, trim(SimSettings%Viz%WrVTK_dir)//PathSep//trim(SimSettings%Sim%OutRootName)//'.Struct'//'.PtfmPtMotion', ErrStat2, ErrMsg2); if (Failed()) return
+   call MeshWrVTKreference(RefPt, MeshMotions%PtfmPtMotion, trim(DirRootName)//'.Struct'//'.PtfmPtMotion',   ErrStat2, ErrMsg2); if (Failed()) return
+   ! Tower
+   call MeshWrVTKreference(RefPt, MeshMotions%TowerMotion,  trim(DirRootName)//'.Struct'//'.TowerMotion',    ErrStat2, ErrMsg2); if (Failed()) return
 contains
    logical function Failed()
       call SetErrStat(errStat2, errMsg2, errStat, errMsg, RoutineName)
@@ -162,12 +204,18 @@ subroutine WrVTK_Struct(n_Global, SimSettings, MeshMotions, MeshLoads, ErrStat, 
    integer(IntKi)                                  :: ErrStat2
    character(ErrMsgLen)                            :: ErrMsg2
    character(*),           parameter               :: RoutineName = 'WaveTank::WrVTK_Struct'
+   character(1024)                                 :: DirRootName
    real(SiKi)                                      :: RefPt(3)
    ErrStat = ErrID_None
    ErrMsg  = ''
    RefPt   = (/ 0.0_SiKi, 0.0_SiKi, 0.0_SiKi /)
+   DirRootName = trim(SimSettings%Viz%WrVTK_dir)//PathSep//trim(SimSettings%Sim%OutRootName)
+   ! Wave elevation measurement buoy
+   call MeshWrVTK(RefPt, MeshMotions%WaveBuoyMotion, trim(DirRootName)//'.WaveBuoyMotion', n_Global, .true., ErrStat2, ErrMsg2, Twidth=SimSettings%Viz%Twidth); if (Failed()) return
    ! Platform point
-   call MeshWrVTK(RefPt, MeshMotions%PtfmPtMotion, trim(SimSettings%Viz%WrVTK_dir)//PathSep//trim(SimSettings%Sim%OutRootName)//'.Struct'//'.PtfmPtMotion', n_Global, .true., ErrStat2, ErrMsg2, Twidth=SimSettings%Viz%Twidth); if (Failed()) return
+   call MeshWrVTK(RefPt, MeshMotions%PtfmPtMotion, trim(DirRootName)//'.Struct'//'.PtfmPtMotion',   n_Global, .true., ErrStat2, ErrMsg2, Twidth=SimSettings%Viz%Twidth); if (Failed()) return
+   ! Tower
+   call MeshWrVTK(RefPt, MeshMotions%TowerMotion,  trim(DirRootName)//'.Struct'//'.TowerMotion',    n_Global, .true., ErrStat2, ErrMsg2, Twidth=SimSettings%Viz%Twidth); if (Failed()) return
 contains
    logical function Failed()
       call SetErrStat(errStat2, errMsg2, errStat, errMsg, RoutineName)

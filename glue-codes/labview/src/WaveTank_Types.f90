@@ -59,18 +59,18 @@ IMPLICIT NONE
 ! =======================
 ! =========  TurbConfigType  =======
   TYPE, PUBLIC :: TurbConfigType
-    INTEGER(c_int)  :: NumBl = 0_IntKi      !< Number of blades [(-)]
-    REAL(c_float)  :: TipRad = 0.0_R4Ki      !< The distance from the rotor apex to the blade tip [(m)]
-    REAL(c_float)  :: HubRad = 0.0_R4Ki      !< The distance from the rotor apex to the blade root [(m)]
-    REAL(c_float)  :: PreCone = 0.0_R4Ki      !< Blade cone angle [(deg)]
-    REAL(c_float)  :: OverHang = 0.0_R4Ki      !< Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades] [(m)]
-    REAL(c_float)  :: ShftGagL = 0.0_R4Ki      !< Distance from rotor apex [3 blades] or teeter pin [2 blades] to shaft strain gages [positive for upwind rotors] [(m)]
-    REAL(c_float)  :: ShftTilt = 0.0_R4Ki      !< Rotor shaft tilt angle [(deg)]
-    REAL(c_float)  :: Twr2Shft = 0.0_R4Ki      !< Vertical distance from the tower-top to the rotor shaft [(m)]
-    REAL(c_float)  :: TowerHt = 0.0_R4Ki      !< Height of tower relative MSL [(m)]
-    REAL(c_float) , DIMENSION(1:3)  :: TowerBsPt = 0.0_R4Ki      !< Tower base location relative to MSL. Consider absolute difference to PtfmRef [floating MHK] [(m)]
-    REAL(c_float) , DIMENSION(1:3)  :: PtfmRefPos = 0.0_R4Ki      !< Location of platform reference point, relative to MSL.  Motions and loads all connect to this point [(m)]
-    REAL(c_float) , DIMENSION(1:3)  :: PtfmRefOrient = 0.0_R4Ki      !< Orientation of platform reference point, Euler angle set of roll,pitch,yaw [(rad)]
+    INTEGER(IntKi)  :: NumBl = 0_IntKi      !< Number of blades [(-)]
+    REAL(ReKi)  :: TipRad = 0.0_ReKi      !< The distance from the rotor apex to the blade tip [(m)]
+    REAL(ReKi)  :: HubRad = 0.0_ReKi      !< The distance from the rotor apex to the blade root [(m)]
+    REAL(ReKi)  :: PreCone = 0.0_ReKi      !< Blade cone angle [(deg)]
+    REAL(ReKi)  :: OverHang = 0.0_ReKi      !< Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades] [(m)]
+    REAL(ReKi)  :: ShftGagL = 0.0_ReKi      !< Distance from rotor apex [3 blades] or teeter pin [2 blades] to shaft strain gages [positive for upwind rotors] [(m)]
+    REAL(ReKi)  :: ShftTilt = 0.0_ReKi      !< Rotor shaft tilt angle [(deg)]
+    REAL(ReKi)  :: Twr2Shft = 0.0_ReKi      !< Vertical distance from the tower-top to the rotor shaft [(m)]
+    REAL(ReKi)  :: TowerHt = 0.0_ReKi      !< Height of tower relative MSL [(m)]
+    REAL(ReKi) , DIMENSION(1:3)  :: TowerBsPt = 0.0_ReKi      !< Tower base location relative to MSL. Consider absolute difference to PtfmRef [floating MHK] [(m)]
+    REAL(ReKi) , DIMENSION(1:3)  :: PtfmRefPos = 0.0_ReKi      !< Location of platform reference point, relative to MSL.  Motions and loads all connect to this point [(m)]
+    REAL(ReKi) , DIMENSION(1:3)  :: PtfmRefOrient = 0.0_ReKi      !< Orientation of platform reference point, Euler angle set of roll,pitch,yaw [(rad)]
   END TYPE TurbConfigType
 ! =======================
 ! =========  TurbInitCondType  =======
@@ -150,6 +150,9 @@ IMPLICIT NONE
     character(ChanLen) , DIMENSION(:), ALLOCATABLE  :: WriteOutputUnt_MD      !< output file header units from MD [-]
     character(ChanLen) , DIMENSION(:), ALLOCATABLE  :: WriteOutputHdr_ADI      !< output file header names from ADI [-]
     character(ChanLen) , DIMENSION(:), ALLOCATABLE  :: WriteOutputUnt_ADI      !< output file header units from ADI [-]
+    REAL(c_float) , DIMENSION(:), ALLOCATABLE  :: OutData_SS_c      !< output data from SS as passed c_float [-]
+    REAL(c_float) , DIMENSION(:), ALLOCATABLE  :: OutData_MD_c      !< output data from MD as passed c_float [-]
+    REAL(c_float) , DIMENSION(:), ALLOCATABLE  :: OutData_ADI_c      !< output data from ADI as passed c_float [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: OutData_SS      !< output data from SS [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: OutData_MD      !< output data from MD [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: OutData_ADI      !< output data from ADI [-]
@@ -163,6 +166,7 @@ IMPLICIT NONE
     TYPE(MeshType)  :: TowerMotion      !< Tower mesh (used only for vis) [-]
     TYPE(MeshType)  :: HubMotion      !< Hub mesh (for mappings, no loadings) [-]
     TYPE(MeshType) , DIMENSION(:), ALLOCATABLE  :: BladeRootMotion      !< Blade root motions [-]
+    TYPE(MeshType)  :: WaveBuoyMotion      !< wave measurement buoy motion (sensor only) [-]
   END TYPE MeshesMotionType
 ! =======================
 ! =========  MeshesLoadsType  =======
@@ -856,6 +860,42 @@ subroutine WT_CopyWrOutputDataType(SrcWrOutputDataTypeData, DstWrOutputDataTypeD
       end if
       DstWrOutputDataTypeData%WriteOutputUnt_ADI = SrcWrOutputDataTypeData%WriteOutputUnt_ADI
    end if
+   if (allocated(SrcWrOutputDataTypeData%OutData_SS_c)) then
+      LB(1:1) = lbound(SrcWrOutputDataTypeData%OutData_SS_c)
+      UB(1:1) = ubound(SrcWrOutputDataTypeData%OutData_SS_c)
+      if (.not. allocated(DstWrOutputDataTypeData%OutData_SS_c)) then
+         allocate(DstWrOutputDataTypeData%OutData_SS_c(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstWrOutputDataTypeData%OutData_SS_c.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstWrOutputDataTypeData%OutData_SS_c = SrcWrOutputDataTypeData%OutData_SS_c
+   end if
+   if (allocated(SrcWrOutputDataTypeData%OutData_MD_c)) then
+      LB(1:1) = lbound(SrcWrOutputDataTypeData%OutData_MD_c)
+      UB(1:1) = ubound(SrcWrOutputDataTypeData%OutData_MD_c)
+      if (.not. allocated(DstWrOutputDataTypeData%OutData_MD_c)) then
+         allocate(DstWrOutputDataTypeData%OutData_MD_c(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstWrOutputDataTypeData%OutData_MD_c.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstWrOutputDataTypeData%OutData_MD_c = SrcWrOutputDataTypeData%OutData_MD_c
+   end if
+   if (allocated(SrcWrOutputDataTypeData%OutData_ADI_c)) then
+      LB(1:1) = lbound(SrcWrOutputDataTypeData%OutData_ADI_c)
+      UB(1:1) = ubound(SrcWrOutputDataTypeData%OutData_ADI_c)
+      if (.not. allocated(DstWrOutputDataTypeData%OutData_ADI_c)) then
+         allocate(DstWrOutputDataTypeData%OutData_ADI_c(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstWrOutputDataTypeData%OutData_ADI_c.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstWrOutputDataTypeData%OutData_ADI_c = SrcWrOutputDataTypeData%OutData_ADI_c
+   end if
    if (allocated(SrcWrOutputDataTypeData%OutData_SS)) then
       LB(1:1) = lbound(SrcWrOutputDataTypeData%OutData_SS)
       UB(1:1) = ubound(SrcWrOutputDataTypeData%OutData_SS)
@@ -921,6 +961,15 @@ subroutine WT_DestroyWrOutputDataType(WrOutputDataTypeData, ErrStat, ErrMsg)
    if (allocated(WrOutputDataTypeData%WriteOutputUnt_ADI)) then
       deallocate(WrOutputDataTypeData%WriteOutputUnt_ADI)
    end if
+   if (allocated(WrOutputDataTypeData%OutData_SS_c)) then
+      deallocate(WrOutputDataTypeData%OutData_SS_c)
+   end if
+   if (allocated(WrOutputDataTypeData%OutData_MD_c)) then
+      deallocate(WrOutputDataTypeData%OutData_MD_c)
+   end if
+   if (allocated(WrOutputDataTypeData%OutData_ADI_c)) then
+      deallocate(WrOutputDataTypeData%OutData_ADI_c)
+   end if
    if (allocated(WrOutputDataTypeData%OutData_SS)) then
       deallocate(WrOutputDataTypeData%OutData_SS)
    end if
@@ -948,6 +997,9 @@ subroutine WT_PackWrOutputDataType(RF, Indata)
    call RegPackAlloc(RF, InData%WriteOutputUnt_MD)
    call RegPackAlloc(RF, InData%WriteOutputHdr_ADI)
    call RegPackAlloc(RF, InData%WriteOutputUnt_ADI)
+   call RegPackAlloc(RF, InData%OutData_SS_c)
+   call RegPackAlloc(RF, InData%OutData_MD_c)
+   call RegPackAlloc(RF, InData%OutData_ADI_c)
    call RegPackAlloc(RF, InData%OutData_SS)
    call RegPackAlloc(RF, InData%OutData_MD)
    call RegPackAlloc(RF, InData%OutData_ADI)
@@ -975,6 +1027,9 @@ subroutine WT_UnPackWrOutputDataType(RF, OutData)
    call RegUnpackAlloc(RF, OutData%WriteOutputUnt_MD); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%WriteOutputHdr_ADI); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%WriteOutputUnt_ADI); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%OutData_SS_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%OutData_MD_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%OutData_ADI_c); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%OutData_SS); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%OutData_MD); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%OutData_ADI); if (RegCheckErr(RF, RoutineName)) return
@@ -1020,6 +1075,9 @@ subroutine WT_CopyMeshesMotionType(SrcMeshesMotionTypeData, DstMeshesMotionTypeD
          if (ErrStat >= AbortErrLev) return
       end do
    end if
+   call MeshCopy(SrcMeshesMotionTypeData%WaveBuoyMotion, DstMeshesMotionTypeData%WaveBuoyMotion, CtrlCode, ErrStat2, ErrMsg2 )
+   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   if (ErrStat >= AbortErrLev) return
 end subroutine
 
 subroutine WT_DestroyMeshesMotionType(MeshesMotionTypeData, ErrStat, ErrMsg)
@@ -1048,6 +1106,8 @@ subroutine WT_DestroyMeshesMotionType(MeshesMotionTypeData, ErrStat, ErrMsg)
       end do
       deallocate(MeshesMotionTypeData%BladeRootMotion)
    end if
+   call MeshDestroy( MeshesMotionTypeData%WaveBuoyMotion, ErrStat2, ErrMsg2)
+   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
 end subroutine
 
 subroutine WT_PackMeshesMotionType(RF, Indata)
@@ -1069,6 +1129,7 @@ subroutine WT_PackMeshesMotionType(RF, Indata)
          call MeshPack(RF, InData%BladeRootMotion(i1)) 
       end do
    end if
+   call MeshPack(RF, InData%WaveBuoyMotion) 
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -1097,6 +1158,7 @@ subroutine WT_UnPackMeshesMotionType(RF, OutData)
          call MeshUnpack(RF, OutData%BladeRootMotion(i1)) ! BladeRootMotion 
       end do
    end if
+   call MeshUnpack(RF, OutData%WaveBuoyMotion) ! WaveBuoyMotion 
 end subroutine
 
 subroutine WT_CopyMeshesLoadsType(SrcMeshesLoadsTypeData, DstMeshesLoadsTypeData, CtrlCode, ErrStat, ErrMsg)
