@@ -126,8 +126,8 @@ typedef  ^                    ^              ^           BladeRootLoads         
 # NOTE: rigid geometry, no yaw, static pitch
 typedef  ^                 MeshesMapsType    MeshMapType Motion_PRP_2_Twr           -  -  -  "PRP to tower motion" -
 typedef  ^                    ^              ^           Motion_PRP_2_Hub           -  -  -  "Twrtop to nacelle - add rotation afterwards" -
-typedef  ^                    ^              ^           Motion_Hub_2_BldRoot       -  -  -  "Hub to blade root motion transfer" -
-typedef  ^                    ^              ^           Load_BldRoot_2_Hub         -  -  -  "Blade root loads to hub" -
+typedef  ^                    ^              ^           Motion_Hub_2_BldRoot       :  -  -  "Hub to blade root motion transfer" -
+typedef  ^                    ^              ^           Load_BldRoot_2_Hub         :  -  -  "Blade root loads to hub" -
 typedef  ^                    ^              ^           Load_Hub_2_PRP             -  -  -  "Hub to nacelle load transfer" -
 typedef  ^                    ^              ^           Load_Twr_2_PRP             -  -  -  "Tower loads to PRP (unused)" -
 

@@ -35,12 +35,12 @@
           0    ShftTilt         - Rotor shaft tilt angle (deg)
        -1.2    Twr2Shft         - Vertical distance from the tower-top to the rotor shaft, center of nacelle (m)
         -24    TowerHt          - Height of tower relative MSL, vertically aligned with TowerBsPt (sloped towers not permitted yet)
-    10,0,0     TowerBsPt        - Height of tower base relative to PtfmRefPos in x,y, and MSL in z (meters) (m)
+    10,0,0     TowerBsPt        - Height of tower base relative to PtfmRefPos in x,y, and MSL in z (m)
       0,0,0    PtfmRefPos       - Location of platform reference point, relative to MSL.  Motions and loads all connect to this point
       0,0,0    PtfmRefOrient    - Orientation of platform reference point, Euler angle set of roll,pitch,yaw (deg)
 ! -------- Turbine initial conditions -
       11.5     RotSpeed         - Rotational speed of rotor in rotor coordinates (rpm)
-         0     NacYaw           - Initial or fixed nacelle-yaw angle (degrees)
+         0     NacYaw           - Initial or fixed nacelle-yaw angle (deg)
          0     BldPitch         - Blade 1 pitch (deg)
          0     Azimuth          - Initial rotor azimuth
 ! -------- Wave Buoy------------------

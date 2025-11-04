@@ -131,6 +131,7 @@ subroutine ParseInputFile(FileInfo_In, SimSettings, ErrStat, ErrMsg)
    call ParseVar( FileInfo_In, CurLine, 'NumBl',            SimSettings%TrbCfg%NumBl,              ErrStat2, ErrMsg2); if(Failed()) return;  ! Number of blades (-)
    call ParseVar( FileInfo_In, CurLine, 'HubRad',           SimSettings%TrbCfg%HubRad,             ErrStat2, ErrMsg2); if(Failed()) return;  ! The distance from the rotor apex to the blade root (meters)
    call ParseVar( FileInfo_In, CurLine, 'PreCone',          SimSettings%TrbCfg%PreCone,            ErrStat2, ErrMsg2); if(Failed()) return;  ! Blade cone angle (degrees)
+   SimSettings%TrbCfg%PreCone    = D2R * SimSettings%TrbCfg%PreCone
    call ParseVar( FileInfo_In, CurLine, 'OverHang',         SimSettings%TrbCfg%OverHang,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades] (meters)
    call ParseVar( FileInfo_In, CurLine, 'ShftTilt',         SimSettings%TrbCfg%ShftTilt,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Rotor shaft tilt angle (degrees)
    SimSettings%TrbCfg%ShftTilt    = D2R * SimSettings%TrbCfg%ShftTilt
@@ -138,7 +139,8 @@ subroutine ParseInputFile(FileInfo_In, SimSettings, ErrStat, ErrMsg)
    call ParseVar( FileInfo_In, CurLine, 'TowerHt',          SimSettings%TrbCfg%TowerHt,            ErrStat2, ErrMsg2); if(Failed()) return;  ! Height of tower relative MSL
    call ParseAry( FileInfo_In, CurLine, 'TowerBsPt',        SimSettings%TrbCfg%TowerBsPt,     3,   ErrStat2, ErrMsg2); if(Failed()) return;  ! Height of tower base relative to PtfmRefPos in x,y, and water surface in z (meters)
    call ParseAry( FileInfo_In, CurLine, 'PtfmRefPos',       SimSettings%TrbCfg%PtfmRefPos,    3,   ErrStat2, ErrMsg2); if(Failed()) return;  ! Location of platform reference point, relative to MSL.  Motions and loads all connect to this point
-   call ParseAry( FileInfo_In, CurLine, 'PtfmRefOrient',    SimSettings%TrbCfg%PtfmRefOrient, 3,   ErrStat2, ErrMsg2); if(Failed()) return;  ! Orientation of platform reference point, Euler angle set of roll,pitch,yaw" (rad)
+   call ParseAry( FileInfo_In, CurLine, 'PtfmRefOrient',    SimSettings%TrbCfg%PtfmRefOrient, 3,   ErrStat2, ErrMsg2); if(Failed()) return;  ! Orientation of platform reference point, Euler angle set of roll,pitch,yaw" (deg)
+   SimSettings%TrbCfg%PtfmRefOrient    = D2R * SimSettings%TrbCfg%PtfmRefOrient
    ! -------- Turbine Operating Point ----
    call ParseVar( FileInfo_In, CurLine, 'RotSpeed',         SimSettings%TrbInit%RotSpeed,          ErrStat2, ErrMsg2); if(Failed()) return;  ! Rotational speed of rotor in rotor coordinates (rpm)
    call ParseVar( FileInfo_In, CurLine, 'NacYaw',           SimSettings%TrbInit%NacYaw,            ErrStat2, ErrMsg2); if(Failed()) return;  ! Initial or fixed nacelle-yaw angle (deg read)

@@ -51,7 +51,7 @@ contains
 !> create the structural model, allocate temp data storage, setup mesh mappings
 subroutine StructCreate(SimSettings, MeshMotions, MeshLoads, MeshMaps, StructTmp, ErrStat, ErrMsg)
    type(SimSettingsType),  target,  intent(in   )  :: SimSettings
-   type(MeshesMotionType),          intent(inout)  :: MeshMotions
+   type(MeshesMotionType), target,  intent(inout)  :: MeshMotions
    type(MeshesLoadsType ),          intent(inout)  :: MeshLoads
    type(MeshesMapsType  ),          intent(inout)  :: MeshMaps
    type(StructTmpType   ),          intent(inout)  :: StructTmp
@@ -61,10 +61,16 @@ subroutine StructCreate(SimSettings, MeshMotions, MeshLoads, MeshMaps, StructTmp
    character(ErrMsgLen)                            :: ErrMsg2
    character(*),           parameter               :: RoutineName = 'WaveTank::StructCreate'
    real(ReKi)                                      :: TmpPos(3)
+   real(DbKi)                                      :: AzBlade     ! temporary var for calculating blade mounting azimuth
    real(DbKi)                                      :: TmpAng(3)   ! temporary euler angle
    real(DbKi)                                      :: Orient(3,3) ! temporary orientation
    type(TurbConfigType),   pointer                 :: TrbCfg      ! to shorten notation
    type(TurbInitCondType), pointer                 :: TrbInit     ! to shorten notation
+   type(MeshType),         pointer                 :: Ptfm        ! to shorten notation
+   type(MeshType),         pointer                 :: Twr         ! to shorten notation
+   type(MeshType),         pointer                 :: Hub         ! to shorten notation
+   type(MeshType),         pointer                 :: Root        ! to shorten notation
+   integer(IntKi)                                  :: k           ! blade counter
    ErrStat = ErrID_None
    ErrMsg  = ''
 
@@ -88,53 +94,82 @@ subroutine StructCreate(SimSettings, MeshMotions, MeshLoads, MeshMaps, StructTmp
 
    !-------------------------------
    ! create PRP platform mesh point
+   Ptfm => MeshMotions%PtfmPtMotion
    TmpPos = real(TrbCfg%PtfmRefPos, ReKi)
    Orient=WT_EulerToDCM_fromInput(TrbCfg%PtfmRefOrient)
-   call CreateInputPointMesh(MeshMotions%PtfmPtMotion, TmpPos, Orient, ErrStat2, ErrMsg2, hasMotion=.true., hasLoads=.false.); if (Failed()) return
-   MeshMotions%PtfmPtMotion%RemapFlag = .false.
+   call CreateInputPointMesh(Ptfm, TmpPos, Orient, ErrStat2, ErrMsg2, hasMotion=.true., hasLoads=.false.); if (Failed()) return
+   Ptfm%RemapFlag = .false.
 
    !-------------------------------
    ! create 2 point tower mesh
-   call MeshCreate ( BlankMesh = MeshMotions%TowerMotion, IOS=COMPONENT_INPUT, Nnodes=2, ErrStat=ErrStat2, ErrMess=ErrMsg2,  &
+   Twr => MeshMotions%TowerMotion
+   call MeshCreate ( BlankMesh = Twr, IOS=COMPONENT_INPUT, Nnodes=2, ErrStat=ErrStat2, ErrMess=ErrMsg2,  &
                Orientation = .true., TranslationDisp = .true., TranslationVel = .true., TranslationAcc  = .TRUE. )
    if (Failed()) return
 
    ! Tower bottom
    TmpPos(1:2) = real(TrbCfg%TowerBsPt(1:2) + TrbCfg%PtfmRefPos(1:2), ReKi)      ! relative to PtfmRefPos in (x,y)
    TmpPos(3)   = real(TrbCfg%TowerBsPt(3), ReKi)                                 ! relative to MSL in (z)
-   call MeshPositionNode(MeshMotions%TowerMotion, 1, TmpPos, errStat2, errMsg2)  ! orientation is identity by default
+   call MeshPositionNode(Twr, 1, TmpPos, errStat2, errMsg2)  ! orientation is identity by default
    if (Failed()) return
 
    ! Tower top -- assumes vertical tower
    TmpPos(3) = real(TrbCfg%TowerHt,ReKi)   ! c_float to ReKi
-   call MeshPositionNode(MeshMotions%TowerMotion, 2, TmpPos, errStat2, errMsg2)  ! orientation is identity by default
+   call MeshPositionNode(Twr, 2, TmpPos, errStat2, errMsg2)  ! orientation is identity by default
    if (Failed()) return
 
    ! create line element
-   call MeshConstructElement( MeshMotions%TowerMotion, ELEMENT_LINE2, errStat2, errMsg2, p1=1, p2=2 )
+   call MeshConstructElement( Twr, ELEMENT_LINE2, errStat2, errMsg2, p1=1, p2=2 )
    if (Failed()) return
   
    ! commit mesh          
-   call MeshCommit(MeshMotions%TowerMotion, errStat2, errMsg2 )
+   call MeshCommit(Twr, errStat2, errMsg2 )
 
    ! initialize location
-   MeshMotions%TowerMotion%Orientation     = MeshMotions%TowerMotion%RefOrientation
-   MeshMotions%TowerMotion%TranslationDisp = 0.0_R8Ki
-   MeshMotions%TowerMotion%TranslationVel  = 0.0_ReKi
-   MeshMotions%TowerMotion%RemapFlag = .false.
+   Twr%Orientation     = Twr%RefOrientation
+   Twr%TranslationDisp = 0.0_R8Ki
+   Twr%TranslationVel  = 0.0_ReKi
+   Twr%RemapFlag = .false.
 
 
    !-------------------------------
    ! create hub mesh
-   TmpPos(1:3) = MeshMotions%TowerMotion%Position(1:3,2)                                        ! Tower top
+   !  NOTE: for a reference mesh position, nacelle yaw should be zero.  since NacYaw is static in this
+   !        we are setting it once here.  If it needs to be dynamic, zero it here and update the yaw
+   !        in the StructMotionUpdate routine below
+   Hub => MeshMotions%HubMotion
+   TmpPos(1:3) = Twr%Position(1:3,2)                                                ! Tower top
    TmpPos(1)   = TmpPos(1) + cos(TrbInit%NacYaw) * TrbCfg%OverHang                              ! X, nacelle yaw, and overhang
    TmpPos(2)   = TmpPos(2) + sin(TrbInit%NacYaw) * TrbCfg%OverHang                              ! Y, nacelle yaw, and overhang
-   TmpPos(3)   = TmpPos(3) + TrbCfg%Twr2Shft     + abs(TrbCfg%OverHang) * tan(TrbCfg%ShftTilt)  ! Z, shaft height above tower top, and shaft tilt
+   TmpPos(3)   = TmpPos(3) + TrbCfg%Twr2Shft     - abs(TrbCfg%OverHang) * tan(TrbCfg%ShftTilt)  ! Z, shaft height above tower top, and shaft tilt
 
-   TmpAng = (/ 0.0_DbKi, real(TrbCfg%ShftTilt,DbKi), real(TrbInit%NacYaw + Pi,DbKi)  /)       ! Hub/rotor azimuth is zero for reference. Rotate about Z by 180 so hub X points in negative X
+   TmpAng = (/ 0.0_DbKi, -real(TrbCfg%ShftTilt,DbKi), real(TrbInit%NacYaw,DbKi)  /)             ! Hub/rotor azimuth is zero for reference. Hub axis on upwind points towards nacelle.
    Orient = EulerConstruct(TmpAng)
-   call CreateInputPointMesh(MeshMotions%HubMotion, TmpPos, Orient, ErrStat2, ErrMsg2, hasMotion=.true., hasLoads=.false.); if (Failed()) return
-   MeshMotions%HubMotion%RemapFlag = .false.
+   call CreateInputPointMesh(Hub, TmpPos, Orient, ErrStat2, ErrMsg2, hasMotion=.true., hasLoads=.false.); if (Failed()) return
+   Hub%RemapFlag = .false.
+
+
+   !-------------------------------
+   ! create blade root mesh
+   !  NOTE: for a reference mesh position, blade pitch should be zero.  since BldPitch is static in this
+   !        we are setting it once here.  If it needs to be dynamic, zero it here and update the yaw
+   !        in the StructMotionUpdate routine below
+   allocate(MeshMotions%BladeRootMotion(TrbCfg%NumBl),STAT=ErrStat2)
+   if (ErrStat2 /= 0) then
+      ErrStat2 = ErrID_Fatal
+      ErrMsg2  = "Could not allocate BladeRootMotion mesh"
+      if (Failed()) return
+   endif
+   do k=1,TrbCfg%NumBl
+      Root => MeshMotions%BladeRootMotion(k)
+      AzBlade = TwoPi_D * real((k-1),DbKi)/real(TrbCfg%NumBl,DbKi)
+      TmpAng = (/ AzBlade, real(TrbCfg%PreCone,DbKi), real(-TrbInit%BldPitch,DbKi) /)     ! Blade pitch does not follow RHR
+      Orient = EulerConstruct(TmpAng)
+      Orient = matmul(Orient,Hub%Orientation(1:3,1:3,1))
+      TmpPos = Hub%Position(1:3,1) + TrbCfg%HubRad * real(Orient(3,1:3),ReKi)
+      call CreateInputPointMesh(Root, TmpPos, Orient, ErrStat2, ErrMsg2, hasMotion=.true., hasLoads=.false.); if (Failed()) return
+      Root%RemapFlag = .false.
+   enddo
 
 contains
    logical function Failed()
@@ -144,7 +179,8 @@ contains
 end subroutine
 
 !> create mesh mappings
-subroutine StructCreateMeshMaps(MeshMotions, MeshLoads, MeshMaps, ErrStat, ErrMsg)
+subroutine StructCreateMeshMaps(SimSettings, MeshMotions, MeshLoads, MeshMaps, ErrStat, ErrMsg)
+   type(SimSettingsType),           intent(in   )  :: SimSettings
    type(MeshesMotionType),          intent(inout)  :: MeshMotions
    type(MeshesLoadsType ),          intent(inout)  :: MeshLoads
    type(MeshesMapsType  ),          intent(inout)  :: MeshMaps
@@ -153,12 +189,27 @@ subroutine StructCreateMeshMaps(MeshMotions, MeshLoads, MeshMaps, ErrStat, ErrMs
    integer(IntKi)                                  :: ErrStat2
    character(ErrMsgLen)                            :: ErrMsg2
    character(*),           parameter               :: RoutineName = 'WaveTank::StructCreateMeshMaps'
+   integer(IntKi)                                  :: k
+
    ErrStat = ErrID_None
    ErrMsg  = ''
+
+   !-------------------------------
+   ! Mapping arrays
+   allocate(MeshMaps%Motion_Hub_2_BldRoot(SimSettings%TrbCfg%NumBl),STAT=ErrStat2)
+   if (ErrStat2 /= 0) then
+      ErrStat = ErrID_Fatal
+      ErrMsg  = "Could not allocate Motion_Hub_2_BldRoot mesh mapping"
+      return
+   endif
+
    !-------------------------------
    ! Mesh motion mappings
    call MeshMapCreate(MeshMotions%PtfmPtMotion, MeshMotions%TowerMotion, MeshMaps%Motion_PRP_2_Twr, errStat2, errMsg2); if(Failed())return
    call MeshMapCreate(MeshMotions%PtfmPtMotion, MeshMotions%HubMotion,   MeshMaps%Motion_PRP_2_Hub, errStat2, errMsg2); if(Failed())return
+   do k=1,SimSettings%TrbCfg%NumBl
+      call MeshMapCreate(MeshMotions%HubMotion, MeshMotions%BladeRootMotion(k), MeshMaps%Motion_Hub_2_BldRoot(k), errStat2, errMsg2); if(Failed())return
+   enddo
  
 contains
    logical function Failed()
@@ -189,7 +240,10 @@ subroutine StructMotionUpdate(SimSettings,CalcStepIO, MeshMotions, MeshMaps, Str
    type(MeshType),         pointer                 :: Ptfm        ! to shorten notation
    type(MeshType),         pointer                 :: Twr         ! to shorten notation
    type(MeshType),         pointer                 :: Hub         ! to shorten notation
+   type(MeshType),         pointer                 :: Root        ! to shorten notation
    real(c_float)                                   :: ScaleFact   ! to shorten notation
+   integer(IntKi)                                  :: k
+
    ErrStat = ErrID_None
    ErrMsg  = ''
 
@@ -208,10 +262,12 @@ subroutine StructMotionUpdate(SimSettings,CalcStepIO, MeshMotions, MeshMaps, Str
    Ptfm%TranslationAcc(1:3,1)  = FroudeScaleM2F_TAcc(ScaleFact, CalcStepIO%Acc_c(1:3))
    Ptfm%RotationAcc(1:3,1)     = FroudeScaleM2F_RAcc(ScaleFact, CalcStepIO%Acc_c(4:6))
 
+   !--------------------------------------
    ! transfer Ptfm to Tower
    Twr => MeshMotions%TowerMotion
    call Transfer_Point_to_Line2( Ptfm, Twr, MeshMaps%Motion_PRP_2_Twr, ErrStat2, ErrMsg2 ); if (Failed()) return;
 
+   !--------------------------------------
    ! transfer Ptfm to hub (tower is rigid)
    Hub => MeshMotions%HubMotion
    call Transfer_Point_to_Point( Ptfm, Hub, MeshMaps%Motion_PRP_2_Hub, ErrStat2, ErrMsg2 ); if (Failed()) return;
@@ -224,8 +280,13 @@ subroutine StructMotionUpdate(SimSettings,CalcStepIO, MeshMotions, MeshMaps, Str
    Orient = EulerConstruct(TmpAng)
    Hub%Orientation(1:3,1:3,1) = matmul(Orient,Hub%Orientation(1:3,1:3,1))
 
-
+   !--------------------------------------
    ! hub to blades
+   do k=1,TrbCfg%NumBl
+      Root => MeshMotions%BladeRootMotion(k)
+      call Transfer_Point_to_Point( Hub, Root, MeshMaps%Motion_Hub_2_BldRoot(k), ErrStat2, ErrMsg2 ); if (Failed()) return;
+   enddo
+print*,'size(MeshMotions%BladeRootMotion) ',size(MeshMotions%BladeRootMotion)
 
 
 
@@ -290,6 +351,7 @@ subroutine WrVTK_Struct_Ref(SimSettings, MeshMotions, MeshLoads, ErrStat, ErrMsg
    character(*),           parameter               :: RoutineName = 'WaveTank::WrVTK_Struct_Ref'
    character(1024)                                 :: DirRootName
    real(SiKi)                                      :: RefPt(3)
+   integer(IntKi)                                  :: k
    ErrStat = ErrID_None
    ErrMsg  = ''
    RefPt   = (/ 0.0_SiKi, 0.0_SiKi, 0.0_SiKi /)
@@ -302,6 +364,10 @@ subroutine WrVTK_Struct_Ref(SimSettings, MeshMotions, MeshLoads, ErrStat, ErrMsg
    call MeshWrVTKreference(RefPt, MeshMotions%TowerMotion,  trim(DirRootName)//'.Struct'//'.TowerMotion',  ErrStat2, ErrMsg2); if (Failed()) return
    ! hub point
    call MeshWrVTKreference(RefPt, MeshMotions%HubMotion,    trim(DirRootName)//'.Struct'//'.HubMotion',    ErrStat2, ErrMsg2); if (Failed()) return
+   ! RootMotion points
+   do k=1,SimSettings%TrbCfg%NumBl
+      call MeshWrVTKreference(RefPt, MeshMotions%BladeRootMotion(k), trim(DirRootName)//'.Struct'//'.RootMotion'//trim(Num2LStr(k)), ErrStat2, ErrMsg2); if (Failed()) return
+   enddo
 contains
    logical function Failed()
       call SetErrStat(errStat2, errMsg2, errStat, errMsg, RoutineName)
@@ -321,6 +387,7 @@ subroutine WrVTK_Struct(n_Global, SimSettings, MeshMotions, MeshLoads, ErrStat, 
    character(*),           parameter               :: RoutineName = 'WaveTank::WrVTK_Struct'
    character(1024)                                 :: DirRootName
    real(SiKi)                                      :: RefPt(3)
+   integer(IntKi)                                  :: k
    ErrStat = ErrID_None
    ErrMsg  = ''
    RefPt   = (/ 0.0_SiKi, 0.0_SiKi, 0.0_SiKi /)
@@ -333,6 +400,10 @@ subroutine WrVTK_Struct(n_Global, SimSettings, MeshMotions, MeshLoads, ErrStat, 
    call MeshWrVTK(RefPt, MeshMotions%TowerMotion,  trim(DirRootName)//'.Struct'//'.TowerMotion',  n_Global, .true., ErrStat2, ErrMsg2, Twidth=SimSettings%Viz%Twidth); if (Failed()) return
    ! Hub point
    call MeshWrVTK(RefPt, MeshMotions%HubMotion,    trim(DirRootName)//'.Struct'//'.HubMotion',    n_Global, .true., ErrStat2, ErrMsg2, Twidth=SimSettings%Viz%Twidth); if (Failed()) return
+   ! RootMotion points
+   do k=1,SimSettings%TrbCfg%NumBl
+      call MeshWrVTK(RefPt, MeshMotions%BladeRootMotion(k), trim(DirRootName)//'.Struct'//'.RootMotion'//trim(Num2LStr(k)), n_Global, .true., ErrStat2, ErrMsg2, Twidth=SimSettings%Viz%Twidth); if (Failed()) return
+   enddo
 contains
    logical function Failed()
       call SetErrStat(errStat2, errMsg2, errStat, errMsg, RoutineName)

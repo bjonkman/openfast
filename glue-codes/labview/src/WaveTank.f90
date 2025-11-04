@@ -214,7 +214,7 @@ subroutine WaveTank_Init(  &
    endif
 
    ! map the structural meshes (write vtk first in case of issues)
-   call StructCreateMeshMaps(MeshMotions, MeshLoads, MeshMaps, ErrStat_F2, ErrMsg_F2)
+   call StructCreateMeshMaps(SimSettings, MeshMotions, MeshLoads, MeshMaps, ErrStat_F2, ErrMsg_F2)
    if (Failed()) return
 
 

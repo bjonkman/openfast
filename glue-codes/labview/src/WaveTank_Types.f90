@@ -180,8 +180,8 @@ IMPLICIT NONE
   TYPE, PUBLIC :: MeshesMapsType
     TYPE(MeshMapType)  :: Motion_PRP_2_Twr      !< PRP to tower motion [-]
     TYPE(MeshMapType)  :: Motion_PRP_2_Hub      !< Twrtop to nacelle - add rotation afterwards [-]
-    TYPE(MeshMapType)  :: Motion_Hub_2_BldRoot      !< Hub to blade root motion transfer [-]
-    TYPE(MeshMapType)  :: Load_BldRoot_2_Hub      !< Blade root loads to hub [-]
+    TYPE(MeshMapType) , DIMENSION(:), ALLOCATABLE  :: Motion_Hub_2_BldRoot      !< Hub to blade root motion transfer [-]
+    TYPE(MeshMapType) , DIMENSION(:), ALLOCATABLE  :: Load_BldRoot_2_Hub      !< Blade root loads to hub [-]
     TYPE(MeshMapType)  :: Load_Hub_2_PRP      !< Hub to nacelle load transfer [-]
     TYPE(MeshMapType)  :: Load_Twr_2_PRP      !< Tower loads to PRP (unused) [-]
   END TYPE MeshesMapsType
@@ -1280,6 +1280,8 @@ subroutine WT_CopyMeshesMapsType(SrcMeshesMapsTypeData, DstMeshesMapsTypeData, C
    integer(IntKi),  intent(in   ) :: CtrlCode
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
+   integer(B4Ki)   :: i1
+   integer(B4Ki)                  :: LB(1), UB(1)
    integer(IntKi)                 :: ErrStat2
    character(ErrMsgLen)           :: ErrMsg2
    character(*), parameter        :: RoutineName = 'WT_CopyMeshesMapsType'
@@ -1291,12 +1293,38 @@ subroutine WT_CopyMeshesMapsType(SrcMeshesMapsTypeData, DstMeshesMapsTypeData, C
    call NWTC_Library_CopyMeshMapType(SrcMeshesMapsTypeData%Motion_PRP_2_Hub, DstMeshesMapsTypeData%Motion_PRP_2_Hub, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
-   call NWTC_Library_CopyMeshMapType(SrcMeshesMapsTypeData%Motion_Hub_2_BldRoot, DstMeshesMapsTypeData%Motion_Hub_2_BldRoot, CtrlCode, ErrStat2, ErrMsg2)
-   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   if (ErrStat >= AbortErrLev) return
-   call NWTC_Library_CopyMeshMapType(SrcMeshesMapsTypeData%Load_BldRoot_2_Hub, DstMeshesMapsTypeData%Load_BldRoot_2_Hub, CtrlCode, ErrStat2, ErrMsg2)
-   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   if (ErrStat >= AbortErrLev) return
+   if (allocated(SrcMeshesMapsTypeData%Motion_Hub_2_BldRoot)) then
+      LB(1:1) = lbound(SrcMeshesMapsTypeData%Motion_Hub_2_BldRoot)
+      UB(1:1) = ubound(SrcMeshesMapsTypeData%Motion_Hub_2_BldRoot)
+      if (.not. allocated(DstMeshesMapsTypeData%Motion_Hub_2_BldRoot)) then
+         allocate(DstMeshesMapsTypeData%Motion_Hub_2_BldRoot(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstMeshesMapsTypeData%Motion_Hub_2_BldRoot.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      do i1 = LB(1), UB(1)
+         call NWTC_Library_CopyMeshMapType(SrcMeshesMapsTypeData%Motion_Hub_2_BldRoot(i1), DstMeshesMapsTypeData%Motion_Hub_2_BldRoot(i1), CtrlCode, ErrStat2, ErrMsg2)
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+         if (ErrStat >= AbortErrLev) return
+      end do
+   end if
+   if (allocated(SrcMeshesMapsTypeData%Load_BldRoot_2_Hub)) then
+      LB(1:1) = lbound(SrcMeshesMapsTypeData%Load_BldRoot_2_Hub)
+      UB(1:1) = ubound(SrcMeshesMapsTypeData%Load_BldRoot_2_Hub)
+      if (.not. allocated(DstMeshesMapsTypeData%Load_BldRoot_2_Hub)) then
+         allocate(DstMeshesMapsTypeData%Load_BldRoot_2_Hub(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstMeshesMapsTypeData%Load_BldRoot_2_Hub.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      do i1 = LB(1), UB(1)
+         call NWTC_Library_CopyMeshMapType(SrcMeshesMapsTypeData%Load_BldRoot_2_Hub(i1), DstMeshesMapsTypeData%Load_BldRoot_2_Hub(i1), CtrlCode, ErrStat2, ErrMsg2)
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+         if (ErrStat >= AbortErrLev) return
+      end do
+   end if
    call NWTC_Library_CopyMeshMapType(SrcMeshesMapsTypeData%Load_Hub_2_PRP, DstMeshesMapsTypeData%Load_Hub_2_PRP, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
@@ -1309,6 +1337,8 @@ subroutine WT_DestroyMeshesMapsType(MeshesMapsTypeData, ErrStat, ErrMsg)
    type(MeshesMapsType), intent(inout) :: MeshesMapsTypeData
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
+   integer(B4Ki)   :: i1
+   integer(B4Ki)   :: LB(1), UB(1)
    integer(IntKi)                 :: ErrStat2
    character(ErrMsgLen)           :: ErrMsg2
    character(*), parameter        :: RoutineName = 'WT_DestroyMeshesMapsType'
@@ -1318,10 +1348,24 @@ subroutine WT_DestroyMeshesMapsType(MeshesMapsTypeData, ErrStat, ErrMsg)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    call NWTC_Library_DestroyMeshMapType(MeshesMapsTypeData%Motion_PRP_2_Hub, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   call NWTC_Library_DestroyMeshMapType(MeshesMapsTypeData%Motion_Hub_2_BldRoot, ErrStat2, ErrMsg2)
-   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   call NWTC_Library_DestroyMeshMapType(MeshesMapsTypeData%Load_BldRoot_2_Hub, ErrStat2, ErrMsg2)
-   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   if (allocated(MeshesMapsTypeData%Motion_Hub_2_BldRoot)) then
+      LB(1:1) = lbound(MeshesMapsTypeData%Motion_Hub_2_BldRoot)
+      UB(1:1) = ubound(MeshesMapsTypeData%Motion_Hub_2_BldRoot)
+      do i1 = LB(1), UB(1)
+         call NWTC_Library_DestroyMeshMapType(MeshesMapsTypeData%Motion_Hub_2_BldRoot(i1), ErrStat2, ErrMsg2)
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      end do
+      deallocate(MeshesMapsTypeData%Motion_Hub_2_BldRoot)
+   end if
+   if (allocated(MeshesMapsTypeData%Load_BldRoot_2_Hub)) then
+      LB(1:1) = lbound(MeshesMapsTypeData%Load_BldRoot_2_Hub)
+      UB(1:1) = ubound(MeshesMapsTypeData%Load_BldRoot_2_Hub)
+      do i1 = LB(1), UB(1)
+         call NWTC_Library_DestroyMeshMapType(MeshesMapsTypeData%Load_BldRoot_2_Hub(i1), ErrStat2, ErrMsg2)
+         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      end do
+      deallocate(MeshesMapsTypeData%Load_BldRoot_2_Hub)
+   end if
    call NWTC_Library_DestroyMeshMapType(MeshesMapsTypeData%Load_Hub_2_PRP, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    call NWTC_Library_DestroyMeshMapType(MeshesMapsTypeData%Load_Twr_2_PRP, ErrStat2, ErrMsg2)
@@ -1332,11 +1376,29 @@ subroutine WT_PackMeshesMapsType(RF, Indata)
    type(RegFile), intent(inout) :: RF
    type(MeshesMapsType), intent(in) :: InData
    character(*), parameter         :: RoutineName = 'WT_PackMeshesMapsType'
+   integer(B4Ki)   :: i1
+   integer(B4Ki)   :: LB(1), UB(1)
    if (RF%ErrStat >= AbortErrLev) return
    call NWTC_Library_PackMeshMapType(RF, InData%Motion_PRP_2_Twr) 
    call NWTC_Library_PackMeshMapType(RF, InData%Motion_PRP_2_Hub) 
-   call NWTC_Library_PackMeshMapType(RF, InData%Motion_Hub_2_BldRoot) 
-   call NWTC_Library_PackMeshMapType(RF, InData%Load_BldRoot_2_Hub) 
+   call RegPack(RF, allocated(InData%Motion_Hub_2_BldRoot))
+   if (allocated(InData%Motion_Hub_2_BldRoot)) then
+      call RegPackBounds(RF, 1, lbound(InData%Motion_Hub_2_BldRoot), ubound(InData%Motion_Hub_2_BldRoot))
+      LB(1:1) = lbound(InData%Motion_Hub_2_BldRoot)
+      UB(1:1) = ubound(InData%Motion_Hub_2_BldRoot)
+      do i1 = LB(1), UB(1)
+         call NWTC_Library_PackMeshMapType(RF, InData%Motion_Hub_2_BldRoot(i1)) 
+      end do
+   end if
+   call RegPack(RF, allocated(InData%Load_BldRoot_2_Hub))
+   if (allocated(InData%Load_BldRoot_2_Hub)) then
+      call RegPackBounds(RF, 1, lbound(InData%Load_BldRoot_2_Hub), ubound(InData%Load_BldRoot_2_Hub))
+      LB(1:1) = lbound(InData%Load_BldRoot_2_Hub)
+      UB(1:1) = ubound(InData%Load_BldRoot_2_Hub)
+      do i1 = LB(1), UB(1)
+         call NWTC_Library_PackMeshMapType(RF, InData%Load_BldRoot_2_Hub(i1)) 
+      end do
+   end if
    call NWTC_Library_PackMeshMapType(RF, InData%Load_Hub_2_PRP) 
    call NWTC_Library_PackMeshMapType(RF, InData%Load_Twr_2_PRP) 
    if (RegCheckErr(RF, RoutineName)) return
@@ -1346,11 +1408,39 @@ subroutine WT_UnPackMeshesMapsType(RF, OutData)
    type(RegFile), intent(inout)    :: RF
    type(MeshesMapsType), intent(inout) :: OutData
    character(*), parameter            :: RoutineName = 'WT_UnPackMeshesMapsType'
+   integer(B4Ki)   :: i1
+   integer(B4Ki)   :: LB(1), UB(1)
+   integer(IntKi)  :: stat
+   logical         :: IsAllocAssoc
    if (RF%ErrStat /= ErrID_None) return
    call NWTC_Library_UnpackMeshMapType(RF, OutData%Motion_PRP_2_Twr) ! Motion_PRP_2_Twr 
    call NWTC_Library_UnpackMeshMapType(RF, OutData%Motion_PRP_2_Hub) ! Motion_PRP_2_Hub 
-   call NWTC_Library_UnpackMeshMapType(RF, OutData%Motion_Hub_2_BldRoot) ! Motion_Hub_2_BldRoot 
-   call NWTC_Library_UnpackMeshMapType(RF, OutData%Load_BldRoot_2_Hub) ! Load_BldRoot_2_Hub 
+   if (allocated(OutData%Motion_Hub_2_BldRoot)) deallocate(OutData%Motion_Hub_2_BldRoot)
+   call RegUnpack(RF, IsAllocAssoc); if (RegCheckErr(RF, RoutineName)) return
+   if (IsAllocAssoc) then
+      call RegUnpackBounds(RF, 1, LB, UB); if (RegCheckErr(RF, RoutineName)) return
+      allocate(OutData%Motion_Hub_2_BldRoot(LB(1):UB(1)),stat=stat)
+      if (stat /= 0) then 
+         call SetErrStat(ErrID_Fatal, 'Error allocating OutData%Motion_Hub_2_BldRoot.', RF%ErrStat, RF%ErrMsg, RoutineName)
+         return
+      end if
+      do i1 = LB(1), UB(1)
+         call NWTC_Library_UnpackMeshMapType(RF, OutData%Motion_Hub_2_BldRoot(i1)) ! Motion_Hub_2_BldRoot 
+      end do
+   end if
+   if (allocated(OutData%Load_BldRoot_2_Hub)) deallocate(OutData%Load_BldRoot_2_Hub)
+   call RegUnpack(RF, IsAllocAssoc); if (RegCheckErr(RF, RoutineName)) return
+   if (IsAllocAssoc) then
+      call RegUnpackBounds(RF, 1, LB, UB); if (RegCheckErr(RF, RoutineName)) return
+      allocate(OutData%Load_BldRoot_2_Hub(LB(1):UB(1)),stat=stat)
+      if (stat /= 0) then 
+         call SetErrStat(ErrID_Fatal, 'Error allocating OutData%Load_BldRoot_2_Hub.', RF%ErrStat, RF%ErrMsg, RoutineName)
+         return
+      end if
+      do i1 = LB(1), UB(1)
+         call NWTC_Library_UnpackMeshMapType(RF, OutData%Load_BldRoot_2_Hub(i1)) ! Load_BldRoot_2_Hub 
+      end do
+   end if
    call NWTC_Library_UnpackMeshMapType(RF, OutData%Load_Hub_2_PRP) ! Load_Hub_2_PRP 
    call NWTC_Library_UnpackMeshMapType(RF, OutData%Load_Twr_2_PRP) ! Load_Twr_2_PRP 
 end subroutine
