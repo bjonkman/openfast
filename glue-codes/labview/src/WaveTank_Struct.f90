@@ -450,10 +450,9 @@ subroutine StructLoadsMeshTransfer(SimSettings, CalcStepIO, MeshMotions, MeshLoa
    PtfmLd%Force(1:3,1)  = PtfmLd%Force(1:3,1)  + PtfmLdTmp%Force(1:3,1)
    PtfmLd%Moment(1:3,1) = PtfmLd%Moment(1:3,1) + PtfmLdTmp%Moment(1:3,1)
 
-   ! Store mooring loads
    ! Store the MD summed foreces and moments for output
-   StructTmp%FrcMom_MD_at_Ptfm(1:3) = MoorLd%Force(1:3,1)
-   StructTmp%FrcMom_MD_at_Ptfm(4:6) = MoorLd%Moment(1:3,1)
+   StructTmp%FrcMom_MD_at_Ptfm(1:3) = PtfmLdTmp%Force(1:3,1)
+   StructTmp%FrcMom_MD_at_Ptfm(4:6) = PtfmLdTmp%Moment(1:3,1)
 
 contains
    logical function Failed()

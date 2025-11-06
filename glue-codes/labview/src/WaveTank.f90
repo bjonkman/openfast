@@ -387,6 +387,7 @@ subroutine WaveTank_Init(  &
    !------------------------------
    ! Initialize time counting for VTK
    VTKn_Global = 0_IntKi
+   VTKn_last   = -1_IntKi
    call ShowReturnData()
 
 contains
@@ -541,6 +542,10 @@ subroutine WaveTank_CalcStep( &
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'WaveTank_CalcStep::MD_C_CalcOutput')
    if (ErrStat_C >= AbortErrLev_C) return
 
+   ! Put mooring loads onto mesh
+   call SetMDMeshLoads()
+
+
    !--------------------------------------
    ! ADI calculations
    !--------------------------------------
@@ -662,6 +667,14 @@ subroutine SetMDTmpMotion()
    StructTmp%PtfmVel_c(4:6) = real(Ptfm%RotationVel(1:3,1), c_float)
    StructTmp%PtfmAcc_c(1:3) = real(Ptfm%TranslationAcc(1:3,1), c_float)
    StructTmp%PtfmAcc_c(4:6) = real(Ptfm%RotationAcc(1:3,1), c_float)
+end subroutine
+
+subroutine SetMDMeshLoads()
+   type(MeshType), pointer :: MoorLd
+   integer(IntKi)          :: i1,i2
+   MoorLd => MeshLoads%MooringLoads
+   MoorLd%Force(1:3,1) = real(CalcStepIO%FrcMom_MD_c(1:3), ReKi)
+   MoorLd%Moment(1:3,1) = real(CalcStepIO%FrcMom_MD_c(4:6), ReKi)
 end subroutine
 
 subroutine SetADITmpNacMotion()

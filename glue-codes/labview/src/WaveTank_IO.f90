@@ -52,10 +52,10 @@ MODULE WaveTank_IO
                               "Ptfm_RAx      ","Ptfm_RAy      ","Ptfm_RAz      ",   &  ! rotation acc
                               "Ptfm_Fx       ","Ptfm_Fy       ","Ptfm_Fz       ",   &  ! Forces total
                               "Ptfm_Mx       ","Ptfm_My       ","Ptfm_Mz       ",   &  ! Moments total
-                              "MD_Fx         ","MD_Fy         ","MD_Fz         ",   &  ! Forces from MD
-                              "MD_Mx         ","MD_My         ","MD_Mz         ",   &  ! Moments from MD
-                              "ADI_Fx        ","ADI_Fy        ","ADI_Fz        ",   &  ! Forces from ADI
-                              "ADI_Mx        ","ADI_My        ","ADI_Mz        ",   &  ! Moments from ADI
+                              "Ptfm_MD_Fx    ","Ptfm_MD_Fy    ","Ptfm_MD_Fz    ",   &  ! Forces from MD
+                              "Ptfm_MD_Mx    ","Ptfm_MD_My    ","Ptfm_MD_Mz    ",   &  ! Moments from MD
+                              "Ptfm_ADI_Fx   ","Ptfm_ADI_Fy   ","Ptfm_ADI_Fz   ",   &  ! Forces from ADI
+                              "Ptfm_ADI_Mx   ","Ptfm_ADI_My   ","Ptfm_ADI_Mz   ",   &  ! Moments from ADI
                               "Azimuth       ","RotSpeed      ","BlPitch       ",   &
                               "NacYaw        ","BuoyElev      "                     &
                            /)
@@ -373,18 +373,18 @@ subroutine WriteOutputLine(OutFmt, CalcStepIO, StructTmp, WrOutputData, ErrStat,
    write( tmpStr, '(F15.6)' ) CalcStepIO%Time_c
    call WrFileNR( OutUnit, tmpStr )
    ! position / orientation euler angles, velocity, accel, resulting force/moment
-   call WrNumAryFileNR(OutUnit, CalcStepIO%PosAng_c,     frmt, errStat2, errMsg2); if (Failed()) return
-   call WrNumAryFileNR(OutUnit, CalcStepIO%Vel_c,        frmt, errStat2, errMsg2); if (Failed()) return
-   call WrNumAryFileNR(OutUnit, CalcStepIO%Acc_c,        frmt, errStat2, errMsg2); if (Failed()) return
-   call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_c,     frmt, errStat2, errMsg2); if (Failed()) return ! total
-   call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_MD_c,  frmt, errStat2, errMsg2); if (Failed()) return
-   call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_ADI_c, frmt, errStat2, errMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, CalcStepIO%PosAng_c,          frmt, errStat2, errMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, CalcStepIO%Vel_c,             frmt, errStat2, errMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, CalcStepIO%Acc_c,             frmt, errStat2, errMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_c,          frmt, errStat2, errMsg2); if (Failed()) return ! total
+   call WrNumAryFileNR(OutUnit, StructTmp%FrcMom_MD_at_Ptfm,  frmt, errStat2, errMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, StructTmp%FrcMom_ADI_at_Ptfm, frmt, errStat2, errMsg2); if (Failed()) return
    TmpAry5 = (/ R2D*StructTmp%Azimuth, StructTmp%RotSpeed, R2D*StructTmp%BldPitch, R2D*StructTmp%NacYaw, CalcStepIO%BuoyWaveElev /)
-   call WrNumAryFileNR(OutUnit, TmpAry5,               frmt, errStat2, errMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, TmpAry5,                      frmt, errStat2, errMsg2); if (Failed()) return
    ! channels from modules
-   call WrNumAryFileNR(OutUnit, WrOutputData%OutData_SS,  frmt, errStat2, ErrMsg2); if (Failed()) return
-   call WrNumAryFileNR(OutUnit, WrOutputData%OutData_MD,  frmt, errStat2, ErrMsg2); if (Failed()) return
-   call WrNumAryFileNR(OutUnit, WrOutputData%OutData_ADI, frmt, errStat2, ErrMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, WrOutputData%OutData_SS,      frmt, errStat2, ErrMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, WrOutputData%OutData_MD,      frmt, errStat2, ErrMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, WrOutputData%OutData_ADI,     frmt, errStat2, ErrMsg2); if (Failed()) return
    ! write a new line (advance to the next line)
    write (OutUnit,'()')
 contains
