@@ -130,9 +130,9 @@ IMPLICIT NONE
     REAL(c_float) , DIMENSION(1:6)  :: Vel_c = 0.0_R4Ki      !< IN:  Velocity             [Vx,Vy,Vz,RVx,RVy,RVz] [[(m/s) (rad/s)]]
     REAL(c_float) , DIMENSION(1:6)  :: Acc_c = 0.0_R4Ki      !< IN:  Acceleration         [Ax,Ay,Az,RAx,RAy,RAz] [[(m/s^2) (rad/s^2)]]
     REAL(c_float) , DIMENSION(1:6)  :: FrcMom_c = 0.0_R4Ki      !< OUT: Acceleration         [Fx,Fy,Fz,Mx,My,Mz] [[(N) (N-m)]]
-    REAL(ReKi) , DIMENSION(1:6)  :: FrcMom_SS = 0.0_ReKi      !< calculated forces/moments from SS [-]
-    REAL(ReKi) , DIMENSION(1:6)  :: FrcMom_MD = 0.0_ReKi      !< calculated forces/moments from MD [-]
-    REAL(ReKi) , DIMENSION(1:6)  :: FrcMom_ADI = 0.0_ReKi      !< calculated forces/moments from ADI [-]
+    REAL(c_float) , DIMENSION(1:6)  :: FrcMom_MD_c = 0.0_R4Ki      !< calculated forces/moments from MD [-]
+    REAL(c_float) , DIMENSION(:), ALLOCATABLE  :: FrcMom_ADI_c      !< calculated forces/moments from ADI [-]
+    REAL(c_float) , DIMENSION(1:3)  :: HubVel_ADI_c = 0.0_R4Ki      !< hub height wind vel from ADI [-]
     REAL(ReKi)  :: BuoyWaveElev = 0.0_ReKi      !< calculated wave elevation at buoy [-]
   END TYPE CalcStepIOdataType
 ! =======================
@@ -171,6 +171,8 @@ IMPLICIT NONE
 ! =========  MeshesLoadsType  =======
   TYPE, PUBLIC :: MeshesLoadsType
     TYPE(MeshType)  :: PtfmPtLoads      !< Platform principle ref point loads output [-]
+    TYPE(MeshType)  :: PtfmPtLoadsTmp      !< Platform principle ref point loads output - temp var for load summation [-]
+    TYPE(MeshType)  :: MooringLoads      !< Mooring loads (always at PtfmPt, but separated for simplicity) [-]
     TYPE(MeshType)  :: TowerLoads      !< Tower mesh (unused) [-]
     TYPE(MeshType)  :: HubLoads      !< Hub mesh (for mappings, intermediate loads) [-]
     TYPE(MeshType) , DIMENSION(:), ALLOCATABLE  :: BladeRootLoads      !< Blade root loads [-]
@@ -184,6 +186,7 @@ IMPLICIT NONE
     TYPE(MeshMapType) , DIMENSION(:), ALLOCATABLE  :: Load_BldRoot_2_Hub      !< Blade root loads to hub [-]
     TYPE(MeshMapType)  :: Load_Hub_2_PRP      !< Hub to nacelle load transfer [-]
     TYPE(MeshMapType)  :: Load_Twr_2_PRP      !< Tower loads to PRP (unused) [-]
+    TYPE(MeshMapType)  :: Load_Moor_2_PRP      !< Mooring loads to PRP [-]
   END TYPE MeshesMapsType
 ! =======================
 ! =========  StructTmpType  =======
@@ -192,6 +195,24 @@ IMPLICIT NONE
     REAL(ReKi)  :: RotSpeed = 0.0_ReKi      !< Rotor speed [(RPM)]
     REAL(ReKi)  :: BldPitch = 0.0_ReKi      !< Blade pitch [(rad)]
     REAL(ReKi)  :: NacYaw = 0.0_ReKi      !< Nacelle-yaw angle [(rad)]
+    REAL(ReKi) , DIMENSION(1:6)  :: FrcMom_ADI_at_Ptfm = 0.0_ReKi      !< Total aero loading summed to Ptfm point [(N,]
+    REAL(ReKi) , DIMENSION(1:6)  :: FrcMom_MD_at_Ptfm = 0.0_ReKi      !< MoorDyn loading at Ptfm point [(N,]
+    REAL(c_float) , DIMENSION(1:2)  :: BuoyPos_c = 0.0_R4Ki      !< Buoy XY position [(m)]
+    REAL(c_float) , DIMENSION(1:6)  :: PtfmPosAng_c = 0.0_R4Ki      !< Temp position and euler angle [(m,]
+    REAL(c_float) , DIMENSION(1:6)  :: PtfmVel_c = 0.0_R4Ki      !< Temp velocity  [(m/s,]
+    REAL(c_float) , DIMENSION(1:6)  :: PtfmAcc_c = 0.0_R4Ki      !< Temp acceleration  [(m/s^2,]
+    REAL(c_float) , DIMENSION(1:3)  :: NacPos_c = 0.0_R4Ki      !< Temp nacelle position  [(m,]
+    REAL(c_double) , DIMENSION(1:9)  :: NacDCM_c = 0.0_R8Ki      !< Temp nacelle orientation DCM [(-)]
+    REAL(c_float) , DIMENSION(1:6)  :: NacVel_c = 0.0_R4Ki      !< Temp nacelle velocity  [(m/s,]
+    REAL(c_float) , DIMENSION(1:6)  :: NacAcc_c = 0.0_R4Ki      !< Temp nacelle acceleration  [(m/s^2,]
+    REAL(c_float) , DIMENSION(1:3)  :: HubPos_c = 0.0_R4Ki      !< Temp hub position  [(m,]
+    REAL(c_double) , DIMENSION(1:9)  :: HubDCM_c = 0.0_R8Ki      !< Temp hub orientation DCM [(-)]
+    REAL(c_float) , DIMENSION(1:6)  :: HubVel_c = 0.0_R4Ki      !< Temp hub velocity  [(m/s,]
+    REAL(c_float) , DIMENSION(1:6)  :: HubAcc_c = 0.0_R4Ki      !< Temp hub acceleration  [(m/s^2,]
+    REAL(c_float) , DIMENSION(:), ALLOCATABLE  :: BldPos_c      !< Temp blade position -- sequential by blade [(m)]
+    REAL(c_double) , DIMENSION(:), ALLOCATABLE  :: BldDCM_c      !< Temp blade orientation DCM -- flat sequential by blade [(-)]
+    REAL(c_float) , DIMENSION(:), ALLOCATABLE  :: BldVel_c      !< Temp blade velocity -- sequential by blade [(m/s,]
+    REAL(c_float) , DIMENSION(:), ALLOCATABLE  :: BldAcc_c      !< Temp blade acceleration -- sequential by blade [(m/s^2,]
   END TYPE StructTmpType
 ! =======================
 CONTAINS
@@ -712,6 +733,8 @@ subroutine WT_CopyCalcStepIOdataType(SrcCalcStepIOdataTypeData, DstCalcStepIOdat
    integer(IntKi),  intent(in   ) :: CtrlCode
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
+   integer(B4Ki)                  :: LB(1), UB(1)
+   integer(IntKi)                 :: ErrStat2
    character(*), parameter        :: RoutineName = 'WT_CopyCalcStepIOdataType'
    ErrStat = ErrID_None
    ErrMsg  = ''
@@ -720,9 +743,20 @@ subroutine WT_CopyCalcStepIOdataType(SrcCalcStepIOdataTypeData, DstCalcStepIOdat
    DstCalcStepIOdataTypeData%Vel_c = SrcCalcStepIOdataTypeData%Vel_c
    DstCalcStepIOdataTypeData%Acc_c = SrcCalcStepIOdataTypeData%Acc_c
    DstCalcStepIOdataTypeData%FrcMom_c = SrcCalcStepIOdataTypeData%FrcMom_c
-   DstCalcStepIOdataTypeData%FrcMom_SS = SrcCalcStepIOdataTypeData%FrcMom_SS
-   DstCalcStepIOdataTypeData%FrcMom_MD = SrcCalcStepIOdataTypeData%FrcMom_MD
-   DstCalcStepIOdataTypeData%FrcMom_ADI = SrcCalcStepIOdataTypeData%FrcMom_ADI
+   DstCalcStepIOdataTypeData%FrcMom_MD_c = SrcCalcStepIOdataTypeData%FrcMom_MD_c
+   if (allocated(SrcCalcStepIOdataTypeData%FrcMom_ADI_c)) then
+      LB(1:1) = lbound(SrcCalcStepIOdataTypeData%FrcMom_ADI_c)
+      UB(1:1) = ubound(SrcCalcStepIOdataTypeData%FrcMom_ADI_c)
+      if (.not. allocated(DstCalcStepIOdataTypeData%FrcMom_ADI_c)) then
+         allocate(DstCalcStepIOdataTypeData%FrcMom_ADI_c(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstCalcStepIOdataTypeData%FrcMom_ADI_c.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstCalcStepIOdataTypeData%FrcMom_ADI_c = SrcCalcStepIOdataTypeData%FrcMom_ADI_c
+   end if
+   DstCalcStepIOdataTypeData%HubVel_ADI_c = SrcCalcStepIOdataTypeData%HubVel_ADI_c
    DstCalcStepIOdataTypeData%BuoyWaveElev = SrcCalcStepIOdataTypeData%BuoyWaveElev
 end subroutine
 
@@ -733,6 +767,9 @@ subroutine WT_DestroyCalcStepIOdataType(CalcStepIOdataTypeData, ErrStat, ErrMsg)
    character(*), parameter        :: RoutineName = 'WT_DestroyCalcStepIOdataType'
    ErrStat = ErrID_None
    ErrMsg  = ''
+   if (allocated(CalcStepIOdataTypeData%FrcMom_ADI_c)) then
+      deallocate(CalcStepIOdataTypeData%FrcMom_ADI_c)
+   end if
 end subroutine
 
 subroutine WT_PackCalcStepIOdataType(RF, Indata)
@@ -745,9 +782,9 @@ subroutine WT_PackCalcStepIOdataType(RF, Indata)
    call RegPack(RF, InData%Vel_c)
    call RegPack(RF, InData%Acc_c)
    call RegPack(RF, InData%FrcMom_c)
-   call RegPack(RF, InData%FrcMom_SS)
-   call RegPack(RF, InData%FrcMom_MD)
-   call RegPack(RF, InData%FrcMom_ADI)
+   call RegPack(RF, InData%FrcMom_MD_c)
+   call RegPackAlloc(RF, InData%FrcMom_ADI_c)
+   call RegPack(RF, InData%HubVel_ADI_c)
    call RegPack(RF, InData%BuoyWaveElev)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
@@ -756,15 +793,18 @@ subroutine WT_UnPackCalcStepIOdataType(RF, OutData)
    type(RegFile), intent(inout)    :: RF
    type(CalcStepIOdataType), intent(inout) :: OutData
    character(*), parameter            :: RoutineName = 'WT_UnPackCalcStepIOdataType'
+   integer(B4Ki)   :: LB(1), UB(1)
+   integer(IntKi)  :: stat
+   logical         :: IsAllocAssoc
    if (RF%ErrStat /= ErrID_None) return
    call RegUnpack(RF, OutData%Time_c); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%PosAng_c); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%Vel_c); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%Acc_c); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%FrcMom_c); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpack(RF, OutData%FrcMom_SS); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpack(RF, OutData%FrcMom_MD); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpack(RF, OutData%FrcMom_ADI); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%FrcMom_MD_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%FrcMom_ADI_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%HubVel_ADI_c); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%BuoyWaveElev); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -1173,6 +1213,12 @@ subroutine WT_CopyMeshesLoadsType(SrcMeshesLoadsTypeData, DstMeshesLoadsTypeData
    call MeshCopy(SrcMeshesLoadsTypeData%PtfmPtLoads, DstMeshesLoadsTypeData%PtfmPtLoads, CtrlCode, ErrStat2, ErrMsg2 )
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
+   call MeshCopy(SrcMeshesLoadsTypeData%PtfmPtLoadsTmp, DstMeshesLoadsTypeData%PtfmPtLoadsTmp, CtrlCode, ErrStat2, ErrMsg2 )
+   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   if (ErrStat >= AbortErrLev) return
+   call MeshCopy(SrcMeshesLoadsTypeData%MooringLoads, DstMeshesLoadsTypeData%MooringLoads, CtrlCode, ErrStat2, ErrMsg2 )
+   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   if (ErrStat >= AbortErrLev) return
    call MeshCopy(SrcMeshesLoadsTypeData%TowerLoads, DstMeshesLoadsTypeData%TowerLoads, CtrlCode, ErrStat2, ErrMsg2 )
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
@@ -1210,6 +1256,10 @@ subroutine WT_DestroyMeshesLoadsType(MeshesLoadsTypeData, ErrStat, ErrMsg)
    ErrMsg  = ''
    call MeshDestroy( MeshesLoadsTypeData%PtfmPtLoads, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   call MeshDestroy( MeshesLoadsTypeData%PtfmPtLoadsTmp, ErrStat2, ErrMsg2)
+   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   call MeshDestroy( MeshesLoadsTypeData%MooringLoads, ErrStat2, ErrMsg2)
+   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    call MeshDestroy( MeshesLoadsTypeData%TowerLoads, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    call MeshDestroy( MeshesLoadsTypeData%HubLoads, ErrStat2, ErrMsg2)
@@ -1233,6 +1283,8 @@ subroutine WT_PackMeshesLoadsType(RF, Indata)
    integer(B4Ki)   :: LB(1), UB(1)
    if (RF%ErrStat >= AbortErrLev) return
    call MeshPack(RF, InData%PtfmPtLoads) 
+   call MeshPack(RF, InData%PtfmPtLoadsTmp) 
+   call MeshPack(RF, InData%MooringLoads) 
    call MeshPack(RF, InData%TowerLoads) 
    call MeshPack(RF, InData%HubLoads) 
    call RegPack(RF, allocated(InData%BladeRootLoads))
@@ -1257,6 +1309,8 @@ subroutine WT_UnPackMeshesLoadsType(RF, OutData)
    logical         :: IsAllocAssoc
    if (RF%ErrStat /= ErrID_None) return
    call MeshUnpack(RF, OutData%PtfmPtLoads) ! PtfmPtLoads 
+   call MeshUnpack(RF, OutData%PtfmPtLoadsTmp) ! PtfmPtLoadsTmp 
+   call MeshUnpack(RF, OutData%MooringLoads) ! MooringLoads 
    call MeshUnpack(RF, OutData%TowerLoads) ! TowerLoads 
    call MeshUnpack(RF, OutData%HubLoads) ! HubLoads 
    if (allocated(OutData%BladeRootLoads)) deallocate(OutData%BladeRootLoads)
@@ -1331,6 +1385,9 @@ subroutine WT_CopyMeshesMapsType(SrcMeshesMapsTypeData, DstMeshesMapsTypeData, C
    call NWTC_Library_CopyMeshMapType(SrcMeshesMapsTypeData%Load_Twr_2_PRP, DstMeshesMapsTypeData%Load_Twr_2_PRP, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
+   call NWTC_Library_CopyMeshMapType(SrcMeshesMapsTypeData%Load_Moor_2_PRP, DstMeshesMapsTypeData%Load_Moor_2_PRP, CtrlCode, ErrStat2, ErrMsg2)
+   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   if (ErrStat >= AbortErrLev) return
 end subroutine
 
 subroutine WT_DestroyMeshesMapsType(MeshesMapsTypeData, ErrStat, ErrMsg)
@@ -1370,6 +1427,8 @@ subroutine WT_DestroyMeshesMapsType(MeshesMapsTypeData, ErrStat, ErrMsg)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    call NWTC_Library_DestroyMeshMapType(MeshesMapsTypeData%Load_Twr_2_PRP, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   call NWTC_Library_DestroyMeshMapType(MeshesMapsTypeData%Load_Moor_2_PRP, ErrStat2, ErrMsg2)
+   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
 end subroutine
 
 subroutine WT_PackMeshesMapsType(RF, Indata)
@@ -1401,6 +1460,7 @@ subroutine WT_PackMeshesMapsType(RF, Indata)
    end if
    call NWTC_Library_PackMeshMapType(RF, InData%Load_Hub_2_PRP) 
    call NWTC_Library_PackMeshMapType(RF, InData%Load_Twr_2_PRP) 
+   call NWTC_Library_PackMeshMapType(RF, InData%Load_Moor_2_PRP) 
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -1443,6 +1503,7 @@ subroutine WT_UnPackMeshesMapsType(RF, OutData)
    end if
    call NWTC_Library_UnpackMeshMapType(RF, OutData%Load_Hub_2_PRP) ! Load_Hub_2_PRP 
    call NWTC_Library_UnpackMeshMapType(RF, OutData%Load_Twr_2_PRP) ! Load_Twr_2_PRP 
+   call NWTC_Library_UnpackMeshMapType(RF, OutData%Load_Moor_2_PRP) ! Load_Moor_2_PRP 
 end subroutine
 
 subroutine WT_CopyStructTmpType(SrcStructTmpTypeData, DstStructTmpTypeData, CtrlCode, ErrStat, ErrMsg)
@@ -1451,6 +1512,8 @@ subroutine WT_CopyStructTmpType(SrcStructTmpTypeData, DstStructTmpTypeData, Ctrl
    integer(IntKi),  intent(in   ) :: CtrlCode
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
+   integer(B4Ki)                  :: LB(1), UB(1)
+   integer(IntKi)                 :: ErrStat2
    character(*), parameter        :: RoutineName = 'WT_CopyStructTmpType'
    ErrStat = ErrID_None
    ErrMsg  = ''
@@ -1458,6 +1521,68 @@ subroutine WT_CopyStructTmpType(SrcStructTmpTypeData, DstStructTmpTypeData, Ctrl
    DstStructTmpTypeData%RotSpeed = SrcStructTmpTypeData%RotSpeed
    DstStructTmpTypeData%BldPitch = SrcStructTmpTypeData%BldPitch
    DstStructTmpTypeData%NacYaw = SrcStructTmpTypeData%NacYaw
+   DstStructTmpTypeData%FrcMom_ADI_at_Ptfm = SrcStructTmpTypeData%FrcMom_ADI_at_Ptfm
+   DstStructTmpTypeData%FrcMom_MD_at_Ptfm = SrcStructTmpTypeData%FrcMom_MD_at_Ptfm
+   DstStructTmpTypeData%BuoyPos_c = SrcStructTmpTypeData%BuoyPos_c
+   DstStructTmpTypeData%PtfmPosAng_c = SrcStructTmpTypeData%PtfmPosAng_c
+   DstStructTmpTypeData%PtfmVel_c = SrcStructTmpTypeData%PtfmVel_c
+   DstStructTmpTypeData%PtfmAcc_c = SrcStructTmpTypeData%PtfmAcc_c
+   DstStructTmpTypeData%NacPos_c = SrcStructTmpTypeData%NacPos_c
+   DstStructTmpTypeData%NacDCM_c = SrcStructTmpTypeData%NacDCM_c
+   DstStructTmpTypeData%NacVel_c = SrcStructTmpTypeData%NacVel_c
+   DstStructTmpTypeData%NacAcc_c = SrcStructTmpTypeData%NacAcc_c
+   DstStructTmpTypeData%HubPos_c = SrcStructTmpTypeData%HubPos_c
+   DstStructTmpTypeData%HubDCM_c = SrcStructTmpTypeData%HubDCM_c
+   DstStructTmpTypeData%HubVel_c = SrcStructTmpTypeData%HubVel_c
+   DstStructTmpTypeData%HubAcc_c = SrcStructTmpTypeData%HubAcc_c
+   if (allocated(SrcStructTmpTypeData%BldPos_c)) then
+      LB(1:1) = lbound(SrcStructTmpTypeData%BldPos_c)
+      UB(1:1) = ubound(SrcStructTmpTypeData%BldPos_c)
+      if (.not. allocated(DstStructTmpTypeData%BldPos_c)) then
+         allocate(DstStructTmpTypeData%BldPos_c(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstStructTmpTypeData%BldPos_c.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstStructTmpTypeData%BldPos_c = SrcStructTmpTypeData%BldPos_c
+   end if
+   if (allocated(SrcStructTmpTypeData%BldDCM_c)) then
+      LB(1:1) = lbound(SrcStructTmpTypeData%BldDCM_c)
+      UB(1:1) = ubound(SrcStructTmpTypeData%BldDCM_c)
+      if (.not. allocated(DstStructTmpTypeData%BldDCM_c)) then
+         allocate(DstStructTmpTypeData%BldDCM_c(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstStructTmpTypeData%BldDCM_c.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstStructTmpTypeData%BldDCM_c = SrcStructTmpTypeData%BldDCM_c
+   end if
+   if (allocated(SrcStructTmpTypeData%BldVel_c)) then
+      LB(1:1) = lbound(SrcStructTmpTypeData%BldVel_c)
+      UB(1:1) = ubound(SrcStructTmpTypeData%BldVel_c)
+      if (.not. allocated(DstStructTmpTypeData%BldVel_c)) then
+         allocate(DstStructTmpTypeData%BldVel_c(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstStructTmpTypeData%BldVel_c.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstStructTmpTypeData%BldVel_c = SrcStructTmpTypeData%BldVel_c
+   end if
+   if (allocated(SrcStructTmpTypeData%BldAcc_c)) then
+      LB(1:1) = lbound(SrcStructTmpTypeData%BldAcc_c)
+      UB(1:1) = ubound(SrcStructTmpTypeData%BldAcc_c)
+      if (.not. allocated(DstStructTmpTypeData%BldAcc_c)) then
+         allocate(DstStructTmpTypeData%BldAcc_c(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstStructTmpTypeData%BldAcc_c.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstStructTmpTypeData%BldAcc_c = SrcStructTmpTypeData%BldAcc_c
+   end if
 end subroutine
 
 subroutine WT_DestroyStructTmpType(StructTmpTypeData, ErrStat, ErrMsg)
@@ -1467,6 +1592,18 @@ subroutine WT_DestroyStructTmpType(StructTmpTypeData, ErrStat, ErrMsg)
    character(*), parameter        :: RoutineName = 'WT_DestroyStructTmpType'
    ErrStat = ErrID_None
    ErrMsg  = ''
+   if (allocated(StructTmpTypeData%BldPos_c)) then
+      deallocate(StructTmpTypeData%BldPos_c)
+   end if
+   if (allocated(StructTmpTypeData%BldDCM_c)) then
+      deallocate(StructTmpTypeData%BldDCM_c)
+   end if
+   if (allocated(StructTmpTypeData%BldVel_c)) then
+      deallocate(StructTmpTypeData%BldVel_c)
+   end if
+   if (allocated(StructTmpTypeData%BldAcc_c)) then
+      deallocate(StructTmpTypeData%BldAcc_c)
+   end if
 end subroutine
 
 subroutine WT_PackStructTmpType(RF, Indata)
@@ -1478,6 +1615,24 @@ subroutine WT_PackStructTmpType(RF, Indata)
    call RegPack(RF, InData%RotSpeed)
    call RegPack(RF, InData%BldPitch)
    call RegPack(RF, InData%NacYaw)
+   call RegPack(RF, InData%FrcMom_ADI_at_Ptfm)
+   call RegPack(RF, InData%FrcMom_MD_at_Ptfm)
+   call RegPack(RF, InData%BuoyPos_c)
+   call RegPack(RF, InData%PtfmPosAng_c)
+   call RegPack(RF, InData%PtfmVel_c)
+   call RegPack(RF, InData%PtfmAcc_c)
+   call RegPack(RF, InData%NacPos_c)
+   call RegPack(RF, InData%NacDCM_c)
+   call RegPack(RF, InData%NacVel_c)
+   call RegPack(RF, InData%NacAcc_c)
+   call RegPack(RF, InData%HubPos_c)
+   call RegPack(RF, InData%HubDCM_c)
+   call RegPack(RF, InData%HubVel_c)
+   call RegPack(RF, InData%HubAcc_c)
+   call RegPackAlloc(RF, InData%BldPos_c)
+   call RegPackAlloc(RF, InData%BldDCM_c)
+   call RegPackAlloc(RF, InData%BldVel_c)
+   call RegPackAlloc(RF, InData%BldAcc_c)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -1485,11 +1640,32 @@ subroutine WT_UnPackStructTmpType(RF, OutData)
    type(RegFile), intent(inout)    :: RF
    type(StructTmpType), intent(inout) :: OutData
    character(*), parameter            :: RoutineName = 'WT_UnPackStructTmpType'
+   integer(B4Ki)   :: LB(1), UB(1)
+   integer(IntKi)  :: stat
+   logical         :: IsAllocAssoc
    if (RF%ErrStat /= ErrID_None) return
    call RegUnpack(RF, OutData%Azimuth); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%RotSpeed); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%BldPitch); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%NacYaw); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%FrcMom_ADI_at_Ptfm); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%FrcMom_MD_at_Ptfm); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%BuoyPos_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%PtfmPosAng_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%PtfmVel_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%PtfmAcc_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%NacPos_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%NacDCM_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%NacVel_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%NacAcc_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%HubPos_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%HubDCM_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%HubVel_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%HubAcc_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%BldPos_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%BldDCM_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%BldVel_c); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%BldAcc_c); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 END MODULE WaveTank_Types
 !ENDOFREGISTRYGENERATEDFILE

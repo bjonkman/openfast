@@ -83,10 +83,10 @@ typedef  ^                    ^              c_float           PosAng_c         
 typedef  ^                    ^              ^                 Vel_c                6  -  -  "IN:  Velocity             [Vx,Vy,Vz,RVx,RVy,RVz]" "[(m/s) (rad/s)]"
 typedef  ^                    ^              ^                 Acc_c                6  -  -  "IN:  Acceleration         [Ax,Ay,Az,RAx,RAy,RAz]" "[(m/s^2) (rad/s^2)]"
 typedef  ^                    ^              ^                 FrcMom_c             6  -  -  "OUT: Acceleration         [Fx,Fy,Fz,Mx,My,Mz]"    "[(N) (N-m)]"
-typedef  ^                    ^              ReKi              FrcMom_SS            6  -  -  "calculated forces/moments from SS" -
-typedef  ^                    ^              ^                 FrcMom_MD            6  -  -  "calculated forces/moments from MD" -
-typedef  ^                    ^              ^                 FrcMom_ADI           6  -  -  "calculated forces/moments from ADI" -
-typedef  ^                    ^              ^                 BuoyWaveElev         -  -  -  "calculated wave elevation at buoy" -
+typedef  ^                    ^              ^                 FrcMom_MD_c          6  -  -  "calculated forces/moments from MD" -
+typedef  ^                    ^              ^                 FrcMom_ADI_c         :  -  -  "calculated forces/moments from ADI" -
+typedef  ^                    ^              ^                 HubVel_ADI_c         3  -  -  "hub height wind vel from ADI" -
+typedef  ^                    ^              ReKi              BuoyWaveElev         -  -  -  "calculated wave elevation at buoy" -
 
 
 # storage for output file data (num chans, WriteOutputHdr, out arrays per module, etc)
@@ -119,6 +119,8 @@ typedef  ^                    ^              ^           BladeRootMotion        
 typedef  ^                    ^              ^           WaveBuoyMotion             -  -  -  "wave measurement buoy motion (sensor only)" -
 
 typedef  ^                 MeshesLoadsType   MeshType    PtfmPtLoads                -  -  -  "Platform principle ref point loads output" -
+typedef  ^                    ^              ^           PtfmPtLoadsTmp             -  -  -  "Platform principle ref point loads output - temp var for load summation" -
+typedef  ^                    ^              ^           MooringLoads               -  -  -  "Mooring loads (always at PtfmPt, but separated for simplicity)" -
 typedef  ^                    ^              ^           TowerLoads                 -  -  -  "Tower mesh (unused)" -
 typedef  ^                    ^              ^           HubLoads                   -  -  -  "Hub mesh (for mappings, intermediate loads)" -
 typedef  ^                    ^              ^           BladeRootLoads             :  -  -  "Blade root loads" -
@@ -130,9 +132,29 @@ typedef  ^                    ^              ^           Motion_Hub_2_BldRoot   
 typedef  ^                    ^              ^           Load_BldRoot_2_Hub         :  -  -  "Blade root loads to hub" -
 typedef  ^                    ^              ^           Load_Hub_2_PRP             -  -  -  "Hub to nacelle load transfer" -
 typedef  ^                    ^              ^           Load_Twr_2_PRP             -  -  -  "Tower loads to PRP (unused)" -
+typedef  ^                    ^              ^           Load_Moor_2_PRP            -  -  -  "Mooring loads to PRP" -
 
 # temporary data storage for structural model
 typedef  ^                    StructTmpType  ReKi        Azimuth                    -  0  -  "Current Azimuth" (rad)
 typedef  ^                    ^              ^           RotSpeed                   -  -  -  "Rotor speed" (RPM)
 typedef  ^                    ^              ^           BldPitch                   -  -  -  "Blade pitch" (rad)
 typedef  ^                    ^              ^           NacYaw                     -  -  -  "Nacelle-yaw angle" (rad)
+typedef  ^                    ^              ^           FrcMom_ADI_at_Ptfm         6  -  -  "Total aero loading summed to Ptfm point" (N, N-m)
+typedef  ^                    ^              ^           FrcMom_MD_at_Ptfm          6  -  -  "MoorDyn loading at Ptfm point" (N, N-m)
+typedef  ^                    ^              c_float     BuoyPos_c                  2  -  -  "Buoy XY position" (m)
+typedef  ^                    ^              ^           PtfmPosAng_c               6  -  -  "Temp position and euler angle" (m, rad)
+typedef  ^                    ^              ^           PtfmVel_c                  6  -  -  "Temp velocity " (m/s, rad/s)
+typedef  ^                    ^              ^           PtfmAcc_c                  6  -  -  "Temp acceleration " (m/s^2, rad/s^2)
+typedef  ^                    ^              ^           NacPos_c                   3  -  -  "Temp nacelle position " (m, rad)
+typedef  ^                    ^              c_double    NacDCM_c                   9  -  -  "Temp nacelle orientation DCM" (-)
+typedef  ^                    ^              c_float     NacVel_c                   6  -  -  "Temp nacelle velocity " (m/s, rad/s)
+typedef  ^                    ^              ^           NacAcc_c                   6  -  -  "Temp nacelle acceleration " (m/s^2, rad/s^2)
+typedef  ^                    ^              ^           HubPos_c                   3  -  -  "Temp hub position " (m, rad)
+typedef  ^                    ^              c_double    HubDCM_c                   9  -  -  "Temp hub orientation DCM" (-)
+typedef  ^                    ^              c_float     HubVel_c                   6  -  -  "Temp hub velocity " (m/s, rad/s)
+typedef  ^                    ^              ^           HubAcc_c                   6  -  -  "Temp hub acceleration " (m/s^2, rad/s^2)
+typedef  ^                    ^              ^           BldPos_c                   :  -  -  "Temp blade position -- sequential by blade" (m)
+typedef  ^                    ^              c_double    BldDCM_c                   :  -  -  "Temp blade orientation DCM -- flat sequential by blade" (-)
+typedef  ^                    ^              c_float     BldVel_c                   :  -  -  "Temp blade velocity -- sequential by blade" (m/s, rad/s)
+typedef  ^                    ^              ^           BldAcc_c                   :  -  -  "Temp blade acceleration -- sequential by blade" (m/s^2, rad/s^2)
+

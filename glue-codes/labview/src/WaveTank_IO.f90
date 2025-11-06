@@ -42,7 +42,7 @@ MODULE WaveTank_IO
    public :: WriteOutputLine
 
    ! These channels are output by default
-   integer(IntKi), parameter :: NumDefChans = 48
+   integer(IntKi), parameter :: NumDefChans = 42
    character(OutStrLenM1), parameter  :: DefChanNames(NumDefChans) =  (/ "Time          ",   &
                               "Ptfm_x        ","Ptfm_y        ","Ptfm_z        ",   &  ! position (absolute global)
                               "Ptfm_Rx       ","Ptfm_Ry       ","Ptfm_Rz       ",   &  ! Euler angles phi,theta,psi
@@ -52,8 +52,6 @@ MODULE WaveTank_IO
                               "Ptfm_RAx      ","Ptfm_RAy      ","Ptfm_RAz      ",   &  ! rotation acc
                               "Ptfm_Fx       ","Ptfm_Fy       ","Ptfm_Fz       ",   &  ! Forces total
                               "Ptfm_Mx       ","Ptfm_My       ","Ptfm_Mz       ",   &  ! Moments total
-                              "SS_Fx         ","SS_Fy         ","SS_Fz         ",   &  ! Forces from SS
-                              "SS_Mx         ","SS_My         ","SS_Mz         ",   &  ! Moments from SS
                               "MD_Fx         ","MD_Fy         ","MD_Fz         ",   &  ! Forces from MD
                               "MD_Mx         ","MD_My         ","MD_Mz         ",   &  ! Moments from MD
                               "ADI_Fx        ","ADI_Fy        ","ADI_Fz        ",   &  ! Forces from ADI
@@ -70,8 +68,6 @@ MODULE WaveTank_IO
                               "(rad/s^2)     ","(rad/s^2)     ","(rad/s^2)     ",   &
                               "(N)           ","(N)           ","(N)           ",   &  ! Forces total
                               "(N-m)         ","(N-m)         ","(N-m)         ",   &  ! Moments total
-                              "(N)           ","(N)           ","(N)           ",   &  ! Forces from SS
-                              "(N-m)         ","(N-m)         ","(N-m)         ",   &  ! Moments from SS
                               "(N)           ","(N)           ","(N)           ",   &  ! Forces from MD
                               "(N-m)         ","(N-m)         ","(N-m)         ",   &  ! Moments from MD
                               "(N)           ","(N)           ","(N)           ",   &  ! Forces from ADI
@@ -377,13 +373,12 @@ subroutine WriteOutputLine(OutFmt, CalcStepIO, StructTmp, WrOutputData, ErrStat,
    write( tmpStr, '(F15.6)' ) CalcStepIO%Time_c
    call WrFileNR( OutUnit, tmpStr )
    ! position / orientation euler angles, velocity, accel, resulting force/moment
-   call WrNumAryFileNR(OutUnit, CalcStepIO%PosAng_c,   frmt, errStat2, errMsg2); if (Failed()) return
-   call WrNumAryFileNR(OutUnit, CalcStepIO%Vel_c,      frmt, errStat2, errMsg2); if (Failed()) return
-   call WrNumAryFileNR(OutUnit, CalcStepIO%Acc_c,      frmt, errStat2, errMsg2); if (Failed()) return
-   call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_c,   frmt, errStat2, errMsg2); if (Failed()) return ! total
-   call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_SS,  frmt, errStat2, errMsg2); if (Failed()) return
-   call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_MD,  frmt, errStat2, errMsg2); if (Failed()) return
-   call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_ADI, frmt, errStat2, errMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, CalcStepIO%PosAng_c,     frmt, errStat2, errMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, CalcStepIO%Vel_c,        frmt, errStat2, errMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, CalcStepIO%Acc_c,        frmt, errStat2, errMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_c,     frmt, errStat2, errMsg2); if (Failed()) return ! total
+   call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_MD_c,  frmt, errStat2, errMsg2); if (Failed()) return
+   call WrNumAryFileNR(OutUnit, CalcStepIO%FrcMom_ADI_c, frmt, errStat2, errMsg2); if (Failed()) return
    TmpAry5 = (/ R2D*StructTmp%Azimuth, StructTmp%RotSpeed, R2D*StructTmp%BldPitch, R2D*StructTmp%NacYaw, CalcStepIO%BuoyWaveElev /)
    call WrNumAryFileNR(OutUnit, TmpAry5,               frmt, errStat2, errMsg2); if (Failed()) return
    ! channels from modules
