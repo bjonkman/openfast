@@ -283,7 +283,7 @@ subroutine WaveTank_Init(  &
    !------------------------------
    call ADI_C_PreInit(                       &
       1_c_int,                               &     ! only one turbine
-      1_c_int,                               &     ! transpose DCM inside ADI (true)
+      0_c_int,                               &     ! transpose DCM inside ADI (0=false)
       1_c_int,                               &     ! PointLoadOutput - use line to point load mapping -- necessary for mapping to blade root without an actual blade structure
       SimSettings%Env%Gravity,               &
       SimSettings%Env%WtrDens,               &
