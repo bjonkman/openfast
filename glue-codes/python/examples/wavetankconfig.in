@@ -6,8 +6,9 @@
         600    TMax             - Max sim time (unused)
           2    MHK              - MHK turbine type (switch) {0=Not an MHK turbine; 1=Fixed MHK turbine; 2=Floating MHK turbine} -- only works for MHK floating at present
           1    InterpOrd        - Interpolation order (unused)
-          1    ScaleFact        - scaling factor for scaling full size model to wavetank scale results (Froude scaling: lambda = full_size_dimension / model_size_dimension) [>1 expected] (-)
-          1    DensFact         - ratio of density - Density_full/Density_model (rho_F/rho_M).  Used with Froude scaling of forces/moments (-)
+!TODO: Froude scaling is not complete.  This can be enabled after finishing that part of the code.  For now remove these lines, or leave commented out
+!          1    ScaleFact        - scaling factor for scaling full size model to wavetank scale results (Froude scaling: lambda = full_size_dimension / model_size_dimension) [>1 expected] (-)
+!          1    DensFact         - ratio of density - Density_full/Density_model (rho_F/rho_M).  Used with Froude scaling of forces/moments (-)
           1    DebugLevel       - 0: none, 1: I/O summary, 2: +positions/orientations passed, 3:+input file, 4: +all meshes
 "RM1_tank_test" OutRootName     - Root name for any summary or other files
 ! -------- Environment ----------------

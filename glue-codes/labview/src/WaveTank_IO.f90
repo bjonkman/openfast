@@ -102,8 +102,9 @@ subroutine ParseInputFile(FileInfo_In, SimSettings, ErrStat, ErrMsg)
    call ParseVar( FileInfo_In, CurLine, 'TMax',             SimSettings%Sim%TMax,                  ErrStat2, ErrMsg2); if(Failed()) return;  ! Max sim time (unused)
    call ParseVar( FileInfo_In, CurLine, 'MHK',              SimSettings%Sim%MHK,                   ErrStat2, ErrMsg2); if(Failed()) return;  ! MHK turbine type (switch) {0=Not an MHK turbine; 1=Fixed MHK turbine; 2=Floating MHK turbine}
    call ParseVar( FileInfo_In, CurLine, 'InterpOrd',        SimSettings%Sim%InterpOrd,             ErrStat2, ErrMsg2); if(Failed()) return;  ! Interpolation order [unused]
-   call ParseVar( FileInfo_In, CurLine, 'ScaleFact',        SimSettings%Sim%ScaleFact,             ErrStat2, ErrMsg2); if(Failed()) return;  ! scaling factor for scaling full size model to wavetank scale results (Froude scaling: lambda = full_dimension / scale_dimension) [>1 expected] (-)
-   call ParseVar( FileInfo_In, CurLine, 'DensFact',         SimSettings%Sim%DensFact,              ErrStat2, ErrMsg2); if(Failed()) return;  ! ratio of density - Density_full/Density_model (rho_F/rho_M).  Used with Froude scaling of forces/moments" (-)
+!TODO: These are placeholders for later use.  Some of the logic is incomplete which is why this has been commented out.
+!   call ParseVar( FileInfo_In, CurLine, 'ScaleFact',        SimSettings%Sim%ScaleFact,             ErrStat2, ErrMsg2); if(Failed()) return;  ! scaling factor for scaling full size model to wavetank scale results (Froude scaling: lambda = full_dimension / scale_dimension) [>1 expected] (-)
+!   call ParseVar( FileInfo_In, CurLine, 'DensFact',         SimSettings%Sim%DensFact,              ErrStat2, ErrMsg2); if(Failed()) return;  ! ratio of density - Density_full/Density_model (rho_F/rho_M).  Used with Froude scaling of forces/moments" (-)
    call ParseVar( FileInfo_In, CurLine, 'DebugLevel',       SimSettings%Sim%DebugLevel,            ErrStat2, ErrMsg2); if(Failed()) return;  ! 0: none, 1: I/O summary, 2: +positions/orientations passed, 3:, 4: +all meshes
    call ParseVar( FileInfo_In, CurLine, 'OutRootName',      SimSettings%Sim%OutRootName,           ErrStat2, ErrMsg2); if(Failed()) return;  ! Root name for any summary or other files
    ! -------- Environment ----------------
