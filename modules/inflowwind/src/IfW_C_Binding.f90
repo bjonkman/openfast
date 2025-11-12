@@ -34,7 +34,8 @@ MODULE InflowWind_C_BINDING
    PUBLIC :: IfW_C_CalcOutput
    PUBLIC :: IfW_C_End
    PUBLIC :: IfW_C_GetFlowFieldPointer
-   PUBLIC :: IfW_C_SetFlowFieldPointer
+   !FIXME: this will require changes to IfW_C_Init to instantiate an empty IfW instance
+   !PUBLIC :: IfW_C_SetFlowFieldPointer
    PUBLIC :: IfW_C_GetWindVel
 
    !------------------------------------------------------------------------------------
@@ -455,6 +456,8 @@ contains
 end subroutine
 
 
+!FIXME: this will require changes to IfW_C_Init to instantiate an empty IfW instance
+!        so before exposing this publicly, the initialization should be updated.
 !> set the pointer to the FlowField data
 subroutine IfW_C_SetFlowFieldPointer(FlowFieldPointer_C,ErrStat_C,ErrMsg_C) BIND (C, NAME='IfW_C_SetFlowFieldPointer')
 #ifndef IMPLICIT_DLLEXPORT
