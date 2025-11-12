@@ -52,7 +52,7 @@ MODULE AeroDyn_Inflow_C_BINDING
    !------------------------------------------------------------------------------------
    !  Wind
    !     externFlowField   - FlowField is handled externally to ADI, pointer must be set manually
-   !     FlowFieldPtr      - is the FlowField pointer set, either internal or external?
+   !     FlowFieldPtrSet   - is the FlowField pointer set from external?
    logical                                :: externFlowField = .false.
    logical                                :: FlowFieldPtrSet = .false.
 
@@ -358,9 +358,9 @@ subroutine ADI_C_PreInit(                       &
    ! ADI settings
    !----------------------------------------------------
    ! FlowField - internal to ADI library, or external
+   ! if externally set, must call the ADI_C_SetFlowFieldPointer routine
    if (externFlowField_in==1_c_int) then
       externFlowField = .true.
-      InitInp%FlowFieldPtr => 
    endif
 
    ! Setup VTK
@@ -510,6 +510,24 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
       ErrMsg_F2  = "Call ADI_C_PreInit and ADI_C_SetupRotor prior to calling ADI_C_Init"
       if (Failed()) return
    endif
+
+   ! if using an external IfW, check that the pointer was actually set and is valid
+   if (externFlowField) then
+      if (.not. FlowFieldPtrSet) then
+         ErrStat_F2 = ErrID_Fatal
+         ErrMsg_F2  = "FlowField data from an external InflowWind instance declared, but pointer to data not set.  Call ADI_C_SetFlowFieldPointer after ADI_C_PreInit, but before ADI_C_Init"
+         if (Failed()) return
+      endif
+      if (associated(InitInp%FlowField)) then
+         ! basic sanity check
+         if (InitInp%FlowField%FieldType <= 0_IntKi) then
+            ErrStat_F2 = ErrID_Fatal
+            ErrMsg_F2  = "Invalid FlowField pointer passed in, or external InflowWind FlowField not initialized.  Call ADI_C_SetFlowFieldPointer after ADI_C_PreInit, but before ADI_C_Init"
+         if (Failed()) return
+         endif
+      endif
+   endif
+
 
    do iWT=1,Sim%NumTurbines
       if (Sim%WT(iWT)%NumBlades < 0)   call SetErrStat(ErrID_Fatal,"Rotor "//trim(Num2LStr(iWT))//" not initialized. Call ADI_C_SetupRotor prior to calling ADI_C_Init",ErrStat_F2,ErrMsg_F2,RoutineName)
@@ -927,7 +945,7 @@ CONTAINS
       call WrScr("       storeHHVel                     "//TmpFlag )
       call WrScr("-----------------------------------------------------------")
    end subroutine ShowPassedData
-FIXME: add a ShowReturnData here!
+!FIXME: add a ShowReturnData here!
 
 
    !> This subroutine sets the interface meshes to map to the input motions to the AD
@@ -2645,14 +2663,21 @@ subroutine ADI_C_SetFlowFieldPointer(FlowFieldPointer_C,ErrStat_C,ErrMsg_C) BIND
    character(*),              parameter      :: RoutineName = 'ADI_C_SetFlowFieldPointer'
    ErrStat = ErrID_None
    ErrMSg = ""
-   call C_F_POINTER(FlowFieldPointer_C, ADI%m%IW%p%FlowField)
-   if (associated(ADI%m%IW%p%FlowField)) then
+   ! check if externFlowField expected
+   if (.not. externFlowField) then
+      call SetErrStat(ErrID_Severe,"External flowfield not expected. Set externFlowField_in=1 in call to ADI_C_PreInit prior to calling ADI_C_SetFlowFieldPointer.",ErrStat,ErrMsg,RoutineName)
+   endif
+   ! set pointer
+   call C_F_POINTER(FlowFieldPointer_C, InitInp%FlowField)
+   if (associated(InitInp%FlowField)) then
       ! basic sanity check
-      if (ADI%m%IW%p%FlowField%FieldType <= 0_IntKi) then
+      if (InitInp%FlowField%FieldType <= 0_IntKi) then
          call SetErrStat(ErrID_Fatal,"Invalid pointer passed in, or FlowField not initialized",ErrStat,ErrMsg,RoutineName)
+      else
+         FlowFieldPtrSet = .true.
       endif
    else
-      call SetErrStat(ErrID_Fatal,"Invalid pointer passed in, or FlowField not initialized",ErrStat,ErrMsg,RoutineName)
+      call SetErrStat(ErrID_Fatal,"Invalid pointer passed in, or FlowField not initialized.",ErrStat,ErrMsg,RoutineName)
    endif
    call SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )
    if (DebugLevel > 1) call ShowPassedData()
@@ -2662,7 +2687,7 @@ contains
       call WrScr("-----------------------------------------------------------")
       call WrScr("Interface debugging:  ADI_C_SetFlowFieldPointer")
       call WrScr("   --------------------------------------------------------")
-      call WrScr("   FlowFieldPointer_C       <- "//trim(Num2LStr(loc(ADI%m%IW%p%FlowField))))
+      call WrScr("   FlowFieldPointer_C       <- "//trim(Num2LStr(loc(InitInp%FlowField))))
       call WrScr("-----------------------------------------------------------")
    end subroutine ShowPassedData
 end subroutine

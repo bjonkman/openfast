@@ -45,7 +45,7 @@ IMPLICIT NONE
     TYPE(InflowWind_MiscVarType)  :: m      !< Misc/optimization variables [-]
     TYPE(InflowWind_InputType)  :: u      !< Array of inputs associated with InputTimes [-]
     TYPE(InflowWind_OutputType)  :: y      !< System outputs [-]
-    INTEGER(IntKi)  :: CompInflow = 0_IntKi      !< 0=Steady Wind, 1=InflowWind [-]
+    INTEGER(IntKi)  :: CompInflow = 0_IntKi      !< 0=Steady Wind, 1=InflowWind, 2=External IfW (ADI c-bind only) [-]
     REAL(ReKi)  :: HWindSpeed = 0.0_ReKi      !< RefHeight Wind speed [-]
     REAL(ReKi)  :: RefHt = 0.0_ReKi      !< RefHeight [-]
     REAL(ReKi)  :: PLExp = 0.0_ReKi      !< PLExp [-]
@@ -75,6 +75,7 @@ IMPLICIT NONE
     INTEGER(IntKi)  :: WrVTK = 0      !< 0= no vtk, 1=init only, 2=animation [-]
     INTEGER(IntKi)  :: WrVTK_Type = 1      !< Flag for VTK output type (1=surface, 2=line, 3=both) [-]
     REAL(ReKi)  :: WtrDpth = 0.0_ReKi      !< Water depth [m]
+    TYPE(FlowFieldType) , POINTER :: FlowField => NULL()      !< Pointer of InflowWinds flow field data type (from external IfW instance -- used with c-binding) [-]
   END TYPE ADI_InitInputType
 ! =======================
 ! =========  ADI_InitOutputType  =======
@@ -371,6 +372,7 @@ subroutine ADI_CopyInitInput(SrcInitInputData, DstInitInputData, CtrlCode, ErrSt
    integer(IntKi),  intent(in   ) :: CtrlCode
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
+   integer(B4Ki)                  :: LB(0), UB(0)
    integer(IntKi)                 :: ErrStat2
    character(ErrMsgLen)           :: ErrMsg2
    character(*), parameter        :: RoutineName = 'ADI_CopyInitInput'
@@ -387,6 +389,7 @@ subroutine ADI_CopyInitInput(SrcInitInputData, DstInitInputData, CtrlCode, ErrSt
    DstInitInputData%WrVTK = SrcInitInputData%WrVTK
    DstInitInputData%WrVTK_Type = SrcInitInputData%WrVTK_Type
    DstInitInputData%WtrDpth = SrcInitInputData%WtrDpth
+   DstInitInputData%FlowField => SrcInitInputData%FlowField
 end subroutine
 
 subroutine ADI_DestroyInitInput(InitInputData, ErrStat, ErrMsg)
@@ -402,12 +405,14 @@ subroutine ADI_DestroyInitInput(InitInputData, ErrStat, ErrMsg)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    call ADI_DestroyIW_InputData(InitInputData%IW_InitInp, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   nullify(InitInputData%FlowField)
 end subroutine
 
 subroutine ADI_PackInitInput(RF, Indata)
    type(RegFile), intent(inout) :: RF
    type(ADI_InitInputType), intent(in) :: InData
    character(*), parameter         :: RoutineName = 'ADI_PackInitInput'
+   logical         :: PtrInIndex
    if (RF%ErrStat >= AbortErrLev) return
    call AD_PackInitInput(RF, InData%AD) 
    call ADI_PackIW_InputData(RF, InData%IW_InitInp) 
@@ -416,6 +421,13 @@ subroutine ADI_PackInitInput(RF, Indata)
    call RegPack(RF, InData%WrVTK)
    call RegPack(RF, InData%WrVTK_Type)
    call RegPack(RF, InData%WtrDpth)
+   call RegPack(RF, associated(InData%FlowField))
+   if (associated(InData%FlowField)) then
+      call RegPackPointer(RF, c_loc(InData%FlowField), PtrInIndex)
+      if (.not. PtrInIndex) then
+         call IfW_FlowField_PackFlowFieldType(RF, InData%FlowField) 
+      end if
+   end if
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -423,6 +435,11 @@ subroutine ADI_UnPackInitInput(RF, OutData)
    type(RegFile), intent(inout)    :: RF
    type(ADI_InitInputType), intent(inout) :: OutData
    character(*), parameter            :: RoutineName = 'ADI_UnPackInitInput'
+   integer(B4Ki)   :: LB(0), UB(0)
+   integer(IntKi)  :: stat
+   logical         :: IsAllocAssoc
+   integer(B8Ki)   :: PtrIdx
+   type(c_ptr)     :: Ptr
    if (RF%ErrStat /= ErrID_None) return
    call AD_UnpackInitInput(RF, OutData%AD) ! AD 
    call ADI_UnpackIW_InputData(RF, OutData%IW_InitInp) ! IW_InitInp 
@@ -431,6 +448,24 @@ subroutine ADI_UnPackInitInput(RF, OutData)
    call RegUnpack(RF, OutData%WrVTK); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%WrVTK_Type); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%WtrDpth); if (RegCheckErr(RF, RoutineName)) return
+   if (associated(OutData%FlowField)) deallocate(OutData%FlowField)
+   call RegUnpack(RF, IsAllocAssoc); if (RegCheckErr(RF, RoutineName)) return
+   if (IsAllocAssoc) then
+      call RegUnpackPointer(RF, Ptr, PtrIdx); if (RegCheckErr(RF, RoutineName)) return
+      if (c_associated(Ptr)) then
+         call c_f_pointer(Ptr, OutData%FlowField)
+      else
+         allocate(OutData%FlowField,stat=stat)
+         if (stat /= 0) then 
+            call SetErrStat(ErrID_Fatal, 'Error allocating OutData%FlowField.', RF%ErrStat, RF%ErrMsg, RoutineName)
+            return
+         end if
+         RF%Pointers(PtrIdx) = c_loc(OutData%FlowField)
+         call IfW_FlowField_UnpackFlowFieldType(RF, OutData%FlowField) ! FlowField 
+      end if
+   else
+      OutData%FlowField => null()
+   end if
 end subroutine
 
 subroutine ADI_CopyInitOutput(SrcInitOutputData, DstInitOutputData, CtrlCode, ErrStat, ErrMsg)

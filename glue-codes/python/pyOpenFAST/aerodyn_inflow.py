@@ -198,6 +198,10 @@ class AeroDynInflowLib(OpenFASTInterfaceType):
         # MHK flag: 0->not MHK, 1->fixed bottom, 2->floating
         self.mhk = 0
 
+        # External IfW data: 0->internal, 1->external IfW instance
+        #   NOTE: if external, must call set pointer routine
+        self.externIfW = 0
+
         # 0->None, 1->Info, 2->Warning, 3->Severe Error, 4->Fatal Error
         self.debug_level = 0
 
@@ -329,6 +333,7 @@ class AeroDynInflowLib(OpenFASTInterfaceType):
             byref(c_float(self.water_depth)),           # IN -> water depth
             byref(c_float(self.mean_sea_level_offset)), # IN -> MSL to SWL offset
             byref(c_int(self.mhk)),                     # IN -> mhk flag (0=not MHK, 1=fixed bottom, 2=floating)
+            byref(c_int(self.externIfW)),               # IN -> external IfW instance (0=internal IfW, 1=external IfW with pointer to data (setpointer call required))
             vtk_output_dir_c,                           # IN -> directory for vtk output files
             byref(c_int(self.write_vtk)),               # IN -> write VTK flag
             byref(c_int(self.vtk_type)),                # IN -> VTK write type
@@ -685,6 +690,7 @@ class AeroDynInflowLib(OpenFASTInterfaceType):
             POINTER(c_float),                   # WtrDpth
             POINTER(c_float),                   # MSL2SWL
             POINTER(c_int),                     # MHK
+            POINTER(c_int),                     # externIfW
             POINTER(c_char),                    # OutVTKdir
             POINTER(c_int),                     # WrVTK
             POINTER(c_int),                     # WrVTK_Type
