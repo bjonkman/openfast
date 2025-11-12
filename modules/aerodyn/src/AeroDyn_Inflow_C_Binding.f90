@@ -642,7 +642,11 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
    InitInp%storeHHVel     = storeHHVel==1_c_int
    InitInp%WrVTK          = WrOutputsData%WrVTK
    InitInp%WrVTK_Type     = WrOutputsData%WrVTK_Type
-   InitInp%IW_InitInp%CompInflow = 1    ! Use InflowWind
+   if (externFlowField) then
+      InitInp%IW_InitInp%CompInflow = 2    ! Use external instance of InflowWind
+   else
+      InitInp%IW_InitInp%CompInflow = 1    ! Use InflowWind
+   endif
 
    !----------------------------------------------------
    ! Allocate input array u and corresponding InputTimes

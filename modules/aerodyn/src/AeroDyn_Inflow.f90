@@ -80,7 +80,9 @@ subroutine ADI_Init(InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOut
 
    ! --- Initialize AeroDyn
    ! Link InflowWind's FlowField to AeroDyn's FlowField
-   if (m%IW%CompInflow == 1) then   ! IfW is used directly in ADI
+   if (m%IW%CompInflow == 0) then   ! steady wind - data stored as a flowfield dataset
+      InitInp%AD%FlowField => InitOut_IW%FlowField
+   elseif (m%IW%CompInflow == 1) then   ! IfW is used directly in ADI
       InitInp%AD%FlowField => InitOut_IW%FlowField
    elseif (m%IW%CompInflow == 2) then  ! FlowField pointer is passed in
       InitInp%AD%FlowField => InitInp%FlowField

@@ -32,7 +32,7 @@ typedef    ^        ^                  ReKi                             RefHt   
 typedef    ^        ^                  ReKi                             PLExp            -      -     -   "PLExp"
 # ..... InflowWind Input data .....................................................................................................
 typedef    ^     ADI_IW_InputData      Character(1024)                  InputFile        -      -     -   "Name of InfloWind input file" -
-typedef    ^        ^                  IntKi                            CompInflow       -      -     -   "0=Steady Wind, 1=InflowWind" "-"
+typedef    ^        ^                  IntKi                            CompInflow       -      -     -   "0=Steady Wind, 1=InflowWind, 2=External IfW (ADI c-bind only)" "-"
 typedef    ^        ^                  ReKi                             HWindSpeed       -      -     -   "RefHeight Wind speed"
 typedef    ^        ^                  ReKi                             RefHt            -      -     -   "RefHeight"
 typedef    ^        ^                  ReKi                             PLExp            -      -     -   "PLExp"

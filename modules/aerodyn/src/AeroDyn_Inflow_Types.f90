@@ -54,7 +54,7 @@ IMPLICIT NONE
 ! =========  ADI_IW_InputData  =======
   TYPE, PUBLIC :: ADI_IW_InputData
     Character(1024)  :: InputFile      !< Name of InfloWind input file [-]
-    INTEGER(IntKi)  :: CompInflow = 0_IntKi      !< 0=Steady Wind, 1=InflowWind [-]
+    INTEGER(IntKi)  :: CompInflow = 0_IntKi      !< 0=Steady Wind, 1=InflowWind, 2=External IfW (ADI c-bind only) [-]
     REAL(ReKi)  :: HWindSpeed = 0.0_ReKi      !< RefHeight Wind speed [-]
     REAL(ReKi)  :: RefHt = 0.0_ReKi      !< RefHeight [-]
     REAL(ReKi)  :: PLExp = 0.0_ReKi      !< PLExp [-]
