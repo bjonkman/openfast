@@ -40,6 +40,7 @@ MODULE SeaState_C_Binding
    PUBLIC :: SeaSt_C_GetFluidVelAcc
    PUBLIC :: SeaSt_C_GetSurfElev
    PUBLIC :: SeaSt_C_GetSurfNorm
+   PUBLIC :: SeaSt_C_GetElevMinMaxEstimate
 
    !------------------------------------------------------------------------------------
    !  Debugging: DebugLevel -- passed at PreInit
@@ -660,7 +661,8 @@ subroutine SeaSt_C_GetSurfNorm(Time_C, Pos_C, NormVec_C, ErrStat_C,ErrMsg_C) BIN
    Pos = real(Pos_C(1:2), ReKi)
 
    ! get the normal vector at the point (set to vertical if outside region)
-   r = 0.0_ReKi   ! distance for central differencing - use default in code
+   !FIXME: this is removed in dev-tc!!!!
+   r = 0.1_ReKi   ! distance for central differencing - smaller than this leads to numerical instability in single precision
    call WaveField_GetNodeWaveNormal( p%WaveField, m%WaveField_m, Time, pos, r, NormVec, ErrStat, ErrMsg )
 
    ! Store resulting normal vector as C type
@@ -685,6 +687,51 @@ contains
       call WrScr("-----------------------------------------------------------")
    end subroutine ShowReturnData
 end subroutine SeaSt_C_GetSurfNorm
+
+
+!> return the min and max levels across entire wavefield.  This only needs to be called once at the
+!! start if desired
+subroutine SeaSt_C_GetElevMinMaxEstimate(Min_C, Max_C, ErrStat_C,ErrMsg_C) BIND (C, NAME='SeaSt_C_GetElevMinMaxEstimate')
+#ifndef IMPLICIT_DLLEXPORT
+!DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetElevMinMaxEstimate
+!GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetElevMinMaxEstimate
+#endif
+   real(c_float),             intent(  out) :: Min_C
+   real(c_float),             intent(  out) :: Max_C
+   integer(c_int),            intent(  out) :: ErrStat_C
+   character(kind=c_char),    intent(  out) :: ErrMsg_C(ErrMsgLen_C)
+
+   real(SiKi)                 :: MinElev
+   real(SiKi)                 :: MaxElev
+   integer                    :: ErrStat
+   character(ErrMsgLen)       :: ErrMsg
+   character(*), parameter    :: RoutineName = 'SeaSt_C_GetElevMinMaxEstimate'
+
+   if (DebugLevel > 1) call ShowPassedData()
+
+   ! Measure directly from the data set (this is not ideal and will break if the layout changes)
+   call WaveField_GetMinWaveElevEstimate( p%WaveField, MinElev, MaxElev, ErrStat, ErrMsg)
+   Min_C = real(MinElev, c_float)
+   Max_C = real(MaxElev, c_float)
+
+   if (DebugLevel > 1) call ShowReturnData()
+   call Cleanup()
+   return
+contains
+   subroutine Cleanup()    ! NOTE: we are ignoring any error reporting from here
+      CALL SetErrStat_F2C(ErrStat,ErrMsg,ErrStat_C,ErrMsg_C)
+   end subroutine Cleanup
+   subroutine ShowPassedData()
+      call WrScr("-----------------------------------------------------------")
+      call WrScr("Interface debugging:  SeaSt_C_GetElevMinMaxEstimate")
+      call WrScr("   --------------------------------------------------------")
+   end subroutine ShowPassedData
+   subroutine ShowReturnData()
+      call WrScr("   Min_C                  <- "//trim(Num2LStr(Min_C)))
+      call WrScr("   Max_C                  <- "//trim(Num2LStr(Max_C)))
+      call WrScr("-----------------------------------------------------------")
+   end subroutine ShowReturnData
+end subroutine SeaSt_C_GetElevMinMaxEstimate
 
 
 

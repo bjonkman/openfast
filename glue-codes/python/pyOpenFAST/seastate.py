@@ -181,6 +181,16 @@ class SeaStateLib(OpenFASTInterfaceType):
         ]
         self.SeaSt_C_GetSurfNorm.restype = None
 
+        self.SeaSt_C_GetElevMinMaxEstimate.argtypes = [ 
+            POINTER(c_float),       # intent(  out) :: elevMin_c
+            POINTER(c_float),       # intent(  out) :: elevMax_c
+            POINTER(c_int),         # intent(  out) :: ErrStat_C
+            POINTER(c_char)         # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
+        ]
+        self.SeaSt_C_GetElevMinMaxEstimate.restype = None
+
+
+
     def check_error(self) -> None:
         """Checks for and handles any errors from the Fortran library.
 
@@ -457,8 +467,32 @@ class SeaStateLib(OpenFASTInterfaceType):
         self.check_error()
         return norm
 
-
-
+    def get_elevMinMax(self,
+        elevMin: float,
+        elevMax: float,
+    ) -> None:
+        """
+        Get estimate of the min and max total wave elevation. Will over
+        estimate range when 2nd order waves used
+        Args:
+            minElev: minimum elevation
+            maxElev: maximum elevation
+        Raises:
+            RuntimeError: If calculation fails
+        """
+        elevMin_c = c_float(0.0)
+        elevMax_c = c_float(0.0)
+        print("Calling SeaSt_C_GetElevMinMaxEstimate")
+        self.SeaSt_C_GetElevMinMaxEstimate(
+            elevMin_c,                                  # out <- min elev
+            elevMax_c,                                  # out <- max elev
+            byref(self.error_status_c),                 # OUT <- error status
+            self.error_message_c                        # OUT <- error message
+        )
+        self.check_error()
+        elevMin = elevMin_c.value
+        elevMax = elevMax_c.value
+        return elevMin,elevMax 
 
 
     @property
