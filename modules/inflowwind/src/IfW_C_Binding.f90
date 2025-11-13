@@ -34,8 +34,7 @@ MODULE InflowWind_C_BINDING
    PUBLIC :: IfW_C_CalcOutput
    PUBLIC :: IfW_C_End
    PUBLIC :: IfW_C_GetFlowFieldPointer
-   !FIXME: this will require changes to IfW_C_Init to instantiate an empty IfW instance
-   !PUBLIC :: IfW_C_SetFlowFieldPointer
+   PUBLIC :: IfW_C_SetFlowFieldPointer
    PUBLIC :: IfW_C_GetWindVel
 
    !------------------------------------------------------------------------------------
@@ -345,7 +344,7 @@ end subroutine IfW_C_End
 
 
 !> basic routine to get the wind velocity at a single point in time and space
-subroutine IfW_C_GetWindVel(Time_C,Pos_C,Vel_C,ErrStat_C,ErrMsg_C) BIND (C, NAME='IfW_C_GetWindVe')
+subroutine IfW_C_GetWindVel(Time_C,Pos_C,Vel_C,ErrStat_C,ErrMsg_C) BIND (C, NAME='IfW_C_GetWindVel')
    real(c_double),               intent(in   )  :: Time_C
    real(c_float),                intent(in   )  :: Pos_C(3)
    real(c_float),                intent(  out)  :: Vel_C(3)
