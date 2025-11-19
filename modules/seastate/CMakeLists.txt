@@ -48,13 +48,24 @@ if(APPLE OR UNIX)
   target_compile_definitions(seastate_c_binding PRIVATE IMPLICIT_DLLEXPORT)
 endif()
 
+# C-bindings non-shared interface
+# This is a workaround for building wavetank into a single DLL (also allows setting CU globaly for sending screen to file for labview integration)
+add_library(seastate_c_bind_static STATIC
+  src/SeaState_C_Binding.f90
+)
+target_link_libraries(seastate_c_bind_static seastlib versioninfolib)
+if(APPLE OR UNIX)
+  target_compile_definitions(seastate_c_bind_static PRIVATE IMPLICIT_DLLEXPORT)
+endif()
+
+
 # Driver
 add_executable(seastate_driver 
   src/SeaState_DriverCode.f90
 )
 target_link_libraries(seastate_driver seastlib)
 
-install(TARGETS seastate_driver seastlib seastate_c_binding
+install(TARGETS seastate_driver seastlib seastate_c_binding seastate_c_bind_static
   EXPORT "${CMAKE_PROJECT_NAME}Libraries"
   RUNTIME DESTINATION bin
   LIBRARY DESTINATION lib

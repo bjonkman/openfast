@@ -82,6 +82,8 @@ class SeaStateLib(OpenFASTInterfaceType):
                                             # request information from
                                             # non-CalcOutput routines.
 
+        self.WaveTimeShift = 0              # shift wave time (positive only)
+
         self.numChannels = 0                # Number of channels returned
 
         # flags
@@ -110,10 +112,11 @@ class SeaStateLib(OpenFASTInterfaceType):
         self.SeaSt_C_PreInit.restype = None
 
         self.SeaSt_C_Init.argtypes = [
-            POINTER(c_char_p),      # intent(in   ) :: InputFile_c(IntfStrLen)
-            POINTER(c_char_p),      # intent(in   ) :: OutRootName_c(IntfStrLen)
+            POINTER(c_char),        # intent(in   ) :: InputFile_c(IntfStrLen)
+            POINTER(c_char),        # intent(in   ) :: OutRootName_c(IntfStrLen)
             POINTER(c_int),         # intent(in   ) :: NSteps_c
-            POINTER(c_float),       # intent(in   ) :: TimeInterval_c
+            POINTER(c_double),      # intent(in   ) :: TimeInterval_c
+            POINTER(c_double),      # intent(in   ) :: WaveTimeShift (positive only)
             POINTER(c_int),         # intent(  out) :: NumChannels_c
             POINTER(c_char),        # intent(  out) :: OutputChannelNames_C
             POINTER(c_char),        # intent(  out) :: OutputChannelUnits_C
@@ -267,6 +270,13 @@ class SeaStateLib(OpenFASTInterfaceType):
         time_interval: float = 0.125,
     ):
 
+        ss_file_c = create_string_buffer(
+            primary_ss_file.ljust(self.default_str_c_len).encode('utf-8')
+        )
+        outrootname_c = create_string_buffer(
+            outrootname.ljust(self.default_str_c_len).encode('utf-8')
+        )
+
         # This buffer for the channel names and units is set arbitrarily large
         # to start. Channel name and unit lengths are currently hard
         # coded to 20 (this must match ChanLen in NWTC_Base.f90).
@@ -276,10 +286,11 @@ class SeaStateLib(OpenFASTInterfaceType):
 
 
         self.SeaSt_C_Init(
-            c_char_p(primary_ss_file.encode('utf-8')),  #FIXME: this might overrun the buffer!!!!!
-            c_char_p(outrootname.encode('utf-8')),
+            ss_file_c,
+            outrootname_c,
             byref(c_int(n_steps)),
-            byref(c_float(time_interval)),
+            byref(c_double(time_interval)),
+            byref(c_double(self.WaveTimeShift)),
             byref(self._numChannels),
             _channel_names,
             _channel_units,

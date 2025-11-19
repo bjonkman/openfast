@@ -586,6 +586,7 @@ SUBROUTINE FAST_InitializeAll( t_initial, p_FAST, y_FAST, m_FAST, ED, SED, BD, S
       Init%InData_SeaSt%hasIce        = p_FAST%CompIce /= Module_None
       Init%InData_SeaSt%InputFile     = p_FAST%SeaStFile
       Init%InData_SeaSt%OutRootName   = TRIM(p_FAST%OutFileRoot)//'.'//TRIM(y_FAST%Module_Abrev(Module_SeaSt))
+      Init%InData_SeaSt%WaveTimeShift = 0.0_DbKi         ! for phase shifting wave field in time (positive value only)
 
          ! these values support wave field handling
       Init%InData_SeaSt%WaveFieldMod  = p_FAST%WaveFieldMod

@@ -593,8 +593,9 @@ subroutine SetCartesianZIndex(p, z_depth, delta, nMax, Indx_Lo, Indx_Hi, isopc, 
 end subroutine SetCartesianZIndex
 
 
-subroutine SetTimeIndex(Time, deltaT, nMax, Indx_Lo, Indx_Hi, isopc, ErrStat, ErrMsg)
+subroutine SetTimeIndex(Time, WaveTimeShift, deltaT, nMax, Indx_Lo, Indx_Hi, isopc, ErrStat, ErrMsg)
    real(DbKi),        intent(in   )  :: Time     !< time from the start of the simulation
+   real(DbKi),        intent(in   )  :: WaveTimeShift  ! Advance time by this amount for phase shifting (i.e. during hybrid tank testing)
    real(ReKi),        intent(in   )  :: deltaT
    integer(IntKi),    intent(in   )  :: nMax
    integer(IntKi),    intent(inout)  :: Indx_Lo
@@ -611,7 +612,7 @@ subroutine SetTimeIndex(Time, deltaT, nMax, Indx_Lo, Indx_Hi, isopc, ErrStat, Er
    isopc   = -1.0
    Indx_Lo = 0
    Indx_Hi = 0
-   if ( Time < 0.0_DbKi ) then
+   if ( Time+WaveTimeShift < 0.0_DbKi ) then
       CALL SetErrStat(ErrID_Fatal,'Time value must be greater than or equal to zero!',ErrStat,ErrMsg,'SetTimeIndex') !error out if time is outside the lower bounds
       RETURN
    end if
@@ -624,7 +625,7 @@ subroutine SetTimeIndex(Time, deltaT, nMax, Indx_Lo, Indx_Hi, isopc, ErrStat, Er
 !                    for the repeating waves feature, index 10 is the same as index 0, so if Indx_Lo = 10 then we want to
 !                    wrap it back to index 0, if Indx_Lo = 11 we want to wrap back to index 1.
 
-   Tmp =  real( (Time/ real(deltaT,DbKi)) ,ReKi)
+   Tmp =  real( ((Time+WaveTimeShift)/ real(deltaT,DbKi)) ,ReKi)
    Tmp =  MOD(Tmp,real((nMax), ReKi))
    Indx_Lo = INT( Tmp )     ! convert REAL to INTEGER
 
@@ -663,7 +664,7 @@ subroutine WaveField_Interp_Setup4D( Time, Position, p, m, ErrStat, ErrMsg )
    ErrMsg  = ""
 
    ! Find the bounding indices for time
-   call SetTimeIndex(Time, p%delta(1), p%n(1), m%Indx_Lo(1), m%Indx_Hi(1), isopc(1), ErrStat2, ErrMsg2)
+   call SetTimeIndex(Time, p%WaveTimeShift, p%delta(1), p%n(1), m%Indx_Lo(1), m%Indx_Hi(1), isopc(1), ErrStat2, ErrMsg2)
    if (Failed()) return;
 
    ! Find the bounding indices for XY position
@@ -727,7 +728,7 @@ subroutine WaveField_Interp_Setup3D( Time, Position, p, m, ErrStat, ErrMsg )
    ErrMsg  = ""
 
    ! Find the bounding indices for time
-   call SetTimeIndex(Time, p%delta(1), p%n(1), m%Indx_Lo(1), m%Indx_Hi(1), isopc(1), ErrStat2, ErrMsg2)
+   call SetTimeIndex(Time, p%WaveTimeShift, p%delta(1), p%n(1), m%Indx_Lo(1), m%Indx_Hi(1), isopc(1), ErrStat2, ErrMsg2)
    if (Failed()) return;
 
    ! Find the bounding indices for XY position

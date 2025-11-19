@@ -59,6 +59,8 @@ IMPLICIT NONE
     REAL(ReKi)  :: RefHt = 0.0_ReKi      !< RefHeight [-]
     REAL(ReKi)  :: PLExp = 0.0_ReKi      !< PLExp [-]
     INTEGER(IntKi)  :: MHK = 0_IntKi      !< MHK turbine type switch [-]
+    REAL(ReKi)  :: WtrDpth = 0.0_ReKi      !< Water depth [m]
+    REAL(ReKi)  :: MSL2SWL = 0.0_ReKi      !< Offset between still-water level and mean sea level [m]
     INTEGER(IntKi)  :: FilePassingMethod = 0      !< Should we read everthing from an input file (0), passed in as a FileInfoType structure (1), or passed as the IfW_InputFile structure (2) [-]
     TYPE(FileInfoType)  :: PassedFileInfo      !< If we don't use the input file, pass everything through this as a FileInfo structure [-]
     TYPE(InflowWind_InputFile)  :: PassedFileData      !< If we don't use the input file, pass everything through this as an IfW InputFile structure [-]
@@ -303,6 +305,8 @@ subroutine ADI_CopyIW_InputData(SrcIW_InputDataData, DstIW_InputDataData, CtrlCo
    DstIW_InputDataData%RefHt = SrcIW_InputDataData%RefHt
    DstIW_InputDataData%PLExp = SrcIW_InputDataData%PLExp
    DstIW_InputDataData%MHK = SrcIW_InputDataData%MHK
+   DstIW_InputDataData%WtrDpth = SrcIW_InputDataData%WtrDpth
+   DstIW_InputDataData%MSL2SWL = SrcIW_InputDataData%MSL2SWL
    DstIW_InputDataData%FilePassingMethod = SrcIW_InputDataData%FilePassingMethod
    call NWTC_Library_CopyFileInfoType(SrcIW_InputDataData%PassedFileInfo, DstIW_InputDataData%PassedFileInfo, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
@@ -340,6 +344,8 @@ subroutine ADI_PackIW_InputData(RF, Indata)
    call RegPack(RF, InData%RefHt)
    call RegPack(RF, InData%PLExp)
    call RegPack(RF, InData%MHK)
+   call RegPack(RF, InData%WtrDpth)
+   call RegPack(RF, InData%MSL2SWL)
    call RegPack(RF, InData%FilePassingMethod)
    call NWTC_Library_PackFileInfoType(RF, InData%PassedFileInfo) 
    call InflowWind_PackInputFile(RF, InData%PassedFileData) 
@@ -359,6 +365,8 @@ subroutine ADI_UnPackIW_InputData(RF, OutData)
    call RegUnpack(RF, OutData%RefHt); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%PLExp); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%MHK); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%WtrDpth); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%MSL2SWL); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%FilePassingMethod); if (RegCheckErr(RF, RoutineName)) return
    call NWTC_Library_UnpackFileInfoType(RF, OutData%PassedFileInfo) ! PassedFileInfo 
    call InflowWind_UnpackInputFile(RF, OutData%PassedFileData) ! PassedFileData 

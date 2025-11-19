@@ -27,6 +27,7 @@ typedef     ^             ParameterType         IntKi                n          
 typedef     ^             ParameterType         ReKi                 delta            4               -        -        "size between 2 consecutive grid points in each grid direction"            "s,m,m,m"
 typedef     ^             ParameterType         ReKi                 pZero            4               -        -        "fixed position of the XYZ grid (i.e., XYZ coordinates of m%V(:,1,1,1,:))" "m"
 typedef     ^             ParameterType         ReKi                 Z_Depth          -               -        -        "grid depth" m
+typedef     ^             ParameterType         DbKi                 WaveTimeShift   -                0        -        "Add this to the time to effectively phase shift the wave (useful for hybrid tank testing). Positive value only (advance time)" (s)
 
 typedef     ^             MiscVarType           SiKi                 N3D             {8}              -        -        "this is the weighting function for 3-d velocity field" -
 typedef     ^             MiscVarType           SiKi                 N4D             {16}             -        -        "this is the weighting function for 4-d velocity field" -

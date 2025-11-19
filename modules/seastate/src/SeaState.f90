@@ -170,6 +170,9 @@ SUBROUTINE SeaSt_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
       ! Initialize Waves module (Note that this may change InputFileData%Waves%WaveDT)
       CALL Waves_Init(InputFileData%Waves, Waves_InitOut, p%WaveField, ErrStat2, ErrMsg2 ); if(Failed()) return;
       
+      ! Store the WaveTimeShift
+      p%WaveField%GridParams%WaveTimeShift = InitInp%WaveTimeShift
+
       ! Copy Waves initialization output into the initialization input type for the WAMIT module
       p%WaveDT       = InputFileData%Waves%WaveDT
       

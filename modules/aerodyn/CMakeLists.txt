@@ -108,7 +108,19 @@ if(APPLE OR UNIX)
    target_compile_definitions(aerodyn_inflow_c_binding PRIVATE IMPLICIT_DLLEXPORT)
 endif()
 
-install(TARGETS aerodynlib basicaerolib aerodyn_driver_subs aerodyn_driver unsteadyaero_driver aerodyn_inflow_c_binding adilib
+# C-bindings non-shared interface
+# This is a workaround for building wavetank into a single DLL (also allows setting CU globaly for sending screen to file for labview integration)
+add_library(aerodyn_inflow_c_bind_static STATIC
+  src/AeroDyn_Inflow_C_Binding_Types.f90
+  src/AeroDyn_Inflow_C_Binding.f90
+)
+target_link_libraries(aerodyn_inflow_c_bind_static aerodyn_driver_subs versioninfolib)
+if(APPLE OR UNIX)
+   target_compile_definitions(aerodyn_inflow_c_bind_static PRIVATE IMPLICIT_DLLEXPORT)
+endif()
+
+
+install(TARGETS aerodynlib basicaerolib aerodyn_driver_subs aerodyn_driver unsteadyaero_driver aerodyn_inflow_c_binding adilib aerodyn_inflow_c_bind_static
   EXPORT "${CMAKE_PROJECT_NAME}Libraries"
   RUNTIME DESTINATION bin
   LIBRARY DESTINATION lib

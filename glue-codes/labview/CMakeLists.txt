@@ -14,10 +14,24 @@
 # limitations under the License.
 #
 
+if (GENERATE_TYPES)
+  generate_f90_types(src/WaveTank_Registry.txt ${CMAKE_CURRENT_LIST_DIR}/src/WaveTank_Types.f90 -noextrap)
+endif()
+
 add_library(wavetanktestinglib SHARED 
+    src/WaveTank_Types.f90
+    src/WaveTank_IO.f90
+    src/WaveTank_Struct.f90
     src/WaveTank.f90
 )
-target_link_libraries(wavetanktestinglib aerodyn_inflow_c_binding moordyn_c_binding seastate_c_binding nwtclibs versioninfolib)
+target_link_libraries(
+    wavetanktestinglib
+        aerodyn_inflow_c_bind_static
+        moordyn_c_bind_static
+        seastate_c_bind_static
+        nwtclibs
+        versioninfolib
+)
 if(APPLE OR UNIX)
     target_compile_definitions(wavetanktestinglib PRIVATE IMPLICIT_DLLEXPORT)
 endif()
