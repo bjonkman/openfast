@@ -563,6 +563,10 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
    endif
 
 
+   ! Get fortran pointer to C_NULL_CHAR deliniated input files as a string
+   call C_F_pointer(ADinputFileString_C,  ADinputFileString)
+   call C_F_pointer(IfWinputFileString_C, IfWinputFileString)
+
    ! Format AD input file contents
    InitInp%AD%RootName                 = OutRootName
    if (ADinputFilePassed==1_c_int) then
