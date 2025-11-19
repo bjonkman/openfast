@@ -230,6 +230,13 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, Wa
    ! Initialize error handling
    ErrStat =  ErrID_None
    ErrMsg  =  ""
+   ErrStat_C = ErrID_None
+   ErrMsg_C  = c_null_char
+
+   ! Initialize vars in case of early return
+   NumChannels_C = 0_IntKi
+   OutputChannelNames_C = c_null_char
+   OutputChannelUnits_C = c_null_char
 
    call NWTC_Init( ProgNameIn=  SeaSt_ProgDesc%Name )
    call DispCopyrightLicense(   SeaSt_ProgDesc%Name )
