@@ -32,7 +32,7 @@ typedef  ^                    ^              ^                 WtrDpth          
 typedef  ^                    ^              ^                 MSL2SWL              -  -  -  "Mean sea level to still water level" (m)
 
 typedef  ^                 TurbConfigType    IntKi             NumBl                -  -  -  "Number of blades" (-)
-typedef  ^                    ^              ReKi              HubRad               -  -  -  "The distance from the rotor apex to the blade root" (m)
+typedef  ^                    ^              SiKi              HubRad               -  -  -  "The distance from the rotor apex to the blade root" (m)
 typedef  ^                    ^              ^                 PreCone              -  -  -  "Blade cone angle" (deg)
 typedef  ^                    ^              ^                 OverHang             -  -  -  "Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades]" (m)
 typedef  ^                    ^              ^                 ShftTilt             -  -  -  "Rotor shaft tilt angle" (deg)
@@ -104,7 +104,7 @@ typedef  ^                    ^              ^                 WriteOutputUnt_AD
 typedef  ^                    ^              c_float           OutData_SS_c         :  -  -  "output data from SS as passed c_float" -
 typedef  ^                    ^              ^                 OutData_MD_c         :  -  -  "output data from MD as passed c_float" -
 typedef  ^                    ^              ^                 OutData_ADI_c        :  -  -  "output data from ADI as passed c_float" -
-typedef  ^                    ^              ReKi              OutData_SS           :  -  -  "output data from SS" -
+typedef  ^                    ^              SiKi              OutData_SS           :  -  -  "output data from SS" -
 typedef  ^                    ^              ^                 OutData_MD           :  -  -  "output data from MD" -
 typedef  ^                    ^              ^                 OutData_ADI          :  -  -  "output data from ADI" -
 typedef  ^                    ^              character(1024)   OutName              -  -  -  "Output file name" -
