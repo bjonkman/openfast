@@ -61,15 +61,15 @@ IMPLICIT NONE
 ! =========  TurbConfigType  =======
   TYPE, PUBLIC :: TurbConfigType
     INTEGER(IntKi)  :: NumBl = 0_IntKi      !< Number of blades [(-)]
-    REAL(ReKi)  :: HubRad = 0.0_ReKi      !< The distance from the rotor apex to the blade root [(m)]
-    REAL(ReKi)  :: PreCone = 0.0_ReKi      !< Blade cone angle [(deg)]
-    REAL(ReKi)  :: OverHang = 0.0_ReKi      !< Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades] [(m)]
-    REAL(ReKi)  :: ShftTilt = 0.0_ReKi      !< Rotor shaft tilt angle [(deg)]
-    REAL(ReKi)  :: Twr2Shft = 0.0_ReKi      !< Vertical distance from the tower-top to the rotor shaft [(m)]
-    REAL(ReKi)  :: TowerHt = 0.0_ReKi      !< Height of tower relative MSL [(m)]
-    REAL(ReKi) , DIMENSION(1:3)  :: TowerBsPt = 0.0_ReKi      !< Tower base location relative to MSL. Consider absolute difference to PtfmRef [floating MHK] [(m)]
-    REAL(ReKi) , DIMENSION(1:3)  :: PtfmRefPos = 0.0_ReKi      !< Location of platform reference point, relative to MSL.  Motions and loads all connect to this point [(m)]
-    REAL(ReKi) , DIMENSION(1:3)  :: PtfmRefOrient = 0.0_ReKi      !< Orientation of platform reference point, Euler angle set of roll,pitch,yaw [(rad)]
+    REAL(SiKi)  :: HubRad = 0.0_R4Ki      !< The distance from the rotor apex to the blade root [(m)]
+    REAL(SiKi)  :: PreCone = 0.0_R4Ki      !< Blade cone angle [(deg)]
+    REAL(SiKi)  :: OverHang = 0.0_R4Ki      !< Distance from yaw axis to rotor apex [3 blades] or teeter pin [2 blades] [(m)]
+    REAL(SiKi)  :: ShftTilt = 0.0_R4Ki      !< Rotor shaft tilt angle [(deg)]
+    REAL(SiKi)  :: Twr2Shft = 0.0_R4Ki      !< Vertical distance from the tower-top to the rotor shaft [(m)]
+    REAL(SiKi)  :: TowerHt = 0.0_R4Ki      !< Height of tower relative MSL [(m)]
+    REAL(SiKi) , DIMENSION(1:3)  :: TowerBsPt = 0.0_R4Ki      !< Tower base location relative to MSL. Consider absolute difference to PtfmRef [floating MHK] [(m)]
+    REAL(SiKi) , DIMENSION(1:3)  :: PtfmRefPos = 0.0_R4Ki      !< Location of platform reference point, relative to MSL.  Motions and loads all connect to this point [(m)]
+    REAL(SiKi) , DIMENSION(1:3)  :: PtfmRefOrient = 0.0_R4Ki      !< Orientation of platform reference point, Euler angle set of roll,pitch,yaw [(rad)]
   END TYPE TurbConfigType
 ! =======================
 ! =========  TurbInitCondType  =======
@@ -152,9 +152,9 @@ IMPLICIT NONE
     REAL(c_float) , DIMENSION(:), ALLOCATABLE  :: OutData_SS_c      !< output data from SS as passed c_float [-]
     REAL(c_float) , DIMENSION(:), ALLOCATABLE  :: OutData_MD_c      !< output data from MD as passed c_float [-]
     REAL(c_float) , DIMENSION(:), ALLOCATABLE  :: OutData_ADI_c      !< output data from ADI as passed c_float [-]
-    REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: OutData_SS      !< output data from SS [-]
-    REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: OutData_MD      !< output data from MD [-]
-    REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: OutData_ADI      !< output data from ADI [-]
+    REAL(SiKi) , DIMENSION(:), ALLOCATABLE  :: OutData_SS      !< output data from SS [-]
+    REAL(SiKi) , DIMENSION(:), ALLOCATABLE  :: OutData_MD      !< output data from MD [-]
+    REAL(SiKi) , DIMENSION(:), ALLOCATABLE  :: OutData_ADI      !< output data from ADI [-]
     character(1024)  :: OutName      !< Output file name [-]
     INTEGER(IntKi)  :: OutUn = -1      !< Output unit [-]
   END TYPE WrOutputDataType
