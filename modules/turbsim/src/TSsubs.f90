@@ -19,10 +19,6 @@
 !**********************************************************************************************************************************
 MODULE TSSubs
 
-#ifdef _OPENMP
-   use omp_lib
-#endif
-
    USE ModifiedvKrm_mod
    
    use TS_Profiles  
@@ -44,15 +40,10 @@ CONTAINS
 !! values FOR ONLY the velocity components that use the IEC method for
 !! computing spatial coherence; i.e., for i where SCMod(i) == CohMod_IEC
 !!
-!! OpenMP:  This is a cludgy mess.  The TRH array ends up used as SHARED
-!!    despite declaring it as PRIVATE with some compilers.  So I have to
-!!    cheat the system a bit and do extra allocations of a temporary, then
-!!    point to it for OMP instances.  But all those allocations would kill
-!!    performance on single thread, so more crappy logic around that mess.
-!!    It's ugly, but maybe, just maybe it will work ok.
-!!    One other little issue though - if the MKL decides to go parallel
-!!    in the LAPACK routine, it could be amess.  So another statement to
-!!    stop that from happening (somehow).
+!! OpenMP:  This makes a copy of the TRH array for each thread to use, which
+!!          is a little inefficient, but the speedup from parallelization
+!!          should outweigh the memory overhead. In the single threaded case,
+!!          a single copy is made, which is relatively negligible.
 SUBROUTINE CalcFourierCoeffs_IEC( p, U, PhaseAngles, S, V, TRH_in, ErrStat, ErrMsg )
 
 TYPE(TurbSim_ParameterType), INTENT(IN   )  :: p                            !< TurbSim parameters
@@ -60,13 +51,12 @@ REAL(ReKi),                  INTENT(IN)     :: U           (:)              !< T
 REAL(ReKi),                  INTENT(IN)     :: PhaseAngles (:,:,:)          !< The array that holds the random phases [number of points, number of frequencies, number of wind components=3].
 REAL(ReKi),                  INTENT(IN)     :: S           (:,:,:)          !< The turbulence PSD array (NumFreq,NPoints,3).
 REAL(ReKi),                  INTENT(INOUT)  :: V           (:,:,:)          !< An array containing the summations of the rows of H (NumSteps,NPoints,3).
-REAL(ReKi), TARGET,          INTENT(INOUT)  :: TRH_in (:)                   !< The transfer function matrix.  just used as a work array
+REAL(ReKi),                  INTENT(INOUT)  :: TRH_in(:)                       !< The transfer function matrix.  just used as a work array
 INTEGER(IntKi),              INTENT(OUT)    :: ErrStat
 CHARACTER(*),                INTENT(OUT)    :: ErrMsg
 
-   
-   ! Internal variables
-
+!$OMP THREADPRIVATE(TRH)
+REAL(ReKi), allocatable, save :: TRH(:)         ! Each OMP thread gets its own copy of this array
 REAL(ReKi), ALLOCATABLE       :: Dist(:)        ! The distance between points
 REAL(ReKi), ALLOCATABLE       :: DistU(:)
    
@@ -75,35 +65,25 @@ INTEGER                       :: I
 INTEGER                       :: IFreq
 INTEGER                       :: Indx
 INTEGER                       :: IVec  ! wind component, 1=u, 2=v, 3=w
-integer                       :: OMP_threads
-logical                       :: OMPerr         ! error with OMP thread requiring abort
-real(ReKi), pointer             :: TRH(:)       ! temp transfer function matrix (work array)
-real(ReKi), allocatable, target :: TRH_lcl(:)   ! make local copy
                               
 INTEGER(IntKi)                :: ErrStat2
 CHARACTER(MaxMsgLen)          :: ErrMsg2
-   
-#ifdef _OPENMP
-   OMP_threads = omp_get_max_threads()      ! limit number of threads to reasonable number (either set externally, or by hardware limit)
-#endif
-
-   
+    
    ErrStat = ErrID_None
    ErrMsg  = ""
    
-   IF (.NOT. ANY(p%met%SCMod == CohMod_IEC) ) RETURN
+   IF (.NOT. ANY(p%met%SCMod == CohMod_IEC)) RETURN
 
    !--------------------------------------------------------------------------------
    ! allocate arrays
    !--------------------------------------------------------------------------------
-   CALL AllocAry( Dist,      p%grid%NPacked,      'Dist coherence array', ErrStat2, ErrMsg2 ); CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'CalcFourierCoeffs_IEC')
-   CALL AllocAry( DistU,     p%grid%NPacked,     'DistU coherence array', ErrStat2, ErrMsg2 ); CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'CalcFourierCoeffs_IEC')
-   IF (ErrStat >= AbortErrLev) THEN
-      CALL Cleanup()
-      RETURN
-   END IF
-   
-   
+
+   CALL AllocAry( Dist, p%grid%NPacked, 'Dist coherence array', ErrStat2, ErrMsg2 ); CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'CalcFourierCoeffs_IEC')
+   CALL AllocAry( DistU, p%grid%NPacked, 'DistU coherence array', ErrStat2, ErrMsg2 ); CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'CalcFourierCoeffs_IEC')
+   IF (ErrStat >= AbortErrLev) RETURN
+
+   TRH = TRH_in  ! point the PRIVATE array to the passed in array for single thread case
+      
    !--------------------------------------------------------------------------------
    ! Calculate the distances and other parameters that don't change with frequency
    !---------------------------------------------------------------------------------
@@ -136,31 +116,12 @@ CHARACTER(MaxMsgLen)          :: ErrMsg2
       ! Calculate the coherence, Veers' H matrix (CSDs), and the fourier coefficients
       !---------------------------------------------------------------------------------
 
-
-      OMPerr = .false.
       !$OMP PARALLEL DO &
-      !$OMP NUM_THREADS(OMP_threads) &
-      !$OMP PRIVATE(IFREQ, Indx, I, J, TRH_lcl, ErrStat2, ErrMsg2, TRH) &
-      !$OMP SHARED(p,PhaseAngles,S,V,Dist,DistU,IVec,OMPerr,ErrStat,ErrMsg,AbortErrLev) &
-      !$OMP DEFAULT(None)
-      DO IFREQ = 1,p%grid%NumFreq
-         ! if an aborting error happened in a prior thread, skip
-         if (OMPerr) cycle
-
-#ifndef _OPENMP
-         TRH => TRH_in
-#else
-         if (.not. allocated(TRH_lcl)) then
-            call AllocAry( TRH_lcl, p%grid%NPacked, 'TRH coherence array', ErrStat2, ErrMsg2 )
-            !$OMP CRITICAL
-            call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'CalcFourierCoeffs')
-            !$OMP END CRITICAL
-            if (ErrStat2 >= AbortErrLev) OMPerr = .true.
-            if (OMPerr) cycle
-            TRH => TRH_lcl
-         endif
-#endif
-
+      !$OMP DEFAULT(None) &
+      !$OMP SHARED(p, PhaseAngles, S, V, Dist, DistU, IVec, ErrStat, ErrMsg, AbortErrLev) &
+      !$OMP PRIVATE(Indx, I, J, ErrStat2, ErrMsg2) &
+      !$OMP COPYIN(TRH)
+      DO IFREQ = 1, p%grid%NumFreq
 
          ! -----------------------------------------------
          ! Create the coherence matrix for this frequency
@@ -195,41 +156,18 @@ CHARACTER(MaxMsgLen)          :: ErrMsg2
          !   use H matrix to calculate coefficients
          ! -----------------------------------------------
          
-         CALL Coh2H(    p, IVec, IFreq, TRH, S, ErrStat2, ErrMsg2 )
-         !$OMP CRITICAL 
-         CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'CalcFourierCoeffs_IEC')
-         !$OMP END CRITICAL
+         CALL Coh2H(p, IVec, IFreq, TRH, S, ErrStat2, ErrMsg2)
          if (ErrStat2 >= AbortErrLev) then
-            OMPerr = .true.
+            !$OMP CRITICAL 
+            CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'CalcFourierCoeffs_IEC')
+            !$OMP END CRITICAL
          else
             CALL H2Coeffs( IVec, IFreq, TRH, PhaseAngles, V, p%grid%NPoints )
          endif
 
-#ifdef _OPENMP
-         if (allocated(TRH_lcl)) deallocate(TRH_lcl)
-#endif
-
-
       END DO !IFreq
-      !$OMP END PARALLEL DO
-
-      if (OMPerr) then
-         call Cleanup()
-         return
-      endif
-
    END DO !IVec   
                
-   CALL Cleanup()
-   RETURN
-   
-!............................................
-CONTAINS
-   SUBROUTINE Cleanup()
-
-      IF ( ALLOCATED( Dist      ) ) DEALLOCATE( Dist      )
-      IF ( ALLOCATED( DistU     ) ) DEALLOCATE( DistU     )
-   END SUBROUTINE Cleanup
 !............................................   
 END SUBROUTINE CalcFourierCoeffs_IEC  
 !=======================================================================
@@ -825,14 +763,7 @@ integer                          :: old_max_levels    ! maximum nesting levels f
       NPts = p%grid%NPoints
    END IF
          
-#ifdef _OPENMP
-   old_max_levels = omp_get_max_active_levels()
-    call omp_set_max_active_levels(1)   ! don't allow additional OPENMP parallelization here
-#endif
    CALL LAPACK_pptrf( 'L', NPts, TRH(Indx:), ErrStat, ErrMsg )  ! 'L'ower triangular 'TRH' matrix (packed form), of order 'NPoints'; returns Stat
-#ifdef _OPENMP
-    call omp_set_max_active_levels(old_max_levels)
-#endif
 
    IF ( ErrStat /= ErrID_None ) THEN
       IF (ErrStat < AbortErrLev) then
@@ -938,17 +869,6 @@ END SUBROUTINE H2Coeffs
 !=======================================================================
 !> This routine takes the Fourier coefficients and converts them to velocity
 !! note that the resulting time series has zero mean.
-!!
-!! OPENMP - The FFT_Data data structure is problematic for some Fortran compilers when used in
-!!    the `!$OMP PRIVATE(FFT_Data)` context.  Since this is contains work data with will be 
-!!    specific to a given ApplyFFT call, it must be kept private inside the `!$OMP PARALLEL DO`
-!!    construct.  So we must call `InitFFT` inside a given OMP thread.  This limits us to only
-!!    doing parallelization around the UVW directions, and not across the NPoints loop as well
-!!    where we could potentially see big gains in performance. If we did move the InitFFT call
-!!    inside the NPoint loop, we would likely see performance drop with all the extra allocations
-!!    as well as a full doubling of memory needed (which is already a big bottleneck).
-!!    It would be possible to limit the InitFFT calls in when OpenMP is not used with `#ifdef
-!!    _OPENMP`, but that was an unreadable mess when I tried it.
 SUBROUTINE Coeffs2TimeSeries( V, NumSteps, NPoints, NUsrPoints, ErrStat, ErrMsg )
    INTEGER(IntKi),   INTENT(IN)     :: NumSteps                     !< Size of dimension 1 of V (number of time steps)
    INTEGER(IntKi),   INTENT(IN)     :: NPoints                      !< Size of dimension 2 of V (number of grid points)
@@ -975,9 +895,6 @@ SUBROUTINE Coeffs2TimeSeries( V, NumSteps, NPoints, NUsrPoints, ErrStat, ErrMsg 
    ! Since we are potentially using OpenMP here, we cannot
    ExitOMPlooping = .false.
 
-   !$OMP PARALLEL DO &
-   !$OMP PRIVATE(iVec, IPoint, Work, FFT_Data, ErrStat2)&
-   !$OMP SHARED(NPoints, NumSteps, NUsrPoints, V, errStat, errMsg, AbortErrLev, ExitOMPlooping) DEFAULT(NONE)
    DO IVec=1,3
 
       ! make sure we didn't have a failure on prior OMP loop
@@ -987,9 +904,7 @@ SUBROUTINE Coeffs2TimeSeries( V, NumSteps, NPoints, NUsrPoints, ErrStat, ErrMsg 
 
       ! The FFT_Data is not thread safe with the allocation inside.
       CALL InitFFT( NumSteps, FFT_Data, ErrStat=ErrStat2 )
-      !$OMP CRITICAL  ! Needed to avoid data race on ErrStat and ErrMsg
       CALL SetErrStat(ErrStat2, 'Error in InitFFT', ErrStat, ErrMsg, 'Coeffs2TimeSeries' )
-      !$OMP END CRITICAL
 
       ! Proceed only if the InitFFT worked.
       ! NOTE: this is to allow for OpenMP - can't return from inside loop
@@ -1013,9 +928,7 @@ SUBROUTINE Coeffs2TimeSeries( V, NumSteps, NPoints, NUsrPoints, ErrStat, ErrMsg 
             ! perform FFT
             CALL ApplyFFT( Work, FFT_Data, ErrStat2 )
                IF (ErrStat2 /= ErrID_None ) THEN
-                  !$OMP CRITICAL  ! Needed to avoid data race on ErrStat and ErrMsg
                   CALL SetErrStat(ErrStat2, 'Error in ApplyFFT for point '//TRIM(Num2LStr(IPoint))//'.', ErrStat, ErrMsg, 'Coeffs2TimeSeries' )
-                  !$OMP END CRITICAL
                   IF (ErrStat >= AbortErrLev) EXIT
                END IF
               
@@ -1024,25 +937,14 @@ SUBROUTINE Coeffs2TimeSeries( V, NumSteps, NPoints, NUsrPoints, ErrStat, ErrMsg 
       
          ! Clean up memory from FFT_Data.
          CALL ExitFFT( FFT_Data, ErrStat2 )
-         !$OMP CRITICAL  ! Needed to avoid data race on ErrStat and ErrMsg
          CALL SetErrStat(ErrStat2, 'Error in ExitFFT', ErrStat, ErrMsg, 'Coeffs2TimeSeries' )
-         !$OMP END CRITICAL
 
          ! skip further OMP loops if any sequential (or if OMP not used).
          ! NOTE: OMP doesn't allow return inside OMP thread
          if (ErrStat2 >= AbortErrLev) ExitOMPlooping = .true.
       endif
    ENDDO ! IVec 
-   !$OMP END PARALLEL DO  
 
-   CALL Cleanup()
-
-   RETURN
-   CONTAINS
-   !...........................................
-   SUBROUTINE Cleanup()
-      if (allocated(work)) deallocate(work)
-   END SUBROUTINE Cleanup
 END SUBROUTINE Coeffs2TimeSeries
 !=======================================================================
 !> This routine calculates the two-sided Fourier amplitudes of the frequencies
@@ -2092,21 +1994,17 @@ SUBROUTINE AddMeanAndRotate(p, V, U, HWindDir, VWindDir)
    REAL(ReKi)                                  ::  v3(3)             ! temporary 3-component array containing velocity
    INTEGER(IntKi)                              ::  ITime             ! loop counter for time step 
    INTEGER(IntKi)                              ::  IPoint            ! loop counter for grid points
-   integer(IntKi)                              ::  OMP_threads       ! number of threads for OMP (if used)
-
-#ifdef _OPENMP
-   OMP_threads = omp_get_max_threads()      ! limit number of threads to reasonable number (either set externally, or by hardware limit)
-#endif
 
    !..............................................................................
    ! Add mean wind to u' components and rotate to inertial reference
    !  frame coordinate system
    !..............................................................................
-!$OMP PARALLEL DO &
-!$OMP NUM_THREADS(OMP_threads) &
-!$OMP PRIVATE(IPoint,ITime,v3) &
-!$OMP SHARED(p, U, V, HWindDir, VWindDir) &
-!$OMP DEFAULT(None)
+
+   !$OMP PARALLEL DO &
+   !$OMP COLLAPSE(2) &
+   !$OMP DEFAULT(None) &
+   !$OMP PRIVATE(v3) &
+   !$OMP SHARED(p, U, V, HWindDir, VWindDir)
    DO IPoint=1,p%grid%Npoints   
       DO ITime=1,p%grid%NumSteps
 
@@ -2117,7 +2015,6 @@ SUBROUTINE AddMeanAndRotate(p, V, U, HWindDir, VWindDir)
                         
       ENDDO ! ITime
    ENDDO ! IPoint   
-!$OMP END PARALLEL DO
 
 END SUBROUTINE AddMeanAndRotate
 !=======================================================================
