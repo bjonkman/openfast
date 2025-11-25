@@ -2354,6 +2354,8 @@ END SUBROUTINE CheckR8Var
                      //TRIM( DefaultInputFile )//'".' )
       END IF
       CALL WrScr    ( NewLine//' Note: values enclosed in square brackets [] are optional. Do not enter the brackets.')      
+      CALL WrScr    ( NewLine//' For more information and documentation, visit:' )
+      CALL WrScr    ( '    https://openfast.readthedocs.io/' )
       CALL WrScr    ( ' ')
                      
    END SUBROUTINE NWTC_DisplaySyntax
