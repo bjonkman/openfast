@@ -112,10 +112,10 @@ Subroutine SetIndex(pIn,pZero,delta,nMax,IsPeriodic,Indx,isopc,Support,FirstWarn
 
    if ( nMax .EQ. 1_IntKi ) then ! Only one grid point, effectively ignore this dimension
       ! Construct a dummy linear interpolation for now
-      Indx(1) = -1_IntKi
+      Indx(1) =  0_IntKi
       Indx(2) =  0_IntKi
       Indx(3) =  0_IntKi
-      Indx(4) = -1_IntKi
+      Indx(4) =  0_IntKi
       isopc   = 0.5_ReKi
       Support = 0
       return
@@ -130,7 +130,7 @@ Subroutine SetIndex(pIn,pZero,delta,nMax,IsPeriodic,Indx,isopc,Support,FirstWarn
       isopc = p - floor(p,ReKi)
 
       ! Get the normalized coordinates of the two nearest nodes to the left and to the right
-      Indx = floor( p, IntKi ) + (/-1,0,1,2/)
+      Indx = floor( p, IntKi ) + [-1,0,1,2]
 
       ! Make sure the coordinates are not out of bound using periodicity
       do i = 1,4
@@ -139,6 +139,9 @@ Subroutine SetIndex(pIn,pZero,delta,nMax,IsPeriodic,Indx,isopc,Support,FirstWarn
          end if
          Indx(i) = mod(Indx(i),nMax)
       end do
+
+      ! Always use cubic interpolation for periodic dimensions
+      support = 3 ! Cubic interpolation
 
    else
 
@@ -168,27 +171,30 @@ Subroutine SetIndex(pIn,pZero,delta,nMax,IsPeriodic,Indx,isopc,Support,FirstWarn
          ! Calculate normalized coordinate between 0 and 1
          isopc = 1.0_ReKi
          ! Get the normalized coordinates of the two nearest nodes to the left and to the right
-         Indx = nMax + (/-3,-2,-1,0/)
+         Indx = nMax + [-3,-2,-1,0]
       else
          ! Calculate normalized coordinate between 0 and 1
          isopc = p - floor(p,ReKi)
          ! Get the normalized coordinates of the two nearest nodes to the left and to the right
-         Indx = floor( p, IntKi ) + (/-1,0,1,2/)
+         Indx = floor( p, IntKi ) + [-1,0,1,2]
       end if
 
-   end if
-
-   ! Supported interpolation method
-   if ( Indx(1) < 0_IntKi ) then
-      if (Indx(4) > (nMax-1_IntKi) ) then
-         support = 0 ! Linear interpolation
+      ! Supported interpolation method
+      if ( Indx(1) < 0_IntKi ) then
+         Indx(1) = 0_IntKi
+         if (Indx(4) > (nMax-1_IntKi) ) then
+            support = 0 ! Linear interpolation
+            Indx(4) = nMax-1_IntKi
+         else
+            support = 1 ! Quadratic interpolation with only one node to the left
+         end if
+      else if ( Indx(4) > (nMax-1_IntKi) ) then
+         support = 2 ! Quadratic interpolation with only one node to the right
+         Indx(4) = nMax-1_IntKi
       else
-         support = 1 ! Quadratic interpolation with only one node to the left
+         support = 3 ! Cubic interpolation
       end if
-   else if ( Indx(4) > (nMax-1_IntKi) ) then
-      support = 2 ! Quadratic interpolation with only one node to the right
-   else
-      support = 3 ! Cubic interpolation
+
    end if
 
 End Subroutine SetIndex
@@ -200,42 +206,43 @@ Subroutine GetN1D(isopc, support, N1D)
    real(ReKi),           intent(inout)  :: N1D(4)
    real(ReKi)                           :: isopc2,isopc3
 
-   if ( Support == 3 ) then  ! Cubic interpolation
+   select case ( Support )
+   case ( 3 )  ! Cubic interpolation
 
       isopc2 = isopc*isopc
       isopc3 = isopc*isopc2
 
-      N1D(1) = -0.5*isopc3 +     isopc2 - 0.5*isopc
-      N1D(2) =  1.5*isopc3 - 2.5*isopc2             + 1.0
-      N1D(3) = -1.5*isopc3 + 2.0*isopc2 + 0.5*isopc
-      N1D(4) =  0.5*isopc3 - 0.5*isopc2
+      N1D(1) = -0.5_ReKi*isopc3 +          isopc2 - 0.5_ReKi*isopc
+      N1D(2) =  1.5_ReKi*isopc3 - 2.5_ReKi*isopc2                  + 1.0_ReKi
+      N1D(3) = -1.5_ReKi*isopc3 + 2.0_ReKi*isopc2 + 0.5_ReKi*isopc
+      N1D(4) =  0.5_ReKi*isopc3 - 0.5_ReKi*isopc2
 
-   else if ( Support == 1 ) then  ! Quadratic interpolation with only one node to the left
-
-      isopc2 = isopc*isopc
-
-      N1D(1) =                           0.0
-      N1D(2) =  0.5*isopc2 - 1.5*isopc + 1.0
-      N1D(3) = -1.0*isopc2 + 2.0*isopc
-      N1D(4) =  0.5*isopc2 - 0.5*isopc
-
-   else if ( Support == 2 ) then  ! Quadratic interpolation with only one node to the right
+   case ( 1 )  ! Quadratic interpolation with only one node to the left
 
       isopc2 = isopc*isopc
 
-      N1D(1) =  0.5*isopc2 - 0.5*isopc
-      N1D(2) = -1.0*isopc2             + 1.0
-      N1D(3) =  0.5*isopc2 + 0.5*isopc
-      N1D(4) =                           0.0
+      N1D(1) =                                     0.0_ReKi
+      N1D(2) =  0.5_ReKi*isopc2 - 1.5_ReKi*isopc + 1.0_ReKi
+      N1D(3) = -1.0_ReKi*isopc2 + 2.0_ReKi*isopc
+      N1D(4) =  0.5_ReKi*isopc2 - 0.5_ReKi*isopc
 
-   else ! if ( Support == 0 ) then  ! Linear interpolation
+   case ( 2 )  ! Quadratic interpolation with only one node to the right
 
-      N1D(1) =          0.0
-      N1D(2) = -isopc + 1.0
+      isopc2 = isopc*isopc
+
+      N1D(1) =  0.5_ReKi*isopc2 - 0.5_ReKi*isopc
+      N1D(2) = -1.0_ReKi*isopc2                  + 1.0_ReKi
+      N1D(3) =  0.5_ReKi*isopc2 + 0.5_ReKi*isopc
+      N1D(4) =                                     0.0_ReKi
+
+   case default ! Support == 0 Linear interpolation
+
+      N1D(1) =          0.0_ReKi
+      N1D(2) = -isopc + 1.0_ReKi
       N1D(3) =  isopc
-      N1D(4) =          0.0
+      N1D(4) =          0.0_ReKi
 
-   end if
+   end select
 
 End Subroutine GetN1D
 
@@ -246,37 +253,38 @@ Subroutine GetN1Ddx(isopc, support, N1D)
    real(ReKi),           intent(inout)  :: N1D(4)
    real(ReKi)                           :: isopc2
 
-   if ( Support == 3 ) then  ! Cubic interpolation
+   select case ( Support )
+   case ( 3 )  ! Cubic interpolation
 
       isopc2 = isopc*isopc
 
-      N1D(1) = -1.5*isopc2 + 2.0*isopc - 0.5
-      N1D(2) =  4.5*isopc2 - 5.0*isopc
-      N1D(3) = -4.5*isopc2 + 4.0*isopc + 0.5
-      N1D(4) =  1.5*isopc2 -     isopc
+      N1D(1) = -1.5_ReKi*isopc2 + 2.0_ReKi*isopc - 0.5_ReKi
+      N1D(2) =  4.5_ReKi*isopc2 - 5.0_ReKi*isopc
+      N1D(3) = -4.5_ReKi*isopc2 + 4.0_ReKi*isopc + 0.5_ReKi
+      N1D(4) =  1.5_ReKi*isopc2 -          isopc
 
-   else if ( Support == 1 ) then  ! Quadratic interpolation with only one node to the left
+   case ( 1 )  ! Quadratic interpolation with only one node to the left
 
-      N1D(1) =              0.0
-      N1D(2) =      isopc - 1.5
-      N1D(3) = -2.0*isopc + 2.0
-      N1D(4) =      isopc - 0.5
+      N1D(1) =                   0.0_ReKi
+      N1D(2) =           isopc - 1.5_ReKi
+      N1D(3) = -2.0_ReKi*isopc + 2.0_ReKi
+      N1D(4) =           isopc - 0.5_ReKi
 
-   else if ( Support == 2 ) then  ! Quadratic interpolation with only one node to the right
+   case ( 2 )  ! Quadratic interpolation with only one node to the right
 
-      N1D(1) =      isopc - 0.5
-      N1D(2) = -2.0*isopc
-      N1D(3) =      isopc + 0.5
-      N1D(4) =              0.0
+      N1D(1) =           isopc - 0.5_ReKi
+      N1D(2) = -2.0_ReKi*isopc
+      N1D(3) =           isopc + 0.5_ReKi
+      N1D(4) =                   0.0_ReKi
 
-   else ! if ( Support == 0 ) then  ! Linear interpolation
+   case default ! Support == 0 Linear interpolation
 
-      N1D(1) =  0.0
-      N1D(2) = -1.0
-      N1D(3) =  1.0
-      N1D(4) =  0.0
+      N1D(1) =  0.0_ReKi
+      N1D(2) = -1.0_ReKi
+      N1D(3) =  1.0_ReKi
+      N1D(4) =  0.0_ReKi
 
-   end if
+   end select
 
 End Subroutine GetN1Ddx
 
@@ -430,10 +438,7 @@ function GridInterp3DR4( data, m )
    do k = 1,4
       do j = 1,4
          do i = 1,4
-            if (.not.EqualRealNos(m%N3D(i,j,k),0.0_ReKi)) then
-               GridInterp3DR4 = GridInterp3DR4 + m%N3D(i,j,k) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
-            ! else - Indx out of bound
-            end if
+            GridInterp3DR4 = GridInterp3DR4 + m%N3D(i,j,k) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
          end do
       end do
    end do
@@ -453,10 +458,7 @@ function GridInterp3DR8( data, m )
    do k = 1,4
       do j = 1,4
          do i = 1,4
-            if (.not.EqualRealNos(m%N3D(i,j,k),0.0_ReKi)) then
-               GridInterp3DR8 = GridInterp3DR8 + m%N3D(i,j,k) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
-            ! else - Indx out of bound
-            end if
+            GridInterp3DR8 = GridInterp3DR8 + m%N3D(i,j,k) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
          end do
       end do
    end do
@@ -482,12 +484,9 @@ function GridInterp3DVecR4( data, m )
    do k = 1,4
       do j = 1,4
          do i = 1,4
-            if (.not.EqualRealNos(m%N3D(i,j,k),0.0_ReKi)) then
-               do vi = 1,vDim
-                  GridInterp3DVecR4(vi) = GridInterp3DVecR4(vi) + m%N3D(i,j,k) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3), vi )
-               end do
-            ! else - Indx out of bound
-            end if
+            do vi = 1,vDim
+               GridInterp3DVecR4(vi) = GridInterp3DVecR4(vi) + m%N3D(i,j,k) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3), vi )
+            end do
          end do
       end do
    end do
@@ -508,12 +507,9 @@ function GridInterp3DVecR8( data, m )
    do k = 1,4
       do j = 1,4
          do i = 1,4
-            if (.not.EqualRealNos(m%N3D(i,j,k),0.0_ReKi)) then
-               do vi = 1,vDim
-                  GridInterp3DVecR8(vi) = GridInterp3DVecR8(vi) + m%N3D(i,j,k) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3), vi )
-               end do
-            ! else - Indx out of bound
-            end if
+            do vi = 1,vDim
+               GridInterp3DVecR8(vi) = GridInterp3DVecR8(vi) + m%N3D(i,j,k) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3), vi )
+            end do
          end do
       end do
    end do
@@ -539,12 +535,9 @@ function GridInterp3DVec6R4( data, m )
    do k = 1,4
       do j = 1,4
          do i = 1,4
-            if (.not.EqualRealNos(m%N3D(i,j,k),0.0_ReKi)) then
-               do vi = 1,vDim
-                  GridInterp3DVec6R4(vi) = GridInterp3DVec6R4(vi) + m%N3D(i,j,k) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3), vi )
-               end do
-            ! else - Indx out of bound
-            end if
+            do vi = 1,vDim
+               GridInterp3DVec6R4(vi) = GridInterp3DVec6R4(vi) + m%N3D(i,j,k) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3), vi )
+            end do
          end do
       end do
    end do
@@ -565,12 +558,9 @@ function GridInterp3DVec6R8( data, m )
    do k = 1,4
       do j = 1,4
          do i = 1,4
-            if (.not.EqualRealNos(m%N3D(i,j,k),0.0_ReKi)) then
-               do vi = 1,vDim
-                  GridInterp3DVec6R8(vi) = GridInterp3DVec6R8(vi) + m%N3D(i,j,k) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3), vi )
-               end do
-            ! else - Indx out of bound
-            end if
+            do vi = 1,vDim
+               GridInterp3DVec6R8(vi) = GridInterp3DVec6R8(vi) + m%N3D(i,j,k) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3), vi )
+            end do
          end do
       end do
    end do
@@ -596,10 +586,7 @@ function GridInterp4DR4( data, m )
       do k = 1,4
          do j = 1,4
             do i = 1,4
-               if (.not.EqualRealNos(m%N4D(i,j,k,l),0.0_ReKi)) then
-                  GridInterp4DR4 = GridInterp4DR4 + m%N4D(i,j,k,l) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3), m%Indx(l,4) )
-               ! else - Indx out of bound
-               end if
+               GridInterp4DR4 = GridInterp4DR4 + m%N4D(i,j,k,l) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3), m%Indx(l,4) )
             end do
          end do
       end do
@@ -621,10 +608,7 @@ function GridInterp4DR8( data, m )
       do k = 1,4
          do j = 1,4
             do i = 1,4
-               if (.not.EqualRealNos(m%N4D(i,j,k,l),0.0_ReKi)) then
-                  GridInterp4DR8 = GridInterp4DR8 + m%N4D(i,j,k,l) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3), m%Indx(l,4) )
-               ! else - Indx out of bound
-               end if
+               GridInterp4DR8 = GridInterp4DR8 + m%N4D(i,j,k,l) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3), m%Indx(l,4) )
             end do
          end do
       end do
@@ -652,12 +636,9 @@ function GridInterp4DVecR4( data, m )
       do k = 1,4
          do j = 1,4
             do i = 1,4
-               if (.not.EqualRealNos(m%N4D(i,j,k,l),0.0_ReKi)) then
-                  do vi = 1,vDim
-                     GridInterp4DVecR4(vi) = GridInterp4DVecR4(vi) + m%N4D(i,j,k,l) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3), m%Indx(l,4), vi )
-                  end do
-               ! else - Indx out of bound
-               end if
+               do vi = 1,vDim
+                  GridInterp4DVecR4(vi) = GridInterp4DVecR4(vi) + m%N4D(i,j,k,l) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3), m%Indx(l,4), vi )
+               end do
             end do
          end do
       end do
@@ -680,12 +661,9 @@ function GridInterp4DVecR8( data, m )
       do k = 1,4
          do j = 1,4
             do i = 1,4
-               if (.not.EqualRealNos(m%N4D(i,j,k,l),0.0_ReKi)) then
-                  do vi = 1,vDim
-                     GridInterp4DVecR8(vi) = GridInterp4DVecR8(vi) + m%N4D(i,j,k,l) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3), m%Indx(l,4), vi )
-                  end do
-               ! else - Indx out of bound
-               end if
+               do vi = 1,vDim
+                  GridInterp4DVecR8(vi) = GridInterp4DVecR8(vi) + m%N4D(i,j,k,l) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3), m%Indx(l,4), vi )
+               end do
             end do
          end do
       end do
@@ -713,12 +691,9 @@ function GridInterp4DVec6R4( data, m )
       do k = 1,4
          do j = 1,4
             do i = 1,4
-               if (.not.EqualRealNos(m%N4D(i,j,k,l),0.0_ReKi)) then
-                  do vi = 1,vDim
-                     GridInterp4DVec6R4(vi) = GridInterp4DVec6R4(vi) + m%N4D(i,j,k,l) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3), m%Indx(l,4), vi )
-                  end do
-               ! else - Indx out of bound
-               end if
+               do vi = 1,vDim
+                  GridInterp4DVec6R4(vi) = GridInterp4DVec6R4(vi) + m%N4D(i,j,k,l) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3), m%Indx(l,4), vi )
+               end do
             end do
          end do
       end do
@@ -741,12 +716,9 @@ function GridInterp4DVec6R8( data, m )
       do k = 1,4
          do j = 1,4
             do i = 1,4
-               if (.not.EqualRealNos(m%N4D(i,j,k,l),0.0_ReKi)) then
-                  do vi = 1,vDim
-                     GridInterp4DVec6R8(vi) = GridInterp4DVec6R8(vi) + m%N4D(i,j,k,l) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3), m%Indx(l,4), vi )
-                  end do
-               ! else - Indx out of bound
-               end if
+               do vi = 1,vDim
+                  GridInterp4DVec6R8(vi) = GridInterp4DVec6R8(vi) + m%N4D(i,j,k,l) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3), m%Indx(l,4), vi )
+               end do
             end do
          end do
       end do
@@ -775,19 +747,15 @@ function GridInterpNR4( data, p, m )
    do k = 1,4
       do j = 1,4
          do i = 1,4
-            if (.not.EqualRealNos(m%N4D(i,j,k,1),0.0_ReKi)) then
-               dZetadx = dZetadx + m%N4D(i,j,k,1) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
-            end if
-            if (.not.EqualRealNos(m%N4D(i,j,k,2),0.0_ReKi)) then
-               dZetady = dZetady + m%N4D(i,j,k,2) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
-            end if
+            dZetadx = dZetadx + m%N4D(i,j,k,1) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
+            dZetady = dZetady + m%N4D(i,j,k,2) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
          end do
       end do
    end do
    dZetadx = dZetadx / p%delta(2)
    dZetady = dZetady / p%delta(3)
 
-   GridInterpNR4 = (/-dZetadx,-dZetady,1.0_SiKi/)
+   GridInterpNR4 = [-dZetadx,-dZetady,1.0_SiKi]
    GridInterpNR4 = GridInterpNR4 / TwoNorm(GridInterpNR4)
 
 end function GridInterpNR4
@@ -808,12 +776,8 @@ function GridInterpNR8( data, p, m )
    do k = 1,4
       do j = 1,4
          do i = 1,4
-            if (.not.EqualRealNos(m%N4D(i,j,k,1),0.0_ReKi)) then
-               dZetadx = dZetadx + m%N4D(i,j,k,1) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
-            end if
-            if (.not.EqualRealNos(m%N4D(i,j,k,2),0.0_ReKi)) then
-               dZetady = dZetady + m%N4D(i,j,k,2) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
-            end if
+            dZetadx = dZetadx + m%N4D(i,j,k,1) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
+            dZetady = dZetady + m%N4D(i,j,k,2) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
          end do
       end do
    end do
@@ -845,9 +809,7 @@ function GridInterpSR4( data, p, m )
       do j = 1,4
          do i = 1,4
             do dir = 1,2
-               if (.not.EqualRealNos(m%N4D(i,j,k,dir),0.0_ReKi)) then
-                  GridInterpSR4(dir) = GridInterpSR4(dir) + m%N4D(i,j,k,dir) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
-               end if
+               GridInterpSR4(dir) = GridInterpSR4(dir) + m%N4D(i,j,k,dir) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
             end do
          end do
       end do
@@ -871,9 +833,7 @@ function GridInterpSR8( data, p, m )
       do j = 1,4
          do i = 1,4
             do dir = 1,2
-               if (.not.EqualRealNos(m%N4D(i,j,k,dir),0.0_ReKi)) then
-                  GridInterpSR8(dir) = GridInterpSR8(dir) + m%N4D(i,j,k,dir) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
-               end if
+               GridInterpSR8(dir) = GridInterpSR8(dir) + m%N4D(i,j,k,dir) * data( m%Indx(i,1), m%Indx(j,2), m%Indx(k,3) )
             end do
          end do
       end do
