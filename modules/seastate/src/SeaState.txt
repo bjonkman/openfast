@@ -126,7 +126,7 @@ typedef   ^                            OtherStateType                R8Ki    Unu
 typedef   ^                  MiscVarType            INTEGER                        Decimate           -       -      -  "The output decimation counter" -
 typedef   ^                  ^                      DbKi                           LastOutTime        -       -      -  "Last time step which was written to the output file (sec)"    -
 typedef   ^                  ^                      INTEGER                        LastIndWave        -       -      -  "The last index used in the wave kinematics arrays, used to optimize interpolation"   -
-typedef   ^                  ^                      SeaSt_WaveField_MiscVarType    WaveField_m        -       -      -  "misc var information from the SeaState Interpolation module"   -
+typedef   ^                  ^                      GridInterp_MiscVarType         WaveField_m        -       -      -  "misc var information from the Grid Interpolation module" -
 
 # .... Linearization params .......................................................................................................
 # NOTE:  This is overkill given how limited linearization is. For completeness and similarity to other modules, keeping all this here.  Also note some
