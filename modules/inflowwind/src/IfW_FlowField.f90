@@ -1667,13 +1667,13 @@ subroutine Grid4DField_GetVel(G4D, Time, Position, Velocity, ErrStat, ErrMsg)
          Indx_Lo(i) = 1
          write(PtLoc, '(A1,3(f8.2,A1))') '(',Position(1),',',Position(2),',',Position(3),')'
          write(BoxLL, '(A1,3(f8.2,A1))') '(',G4D%pZero(1),',',G4D%pZero(2),',',G4D%pZero(3),')'
-         write(BoxUR, '(A1,3(f8.2,A1))') '(',G4D%pZero(1)+G4D%n(1)*G4D%delta(1)-1,',',G4D%pZero(2)+G4D%n(2)*G4D%delta(2)-1,',',G4D%pZero(3)+G4D%n(3)*G4D%delta(3)-1,')'
+         write(BoxUR, '(A1,3(f8.2,A1))') '(',G4D%pZero(1)+(G4D%n(1)-1)*G4D%delta(1),',',G4D%pZero(2)+(G4D%n(2)-1)*G4D%delta(2),',',G4D%pZero(3)+(G4D%n(3)-1)*G4D%delta(3),')'
          call SetErrStat(ErrID_Fatal, 'Outside the grid bounds: '//trim(PtLoc)//'; box bounds: '//trim(BoxLL)//' to '//trim(BoxUR), ErrStat, ErrMsg, RoutineName)
          return
       elseif (Indx_Lo(i) >= G4D%n(i)) then
          write(PtLoc, '(A1,3(f8.2,A1))') '(',Position(1),',',Position(2),',',Position(3),')'
          write(BoxLL, '(A1,3(f8.2,A1))') '(',G4D%pZero(1),',',G4D%pZero(2),',',G4D%pZero(3),')'
-         write(BoxUR, '(A1,3(f8.2,A1))') '(',G4D%pZero(1)+G4D%n(1)*G4D%delta(1)-1,',',G4D%pZero(2)+G4D%n(2)*G4D%delta(2)-1,',',G4D%pZero(3)+G4D%n(3)*G4D%delta(3)-1,')'
+         write(BoxUR, '(A1,3(f8.2,A1))') '(',G4D%pZero(1)+(G4D%n(1)-1)*G4D%delta(1),',',G4D%pZero(2)+(G4D%n(2)-1)*G4D%delta(2),',',G4D%pZero(3)+(G4D%n(3)-1)*G4D%delta(3),')'
          call SetErrStat(ErrID_Fatal, 'Outside the grid bounds: '//trim(PtLoc)//'; box bounds: '//trim(BoxLL)//' to '//trim(BoxUR), ErrStat, ErrMsg, RoutineName)
          return
       end if
