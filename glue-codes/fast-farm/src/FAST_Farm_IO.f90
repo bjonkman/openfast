@@ -837,7 +837,7 @@ SUBROUTINE Farm_ReadPrimaryFile( InputFile, p, WD_InitInp, AWAE_InitInp, OutList
    CALL ReadVar( UnIn, InputFile, p%WAT_BoxFile, 'WAT_BoxFile', "Filepath to the file containing the u-component of the turbulence box (either predefined or user-defined) (quoted string)", ErrStat2, ErrMsg2, UnEc ); if(failed()) return
    call ReadAry( UnIn, InputFile, p%WAT_NxNyNz, 3, "WAT_NxNyNz", "Number of points in the x, y, and z directions of the WAT_BoxFile [used only if WAT=2] (m)", ErrStat2, ErrMsg2, UnEc ); if(failed()) return
    call ReadAry( UnIn, InputFile, p%WAT_DxDyDz, 3, "WAT_DxDyDz", "Distance (in meters) between points in the x, y, and z directions of the WAT_BoxFile [used only if WAT=2] (m)", ErrStat2, ErrMsg2, UnEc ); if(failed()) return
-   call ReadVarWDefault( UnIn, InputFile, p%WAT_ScaleBox, "WAT_ScaleBox",   "Flag to scale the input turbulence box to zero mean and unit standard deviation at every node",  .False., ErrStat2, ErrMsg2, UnEc); if(failed()) return
+   call ReadVarWDefault( UnIn, InputFile, p%WAT_ScaleBox, "WAT_ScaleBox",   "Flag to scale the input turbulence box to zero mean and unit standard deviation at every node",  .True., ErrStat2, ErrMsg2, UnEc); if(failed()) return
    call ReadAryWDefault( UnIn, InputFile, TmpRAry5,  5, "WAT_k_Def",  &
          "Calibrated parameters for the influence of the maximum wake deficit on wake-added turbulence (set of 5 parameters: k_Def , DMin, DMax, FMin, Exp) (-) [>=0.0, >=0.0, >DMin, >=0.0 and <=1.0, >=0.0] or DEFAULT [DEFAULT=[0.6, 0.0, 0.0,  2.0, 1.0 ]]", &
          (/0.6_ReKi, 0.0_ReKi, 0.0_ReKi, 2.0_ReKi, 1.00_ReKi/), ErrStat2, ErrMsg2, UnEc); if(failed()) return
