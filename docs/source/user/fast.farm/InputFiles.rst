@@ -641,7 +641,7 @@ When **WAT=1** the dimensions in each directions are taken as :math:`dx=dy=dz=0.
 
 **WAT_ScaleBox**: [flag]  
 When set to True, the input turbulence box is scaled so that it has zero mean and unit standard deviation at every node.
-DEFAULT is False.
+DEFAULT is True.
 
 **WAT_k_Def** [five floats, comma separated] :math:`[k_\text{def}, k_\text{FMin}, k_\text{DMin}, k_\text{DMax}, e]`
 Tuning parameters for quasi-steady wake deficit effect in the wake-added
