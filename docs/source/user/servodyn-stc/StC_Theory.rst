@@ -473,7 +473,7 @@ Therefore :math:`\ddot{z}_{_{TMD_Z/P_N}}` is governed by the equations
 
 
 
-The forces :math:`F_{X_{_{TMD_Z/O_N}}}` and :math:`F_{Z_{_{TMD_Z/O_N}}}`
+The forces :math:`F_{X_{_{TMD_Z/O_N}}}` and :math:`F_{Y_{_{TMD_Z/O_N}}}`
 are solved noting
 :math:`\ddot{x}_{_{TMD_Z/P_N}} = \ddot{y}_{_{TMD_Z/P_N}} = 0`:
 
@@ -565,11 +565,11 @@ first-order equations of the form
    A(\vec{u}) = \left[
       \begin{array}{cccccc}
       0& 1 &0&0&0&0 \\
-      (\dot{\phi}_{_{P/O_N}}^2 + \dot{\psi}_{_{P/O_N}}^2-\frac{k_x}{m_x}) & - (\frac{c_x}{m_x}) &0&0&0&0 \\
+      (\dot{\phi}_{_{O/O_N}}^2 + \dot{\psi}_{_{O/O_N}}^2-\frac{k_x}{m_x}) & - (\frac{c_x}{m_x}) &0&0&0&0 \\
       0&0&0& 1 &0&0 \\
-      0&0& (\dot{\theta}_{_{P/O_N}}^2 + \dot{\psi}_{_{P/O_N}}^2-\frac{k_y}{m_y}) & - (\frac{c_y}{m_y}) &0&0 \\
+      0&0& (\dot{\theta}_{_{O/O_N}}^2 + \dot{\psi}_{_{O/O_N}}^2-\frac{k_y}{m_y}) & - (\frac{c_y}{m_y}) &0&0 \\
       0&0&0&0&0& 1 \\
-      0&0&0&0& (\dot{\theta}_{_{P/O_N}}^2 + \dot{\phi}_{_{P/O_N}}^2-\frac{k_z}{m_z}) & - (\frac{c_z}{m_z}) \\ 
+      0&0&0&0& (\dot{\theta}_{_{O/O_N}}^2 + \dot{\phi}_{_{O/O_N}}^2-\frac{k_z}{m_z}) & - (\frac{c_z}{m_z}) \\ 
    \end{array} \right]
 
 and
@@ -578,11 +578,11 @@ and
    B(\vec{u}) = \left[
       \begin{array}{l}
          0 \\
-         -\ddot{x}_{_{P/O_N}}+a_{_{G_X/O_N}} + \frac{1}{m_x} ( F_{ext_X} + F_{StopFrc_{X}}) \\
+         -\ddot{x}_{_{O/O_N}}+a_{_{G_X/O_N}} + \frac{1}{m_x} ( F_{ext_X} + F_{StopFrc_{X}}) \\
          0 \\
-         -\ddot{y}_{_{P/O_N}}+a_{_{G_Y/O_N}} + \frac{1}{m_y} (F_{ext_Y}+ F_{StopFrc_{Y}}) \\
+         -\ddot{y}_{_{O/O_N}}+a_{_{G_Y/O_N}} + \frac{1}{m_y} (F_{ext_Y}+ F_{StopFrc_{Y}}) \\
          0 \\
-         -\ddot{z}_{_{P/O_N}}+a_{_{G_Z/O_N}} + \frac{1}{m_z} (F_{ext_Z}+ F_{StopFrc_{Z}} + F_{Z_{PreLoad}})
+         -\ddot{z}_{_{O/O_N}}+a_{_{G_Z/O_N}} + \frac{1}{m_z} (F_{ext_Z}+ F_{StopFrc_{Z}} + F_{Z_{PreLoad}})
       \end{array}
    \right]
    :label: Bu
@@ -615,9 +615,9 @@ The output includes reaction forces corresponding to
    \begin{aligned}
       \vec{F}_{_{P_G}} = R^T_{_{N/G}} & \left[
          \begin{array}{l}
-            k_x {x}_{_{TMD/P_N}} + c_x \dot{x}_{_{TMD/P_N}} - F_{StopFrc_{X}} - F_{ext_x} - F_{X_{_{TMD_Y/O_N}}} - F_{X_{_{TMD_Z/O_N}}} \\ 
-            k_y {y}_{_{TMD/P_N}} + c_y \dot{y}_{_{TMD/P_N}} - F_{StopFrc_{Y}} - F_{ext_y} - F_{Y_{_{TMD_X/O_N}}} - F_{Y_{_{TMD_Z/O_N}}} \\ 
-            k_z {z}_{_{TMD/P_N}} + c_z \dot{z}_{_{TMD/P_N}} - F_{StopFrc_{Z}} - F_{ext_z} - F_{Z_{_{TMD_X/O_N}}} - F_{Z_{_{TMD_Y/O_N}}} - F_{Z_{PreLoad}}
+            k_x {x}_{_{TMD_X/P_N}} + c_x \dot{x}_{_{TMD_X/P_N}} - F_{StopFrc_{X}} - F_{ext_x} - F_{X_{_{TMD_Y/O_N}}} - F_{X_{_{TMD_Z/O_N}}} \\ 
+            k_y {y}_{_{TMD_Y/P_N}} + c_y \dot{y}_{_{TMD_Y/P_N}} - F_{StopFrc_{Y}} - F_{ext_y} - F_{Y_{_{TMD_X/O_N}}} - F_{Y_{_{TMD_Z/O_N}}} \\ 
+            k_z {z}_{_{TMD_Z/P_N}} + c_z \dot{z}_{_{TMD_Z/P_N}} - F_{StopFrc_{Z}} - F_{ext_z} - F_{Z_{_{TMD_X/O_N}}} - F_{Z_{_{TMD_Y/O_N}}} - F_{Z_{PreLoad}}
          \end{array}
       \right]
    \end{aligned}
