@@ -119,8 +119,8 @@ class SeaStateLib(OpenFASTInterfaceType):
         self.SeaSt_C_Init.argtypes = [
             POINTER(c_char),        # intent(in   ) :: InputFile_c(IntfStrLen)
             POINTER(c_char),        # intent(in   ) :: OutRootName_c(IntfStrLen)
-            POINTER(c_int),         # intent(in   ) :: NSteps_c
             POINTER(c_double),      # intent(in   ) :: TimeInterval_c
+            POINTER(c_double),      # intent(in   ) :: TMax_c
             POINTER(c_double),      # intent(in   ) :: WaveTimeShift (positive only)
             POINTER(c_int),         # intent(  out) :: NumChannels_c
             POINTER(c_char),        # intent(  out) :: OutputChannelNames_C
@@ -261,7 +261,7 @@ class SeaStateLib(OpenFASTInterfaceType):
         self,
         primary_ss_file,
         outrootname: str = "./seastate.SeaSt",
-        n_steps: int = 801,
+        time_max: float = 60,
         time_interval: float = 0.125,
     ):
 
@@ -283,8 +283,8 @@ class SeaStateLib(OpenFASTInterfaceType):
         self.SeaSt_C_Init(
             ss_file_c,
             outrootname_c,
-            byref(c_int(n_steps)),
             byref(c_double(time_interval)),
+            byref(c_double(time_max)),
             byref(c_double(self.WaveTimeShift)),
             byref(self._numChannels),
             _channel_names,

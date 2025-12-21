@@ -196,15 +196,15 @@ end subroutine SeaSt_C_PreInit
 
 
 !> Initialize the library (PreInit must be called first)
-subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, WaveTimeShift_C, NumChannels_C, OutputChannelNames_C, OutputChannelUnits_C, ErrStat_C, ErrMsg_C) BIND (C, NAME='SeaSt_C_Init')
+subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, TimeInterval_C, TMax_C, WaveTimeShift_C, NumChannels_C, OutputChannelNames_C, OutputChannelUnits_C, ErrStat_C, ErrMsg_C) BIND (C, NAME='SeaSt_C_Init')
 #ifndef IMPLICIT_DLLEXPORT
 !DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_Init
 !GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_Init
 #endif
    character(kind=c_char),     intent(in   ) :: InputFile_C(IntfStrLen)
    character(kind=c_char),     intent(in   ) :: OutRootName_C(IntfStrLen)
-   integer(c_int),             intent(in   ) :: NSteps_C
    real(c_double),             intent(in   ) :: TimeInterval_C
+   real(c_double),             intent(in   ) :: TMax_c 
    real(c_double),             intent(in   ) :: WaveTimeShift_C
    integer(c_int),             intent(  out) :: NumChannels_C
    character(kind=c_char),     intent(  out) :: OutputChannelNames_C(ChanLen*MaxOutPts+1)
@@ -251,7 +251,7 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, Wa
 
    ! Set other inputs for calling SeaSt_Init
    InitInp%UseInputFile = .TRUE.                            ! don't allow passing of full file contents as a string
-   InitInp%TMax         = (NSteps_C - 1) * TimeInterval_C   ! Using this to match the SeaState driver; could otherwise get TMax directly  !FIXME: type conversion
+   InitInp%TMax         = real(TMax_c, DbKi)
    InitInp%WaveFieldMod = 0_IntKi 
    InitInp%WrWvKinMod   = 0_IntKi 
    InitInp%Linearize    = .false.
@@ -304,7 +304,7 @@ contains
       call WrScr("   --------------------------------------------------------")
       call WrScr("   InputFile_C             -> "//trim(InitInp%InputFile))
       call WrScr("   OutRootName_C           -> "//trim(InitInp%OutRootName))
-      call WrScr("   NSteps_C                -> "//trim(Num2LStr(NSteps_C)))
+      call WrScr("   TMax_C                  -> "//trim(Num2LStr(TMax_C)))
       call WrScr("   TimeInterval_C          -> "//trim(Num2LStr(TimeInterval_C)))
       call WrScr("   WaveTimeShift_C         -> "//trim(Num2LStr(WaveTimeShift_C)))
       call WrScr("-----------------------------------------------------------")

@@ -99,7 +99,7 @@ subroutine ParseInputFile(FileInfo_In, SimSettings, ErrStat, ErrMsg)
    ! Separator/header lines skipped automatically
    ! ----- Simulation control -------------
    call ParseVar( FileInfo_In, CurLine, 'DT',               SimSettings%Sim%DT,                    ErrStat2, ErrMsg2); if(Failed()) return;  ! timestep (unused)
-   call ParseVar( FileInfo_In, CurLine, 'TMax',             SimSettings%Sim%TMax,                  ErrStat2, ErrMsg2); if(Failed()) return;  ! Max sim time (unused)
+   call ParseVar( FileInfo_In, CurLine, 'TMax',             SimSettings%Sim%TMax,                  ErrStat2, ErrMsg2); if(Failed()) return;  ! Max sim time (used only with SeaState wavemod 5)
    call ParseVar( FileInfo_In, CurLine, 'MHK',              SimSettings%Sim%MHK,                   ErrStat2, ErrMsg2); if(Failed()) return;  ! MHK turbine type (switch) {0=Not an MHK turbine; 1=Fixed MHK turbine; 2=Floating MHK turbine}
    call ParseVar( FileInfo_In, CurLine, 'InterpOrd',        SimSettings%Sim%InterpOrd,             ErrStat2, ErrMsg2); if(Failed()) return;  ! Interpolation order [unused]
 !TODO: These are placeholders for later use.  Some of the logic is incomplete which is why this has been commented out.

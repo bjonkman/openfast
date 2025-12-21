@@ -222,7 +222,7 @@ subroutine WaveTank_Init(  &
    call SeaSt_C_Init(            &
       SS_InputFile_C,            &
       OutRootName_C,             &
-      1000_c_int,                & !FIXME: do we need the number of timesteps???
+      SimSettings%Sim%TMax,      &
       SimSettings%Sim%DT,        &
       SimSettings%ModSettings%WaveTimeShift, & 
       SS_NumChannels_C,          &
