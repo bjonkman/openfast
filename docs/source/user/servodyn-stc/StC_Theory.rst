@@ -565,11 +565,11 @@ first-order equations of the form
    A(\vec{u}) = \left[
       \begin{array}{cccccc}
       0& 1 &0&0&0&0 \\
-      (\dot{\phi}_{_{O/O_N}}^2 + \dot{\psi}_{_{O/O_N}}^2-\frac{k_x}{m_x}) & - (\frac{c_x}{m_x}) &0&0&0&0 \\
+      (\dot{\phi}_{_{N/O_N}}^2 + \dot{\psi}_{_{N/O_N}}^2-\frac{k_x}{m_x}) & - (\frac{c_x}{m_x}) &0&0&0&0 \\
       0&0&0& 1 &0&0 \\
-      0&0& (\dot{\theta}_{_{O/O_N}}^2 + \dot{\psi}_{_{O/O_N}}^2-\frac{k_y}{m_y}) & - (\frac{c_y}{m_y}) &0&0 \\
+      0&0& (\dot{\theta}_{_{N/O_N}}^2 + \dot{\psi}_{_{N/O_N}}^2-\frac{k_y}{m_y}) & - (\frac{c_y}{m_y}) &0&0 \\
       0&0&0&0&0& 1 \\
-      0&0&0&0& (\dot{\theta}_{_{O/O_N}}^2 + \dot{\phi}_{_{O/O_N}}^2-\frac{k_z}{m_z}) & - (\frac{c_z}{m_z}) \\ 
+      0&0&0&0& (\dot{\theta}_{_{N/O_N}}^2 + \dot{\phi}_{_{N/O_N}}^2-\frac{k_z}{m_z}) & - (\frac{c_z}{m_z}) \\ 
    \end{array} \right]
 
 and
@@ -578,11 +578,11 @@ and
    B(\vec{u}) = \left[
       \begin{array}{l}
          0 \\
-         -\ddot{x}_{_{O/O_N}}+a_{_{G_X/O_N}} + \frac{1}{m_x} ( F_{ext_X} + F_{StopFrc_{X}}) \\
+         -\ddot{x}_{_{P/O_N}}+a_{_{G_X/O_N}} + \frac{1}{m_x} ( F_{ext_X} + F_{StopFrc_{X}}) \\
          0 \\
-         -\ddot{y}_{_{O/O_N}}+a_{_{G_Y/O_N}} + \frac{1}{m_y} (F_{ext_Y}+ F_{StopFrc_{Y}}) \\
+         -\ddot{y}_{_{P/O_N}}+a_{_{G_Y/O_N}} + \frac{1}{m_y} (F_{ext_Y}+ F_{StopFrc_{Y}}) \\
          0 \\
-         -\ddot{z}_{_{O/O_N}}+a_{_{G_Z/O_N}} + \frac{1}{m_z} (F_{ext_Z}+ F_{StopFrc_{Z}} + F_{Z_{PreLoad}})
+         -\ddot{z}_{_{P/O_N}}+a_{_{G_Z/O_N}} + \frac{1}{m_z} (F_{ext_Z}+ F_{StopFrc_{Z}} + F_{Z_{PreLoad}})
       \end{array}
    \right]
    :label: Bu
