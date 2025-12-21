@@ -173,6 +173,10 @@ SUBROUTINE SeaSt_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, Init
       
       ! Store the WaveTimeShift
       p%WaveField%WaveTimeShift = InitInp%WaveTimeShift
+      if (p%WaveField%WaveTimeShift < 0.0_DbKi) then
+         call SetErrStat(ErrID_Fatal, 'WaveTimeShift from driver code cannot be negative', ErrStat, ErrMsg, RoutineName)
+         return
+      endif
 
       ! Copy Waves initialization output into the initialization input type for the WAMIT module
       p%WaveDT       = InputFileData%Waves%WaveDT
