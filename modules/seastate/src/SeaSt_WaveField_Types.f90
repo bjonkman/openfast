@@ -49,14 +49,6 @@ IMPLICIT NONE
     INTEGER(IntKi), PUBLIC, PARAMETER  :: ConstWaveMod_None = 0      ! ConstWaveMod = 0 [Constrained wave model: No constrained waves] [-]
     INTEGER(IntKi), PUBLIC, PARAMETER  :: ConstWaveMod_CrestElev = 1      ! ConstWaveMod = 1 [Constrained wave model: Constrained wave with specified crest elevation, alpha] [-]
     INTEGER(IntKi), PUBLIC, PARAMETER  :: ConstWaveMod_Peak2Trough = 2      ! ConstWaveMod = 2 [Constrained wave model: Constrained wave with guaranteed peak-to-trough crest height, HCrest] [-]
-! =========  SeaSt_WaveField_ParameterType  =======
-  TYPE, PUBLIC :: SeaSt_WaveField_ParameterType
-    INTEGER(IntKi) , DIMENSION(1:4)  :: n = 0_IntKi      !< number of evenly-spaced grid points in the t, x, y, and z directions [-]
-    REAL(ReKi) , DIMENSION(1:4)  :: delta = 0.0_ReKi      !< size between 2 consecutive grid points in each grid direction [s,m,m,m]
-    REAL(ReKi) , DIMENSION(1:4)  :: pZero = 0.0_ReKi      !< fixed position of the XYZ grid (i.e., XYZ coordinates of m%V(:,1,1,1,:)) [m]
-    REAL(ReKi)  :: Z_Depth = 0.0_ReKi      !< grid depth [m]
-  END TYPE SeaSt_WaveField_ParameterType
-! =======================
 ! =========  SeaSt_WaveField_MiscVarType  =======
   TYPE, PUBLIC :: SeaSt_WaveField_MiscVarType
     REAL(SiKi) , DIMENSION(1:8)  :: N3D = 0.0_R4Ki      !< this is the weighting function for 3-d velocity field [-]
@@ -112,53 +104,6 @@ IMPLICIT NONE
   END TYPE SeaSt_WaveFieldType
 ! =======================
 CONTAINS
-
-subroutine SeaSt_WaveField_CopyParam(SrcParamData, DstParamData, CtrlCode, ErrStat, ErrMsg)
-   type(SeaSt_WaveField_ParameterType), intent(in) :: SrcParamData
-   type(SeaSt_WaveField_ParameterType), intent(inout) :: DstParamData
-   integer(IntKi),  intent(in   ) :: CtrlCode
-   integer(IntKi),  intent(  out) :: ErrStat
-   character(*),    intent(  out) :: ErrMsg
-   character(*), parameter        :: RoutineName = 'SeaSt_WaveField_CopyParam'
-   ErrStat = ErrID_None
-   ErrMsg  = ''
-   DstParamData%n = SrcParamData%n
-   DstParamData%delta = SrcParamData%delta
-   DstParamData%pZero = SrcParamData%pZero
-   DstParamData%Z_Depth = SrcParamData%Z_Depth
-end subroutine
-
-subroutine SeaSt_WaveField_DestroyParam(ParamData, ErrStat, ErrMsg)
-   type(SeaSt_WaveField_ParameterType), intent(inout) :: ParamData
-   integer(IntKi),  intent(  out) :: ErrStat
-   character(*),    intent(  out) :: ErrMsg
-   character(*), parameter        :: RoutineName = 'SeaSt_WaveField_DestroyParam'
-   ErrStat = ErrID_None
-   ErrMsg  = ''
-end subroutine
-
-subroutine SeaSt_WaveField_PackParam(RF, Indata)
-   type(RegFile), intent(inout) :: RF
-   type(SeaSt_WaveField_ParameterType), intent(in) :: InData
-   character(*), parameter         :: RoutineName = 'SeaSt_WaveField_PackParam'
-   if (RF%ErrStat >= AbortErrLev) return
-   call RegPack(RF, InData%n)
-   call RegPack(RF, InData%delta)
-   call RegPack(RF, InData%pZero)
-   call RegPack(RF, InData%Z_Depth)
-   if (RegCheckErr(RF, RoutineName)) return
-end subroutine
-
-subroutine SeaSt_WaveField_UnPackParam(RF, OutData)
-   type(RegFile), intent(inout)    :: RF
-   type(SeaSt_WaveField_ParameterType), intent(inout) :: OutData
-   character(*), parameter            :: RoutineName = 'SeaSt_WaveField_UnPackParam'
-   if (RF%ErrStat /= ErrID_None) return
-   call RegUnpack(RF, OutData%n); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpack(RF, OutData%delta); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpack(RF, OutData%pZero); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpack(RF, OutData%Z_Depth); if (RegCheckErr(RF, RoutineName)) return
-end subroutine
 
 subroutine SeaSt_WaveField_CopyMisc(SrcMiscData, DstMiscData, CtrlCode, ErrStat, ErrMsg)
    type(SeaSt_WaveField_MiscVarType), intent(in) :: SrcMiscData
