@@ -645,7 +645,7 @@ subroutine SeaSt_C_GetSurfNorm(Time_C, Pos_C, NormVec_C, ErrStat_C,ErrMsg_C) BIN
    character(kind=c_char),    intent(  out) :: ErrMsg_C(ErrMsgLen_C)
 
    real(DbKi)                 :: Time
-   real(ReKi)                 :: Pos(2), r
+   real(ReKi)                 :: Pos(2)
    real(ReKi)                 :: NormVec(3)
    integer                    :: ErrStat
    character(ErrMsgLen)       :: ErrMsg
@@ -658,8 +658,7 @@ subroutine SeaSt_C_GetSurfNorm(Time_C, Pos_C, NormVec_C, ErrStat_C,ErrMsg_C) BIN
    Pos = real(Pos_C(1:2), ReKi)
 
    ! get the normal vector at the point (set to vertical if outside region)
-   r = 0.0_ReKi   ! distance for central differencing - use default in code
-   call WaveField_GetNodeWaveNormal( p%WaveField, m%WaveField_m, Time, pos, r, NormVec, ErrStat, ErrMsg )
+   call WaveField_GetNodeWaveNormal( p%WaveField, m%WaveField_m, Time, pos, NormVec, ErrStat, ErrMsg )
 
    ! Store resulting normal vector as C type
    NormVec_C = real(NormVec,c_float)

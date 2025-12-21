@@ -147,7 +147,7 @@ IMPLICIT NONE
     INTEGER(IntKi)  :: Decimate = 0_IntKi      !< The output decimation counter [-]
     REAL(DbKi)  :: LastOutTime = 0.0_R8Ki      !< Last time step which was written to the output file (sec) [-]
     INTEGER(IntKi)  :: LastIndWave = 0_IntKi      !< The last index used in the wave kinematics arrays, used to optimize interpolation [-]
-    TYPE(SeaSt_WaveField_MiscVarType)  :: WaveField_m      !< misc var information from the SeaState Interpolation module [-]
+    TYPE(GridInterp_MiscVarType)  :: WaveField_m      !< misc var information from the Grid Interpolation module [-]
   END TYPE SeaSt_MiscVarType
 ! =======================
 ! =========  Jac_u_idxStarts  =======
@@ -990,7 +990,7 @@ subroutine SeaSt_CopyMisc(SrcMiscData, DstMiscData, CtrlCode, ErrStat, ErrMsg)
    DstMiscData%Decimate = SrcMiscData%Decimate
    DstMiscData%LastOutTime = SrcMiscData%LastOutTime
    DstMiscData%LastIndWave = SrcMiscData%LastIndWave
-   call SeaSt_WaveField_CopyMisc(SrcMiscData%WaveField_m, DstMiscData%WaveField_m, CtrlCode, ErrStat2, ErrMsg2)
+   call GridInterp_CopyMisc(SrcMiscData%WaveField_m, DstMiscData%WaveField_m, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
 end subroutine
@@ -1004,7 +1004,7 @@ subroutine SeaSt_DestroyMisc(MiscData, ErrStat, ErrMsg)
    character(*), parameter        :: RoutineName = 'SeaSt_DestroyMisc'
    ErrStat = ErrID_None
    ErrMsg  = ''
-   call SeaSt_WaveField_DestroyMisc(MiscData%WaveField_m, ErrStat2, ErrMsg2)
+   call GridInterp_DestroyMisc(MiscData%WaveField_m, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
 end subroutine
 
@@ -1016,7 +1016,7 @@ subroutine SeaSt_PackMisc(RF, Indata)
    call RegPack(RF, InData%Decimate)
    call RegPack(RF, InData%LastOutTime)
    call RegPack(RF, InData%LastIndWave)
-   call SeaSt_WaveField_PackMisc(RF, InData%WaveField_m) 
+   call GridInterp_PackMisc(RF, InData%WaveField_m) 
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -1028,7 +1028,7 @@ subroutine SeaSt_UnPackMisc(RF, OutData)
    call RegUnpack(RF, OutData%Decimate); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%LastOutTime); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%LastIndWave); if (RegCheckErr(RF, RoutineName)) return
-   call SeaSt_WaveField_UnpackMisc(RF, OutData%WaveField_m) ! WaveField_m 
+   call GridInterp_UnpackMisc(RF, OutData%WaveField_m) ! WaveField_m 
 end subroutine
 
 subroutine SeaSt_CopyJac_u_idxStarts(SrcJac_u_idxStartsData, DstJac_u_idxStartsData, CtrlCode, ErrStat, ErrMsg)

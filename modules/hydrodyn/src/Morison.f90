@@ -1400,21 +1400,21 @@ SUBROUTINE SetDepthBasedCoefs_Cyl( z, tMG, NCoefDpth, CoefDpths, Cd, Ca, Cp, AxC
       s = ( CoefDpths(indx1)%Dpth - z ) / dd
    END IF
    if ( tMG > 0.0_ReKi ) then    
-      Cd     = CoefDpths(indx1)%DpthCdMG*(1-s)   + CoefDpths(indx2)%DpthCdMG*s
-      Ca     = CoefDpths(indx1)%DpthCaMG*(1-s)   + CoefDpths(indx2)%DpthCaMG*s
-      Cp     = CoefDpths(indx1)%DpthCpMG*(1-s)   + CoefDpths(indx2)%DpthCpMG*s
-      AxCd   = CoefDpths(indx1)%DpthAxCdMG*(1-s) + CoefDpths(indx2)%DpthAxCdMG*s
-      AxCa   = CoefDpths(indx1)%DpthAxCaMG*(1-s) + CoefDpths(indx2)%DpthAxCaMG*s
-      AxCp   = CoefDpths(indx1)%DpthAxCpMG*(1-s) + CoefDpths(indx2)%DpthAxCpMG*s
-      Cb     = CoefDpths(indx1)%DpthCbMG*(1-s)   + CoefDpths(indx2)%DpthCbMG*s
+      Cd     = CoefDpths(indx1)%DpthCdMG   *(1.0-s) + CoefDpths(indx2)%DpthCdMG   *s
+      Ca     = CoefDpths(indx1)%DpthCaMG   *(1.0-s) + CoefDpths(indx2)%DpthCaMG   *s
+      Cp     = CoefDpths(indx1)%DpthCpMG   *(1.0-s) + CoefDpths(indx2)%DpthCpMG   *s
+      AxCd   = CoefDpths(indx1)%DpthAxCdMG *(1.0-s) + CoefDpths(indx2)%DpthAxCdMG *s
+      AxCa   = CoefDpths(indx1)%DpthAxCaMG *(1.0-s) + CoefDpths(indx2)%DpthAxCaMG *s
+      AxCp   = CoefDpths(indx1)%DpthAxCpMG *(1.0-s) + CoefDpths(indx2)%DpthAxCpMG *s
+      Cb     = CoefDpths(indx1)%DpthCbMG   *(1.0-s) + CoefDpths(indx2)%DpthCbMG   *s
    else
-      Cd     = CoefDpths(indx1)%DpthCd*(1-s)     + CoefDpths(indx2)%DpthCd*s
-      Ca     = CoefDpths(indx1)%DpthCa*(1-s)     + CoefDpths(indx2)%DpthCa*s
-      Cp     = CoefDpths(indx1)%DpthCp*(1-s)     + CoefDpths(indx2)%DpthCp*s
-      AxCd   = CoefDpths(indx1)%DpthAxCd*(1-s)   + CoefDpths(indx2)%DpthAxCd*s
-      AxCa   = CoefDpths(indx1)%DpthAxCa*(1-s)   + CoefDpths(indx2)%DpthAxCa*s
-      AxCp   = CoefDpths(indx1)%DpthAxCp*(1-s)   + CoefDpths(indx2)%DpthAxCp*s
-      Cb     = CoefDpths(indx1)%DpthCb*(1-s)     + CoefDpths(indx2)%DpthCb*s
+      Cd     = CoefDpths(indx1)%DpthCd     *(1.0-s) + CoefDpths(indx2)%DpthCd     *s
+      Ca     = CoefDpths(indx1)%DpthCa     *(1.0-s) + CoefDpths(indx2)%DpthCa     *s
+      Cp     = CoefDpths(indx1)%DpthCp     *(1.0-s) + CoefDpths(indx2)%DpthCp     *s
+      AxCd   = CoefDpths(indx1)%DpthAxCd   *(1.0-s) + CoefDpths(indx2)%DpthAxCd   *s
+      AxCa   = CoefDpths(indx1)%DpthAxCa   *(1.0-s) + CoefDpths(indx2)%DpthAxCa   *s
+      AxCp   = CoefDpths(indx1)%DpthAxCp   *(1.0-s) + CoefDpths(indx2)%DpthAxCp   *s
+      Cb     = CoefDpths(indx1)%DpthCb     *(1.0-s) + CoefDpths(indx2)%DpthCb     *s
    end if
    
 
@@ -1474,25 +1474,25 @@ SUBROUTINE SetDepthBasedCoefs_Rec( z, tMG, NCoefDpth, CoefDpths, CdA, CdB, CaA, 
       s = ( CoefDpths(indx1)%Dpth - z ) / dd
    END IF
    if ( tMG > 0.0_ReKi ) then    
-      CdA    = CoefDpths(indx1)%DpthCdAMG*(1-s)  + CoefDpths(indx2)%DpthCdAMG*s
-      CdB    = CoefDpths(indx1)%DpthCdBMG*(1-s)  + CoefDpths(indx2)%DpthCdBMG*s
-      CaA    = CoefDpths(indx1)%DpthCaAMG*(1-s)  + CoefDpths(indx2)%DpthCaAMG*s
-      CaB    = CoefDpths(indx1)%DpthCaBMG*(1-s)  + CoefDpths(indx2)%DpthCaBMG*s
-      Cp     = CoefDpths(indx1)%DpthCpMG*(1-s)   + CoefDpths(indx2)%DpthCpMG*s
-      AxCd   = CoefDpths(indx1)%DpthAxCdMG*(1-s) + CoefDpths(indx2)%DpthAxCdMG*s
-      AxCa   = CoefDpths(indx1)%DpthAxCaMG*(1-s) + CoefDpths(indx2)%DpthAxCaMG*s
-      AxCp   = CoefDpths(indx1)%DpthAxCpMG*(1-s) + CoefDpths(indx2)%DpthAxCpMG*s
-      Cb     = CoefDpths(indx1)%DpthCbMG*(1-s)   + CoefDpths(indx2)%DpthCbMG*s
+      CdA    = CoefDpths(indx1)%DpthCdAMG  *(1.0-s) + CoefDpths(indx2)%DpthCdAMG  *s
+      CdB    = CoefDpths(indx1)%DpthCdBMG  *(1.0-s) + CoefDpths(indx2)%DpthCdBMG  *s
+      CaA    = CoefDpths(indx1)%DpthCaAMG  *(1.0-s) + CoefDpths(indx2)%DpthCaAMG  *s
+      CaB    = CoefDpths(indx1)%DpthCaBMG  *(1.0-s) + CoefDpths(indx2)%DpthCaBMG  *s
+      Cp     = CoefDpths(indx1)%DpthCpMG   *(1.0-s) + CoefDpths(indx2)%DpthCpMG   *s
+      AxCd   = CoefDpths(indx1)%DpthAxCdMG *(1.0-s) + CoefDpths(indx2)%DpthAxCdMG *s
+      AxCa   = CoefDpths(indx1)%DpthAxCaMG *(1.0-s) + CoefDpths(indx2)%DpthAxCaMG *s
+      AxCp   = CoefDpths(indx1)%DpthAxCpMG *(1.0-s) + CoefDpths(indx2)%DpthAxCpMG *s
+      Cb     = CoefDpths(indx1)%DpthCbMG   *(1.0-s) + CoefDpths(indx2)%DpthCbMG   *s
    else
-      CdA    = CoefDpths(indx1)%DpthCdA*(1-s)    + CoefDpths(indx2)%DpthCdA*s
-      CdB    = CoefDpths(indx1)%DpthCdB*(1-s)    + CoefDpths(indx2)%DpthCdB*s
-      CaA    = CoefDpths(indx1)%DpthCaA*(1-s)    + CoefDpths(indx2)%DpthCaA*s
-      CaB    = CoefDpths(indx1)%DpthCaB*(1-s)    + CoefDpths(indx2)%DpthCaB*s
-      Cp     = CoefDpths(indx1)%DpthCp*(1-s)     + CoefDpths(indx2)%DpthCp*s
-      AxCd   = CoefDpths(indx1)%DpthAxCd*(1-s)   + CoefDpths(indx2)%DpthAxCd*s
-      AxCa   = CoefDpths(indx1)%DpthAxCa*(1-s)   + CoefDpths(indx2)%DpthAxCa*s
-      AxCp   = CoefDpths(indx1)%DpthAxCp*(1-s)   + CoefDpths(indx2)%DpthAxCp*s
-      Cb     = CoefDpths(indx1)%DpthCb*(1-s)     + CoefDpths(indx2)%DpthCb*s
+      CdA    = CoefDpths(indx1)%DpthCdA    *(1.0-s) + CoefDpths(indx2)%DpthCdA    *s
+      CdB    = CoefDpths(indx1)%DpthCdB    *(1.0-s) + CoefDpths(indx2)%DpthCdB    *s
+      CaA    = CoefDpths(indx1)%DpthCaA    *(1.0-s) + CoefDpths(indx2)%DpthCaA    *s
+      CaB    = CoefDpths(indx1)%DpthCaB    *(1.0-s) + CoefDpths(indx2)%DpthCaB    *s
+      Cp     = CoefDpths(indx1)%DpthCp     *(1.0-s) + CoefDpths(indx2)%DpthCp     *s
+      AxCd   = CoefDpths(indx1)%DpthAxCd   *(1.0-s) + CoefDpths(indx2)%DpthAxCd   *s
+      AxCa   = CoefDpths(indx1)%DpthAxCa   *(1.0-s) + CoefDpths(indx2)%DpthAxCa   *s
+      AxCp   = CoefDpths(indx1)%DpthAxCp   *(1.0-s) + CoefDpths(indx2)%DpthAxCp   *s
+      Cb     = CoefDpths(indx1)%DpthCb     *(1.0-s) + CoefDpths(indx2)%DpthCb     *s
    end if
    
 
@@ -1567,22 +1567,23 @@ SUBROUTINE SetExternalHydroCoefs_Cyl(  MSL2SWL, MCoefMod, MmbrCoefIDIndx, SimplC
        do i = 1, member%NElements + 1
          ! Pull member  end-node data from the tables and then linearly interpolate it onto the interior member nodes    
          s = (real(i,ReKi)-1.0) / real(member%NElements,ReKi)
+         if (member%flipped) s = 1.0-s
          if ( member%tMG(i) > 0.0_ReKi ) then
-            member%Cd    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCdMG1  *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberCdMG2  *s
-            member%Ca    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCaMG1  *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberCaMG2  *s
-            member%Cp    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCpMG1  *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberCpMG2  *s
-            member%Cb    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCbMG1  *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberCbMG2  *s
-            member%AxCd  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCaMG1*(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCdMG2*s
-            member%AxCa  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCaMG1*(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCaMG2*s
-            member%AxCp  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCpMG1*(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCpMG2*s
+            member%Cd    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCdMG1  *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberCdMG2  *s
+            member%Ca    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCaMG1  *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberCaMG2  *s
+            member%Cp    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCpMG1  *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberCpMG2  *s
+            member%Cb    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCbMG1  *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberCbMG2  *s
+            member%AxCd  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCdMG1*(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCdMG2*s
+            member%AxCa  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCaMG1*(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCaMG2*s
+            member%AxCp  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCpMG1*(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCpMG2*s
          else
-            member%Cd    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCd1    *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberCd2    *s
-            member%Ca    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCa1    *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberCa2    *s
-            member%Cp    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCp1    *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberCp2    *s
-            member%Cb    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCb1    *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberCb2    *s
-            member%AxCd  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCd1  *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCd2  *s
-            member%AxCa  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCa1  *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCa2  *s
-            member%AxCp  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCp1  *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCp2  *s
+            member%Cd    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCd1    *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberCd2    *s
+            member%Ca    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCa1    *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberCa2    *s
+            member%Cp    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCp1    *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberCp2    *s
+            member%Cb    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCb1    *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberCb2    *s
+            member%AxCd  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCd1  *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCd2  *s
+            member%AxCa  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCa1  *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCa2  *s
+            member%AxCp  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCp1  *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCp2  *s
          end if
       end do
       member%propMCF = CoefMembers(MmbrCoefIDIndx)%MemberMCF
@@ -1665,26 +1666,27 @@ SUBROUTINE SetExternalHydroCoefs_Rec(  MSL2SWL, MCoefMod, MmbrCoefIDIndx, SimplC
        do i = 1, member%NElements + 1
          ! Pull member  end-node data from the tables and then linearly interpolate it onto the interior member nodes    
          s = (real(i,ReKi)-1.0) / real(member%NElements,ReKi)
+         if (member%flipped) s = 1.0-s
          if ( member%tMG(i) > 0.0_ReKi ) then
-            member%CdA   (i) = CoefMembers(MmbrCoefIDIndx)%MemberCdAMG1 *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberCdAMG2 *s
-            member%CdB   (i) = CoefMembers(MmbrCoefIDIndx)%MemberCdBMG1 *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberCdBMG2 *s
-            member%CaA   (i) = CoefMembers(MmbrCoefIDIndx)%MemberCaAMG1 *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberCaAMG2 *s
-            member%CaB   (i) = CoefMembers(MmbrCoefIDIndx)%MemberCaBMG1 *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberCaBMG2 *s
-            member%Cp    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCpMG1  *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberCpMG2  *s
-            member%Cb    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCbMG1  *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberCbMG2  *s
-            member%AxCd  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCaMG1*(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCdMG2*s
-            member%AxCa  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCaMG1*(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCaMG2*s
-            member%AxCp  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCpMG1*(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCpMG2*s
+            member%CdA   (i) = CoefMembers(MmbrCoefIDIndx)%MemberCdAMG1 *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberCdAMG2 *s
+            member%CdB   (i) = CoefMembers(MmbrCoefIDIndx)%MemberCdBMG1 *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberCdBMG2 *s
+            member%CaA   (i) = CoefMembers(MmbrCoefIDIndx)%MemberCaAMG1 *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberCaAMG2 *s
+            member%CaB   (i) = CoefMembers(MmbrCoefIDIndx)%MemberCaBMG1 *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberCaBMG2 *s
+            member%Cp    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCpMG1  *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberCpMG2  *s
+            member%Cb    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCbMG1  *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberCbMG2  *s
+            member%AxCd  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCdMG1*(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCdMG2*s
+            member%AxCa  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCaMG1*(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCaMG2*s
+            member%AxCp  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCpMG1*(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCpMG2*s
          else
-            member%CdA   (i) = CoefMembers(MmbrCoefIDIndx)%MemberCdA1   *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberCdA2   *s
-            member%CdB   (i) = CoefMembers(MmbrCoefIDIndx)%MemberCdB1   *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberCdB2   *s
-            member%CaA   (i) = CoefMembers(MmbrCoefIDIndx)%MemberCaA1   *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberCaA2   *s
-            member%CaB   (i) = CoefMembers(MmbrCoefIDIndx)%MemberCaB1   *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberCaB2   *s
-            member%Cp    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCp1    *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberCp2    *s
-            member%Cb    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCb1    *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberCb2    *s
-            member%AxCd  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCd1  *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCd2  *s
-            member%AxCa  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCa1  *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCa2  *s
-            member%AxCp  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCp1  *(1-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCp2  *s
+            member%CdA   (i) = CoefMembers(MmbrCoefIDIndx)%MemberCdA1   *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberCdA2   *s
+            member%CdB   (i) = CoefMembers(MmbrCoefIDIndx)%MemberCdB1   *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberCdB2   *s
+            member%CaA   (i) = CoefMembers(MmbrCoefIDIndx)%MemberCaA1   *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberCaA2   *s
+            member%CaB   (i) = CoefMembers(MmbrCoefIDIndx)%MemberCaB1   *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberCaB2   *s
+            member%Cp    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCp1    *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberCp2    *s
+            member%Cb    (i) = CoefMembers(MmbrCoefIDIndx)%MemberCb1    *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberCb2    *s
+            member%AxCd  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCd1  *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCd2  *s
+            member%AxCa  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCa1  *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCa2  *s
+            member%AxCp  (i) = CoefMembers(MmbrCoefIDIndx)%MemberAxCp1  *(1.0-s) + CoefMembers(MmbrCoefIDIndx)%MemberAxCp2  *s
          end if
       end do
       member%propMCF = CoefMembers(MmbrCoefIDIndx)%MemberMCF
@@ -3480,7 +3482,7 @@ SUBROUTINE Morison_CalcOutput( Time, u, p, x, xd, z, OtherState, y, m, errStat, 
    REAL(ReKi)               :: sinBeta, sinBeta1, sinBeta2
    REAL(ReKi)               :: cosBeta, cosBeta1, cosBeta2
    REAL(ReKi)               :: CMatrix(3,3), CMatrix1(3,3), CMatrix2(3,3), CTrans(3,3) ! Direction cosine matrix for element, and its transpose
-   REAL(ReKi)               :: l, z1, z2, zMid, r1, r2, r1b, r2b, r1In, r2In, rMidIn, rn, rn1, rn2, z_hi, zFillGroup
+   REAL(ReKi)               :: l, z1, z2, zMid, r1, r2, r1b, r2b, r1In, r2In, rMidIn, z_hi, zFillGroup
    REAL(ReKi)               :: Sa1, Sa2, Sa1b, Sa2b, SaMidb, Sa1In, Sa2In, SaMidIn
    REAL(ReKi)               :: Sb1, Sb2, Sb1b, Sb2b, SbMidb, Sb1In, Sb2In, SbMidIn
    REAL(ReKi)               :: dRdl_mg,   dSadl_mg,   dSbdl_mg    ! shorthand for taper including marine growth of element i
@@ -3777,16 +3779,10 @@ SUBROUTINE Morison_CalcOutput( Time, u, p, x, xd, z, OtherState, y, m, errStat, 
             ELSE IF (mem%MHstLMod == 2) THEN ! Alternative hydrostatic load calculation
                ! Get free surface elevation and normal at the element midpoint (both assumed constant over the element)
                posMid = 0.5 * (pos1+pos2)
-               ! rn is only used to estimate free surface normal numerically
-               IF (mem%MSecGeom == MSecGeom_Cyl) THEN
-                  rn  = 0.5 * (r1b +r2b )
-               ELSE IF (mem%MSecGeom == MSecGeom_Rec) THEN
-                  rn  = MAX( 0.5*(Sa1b+Sa2b), 0.5*(Sb1b+Sb2b) )
-               END IF
                IF (p%WaveField%WaveStMod > 0) THEN
                   CALL GetTotalWaveElev( Time, posMid, ZetaMid, ErrStat2, ErrMsg2 )
                     CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
-                  CALL GetFreeSurfaceNormal( Time, posMid, rn, n_hat, ErrStat2, ErrMsg2 )
+                  CALL GetFreeSurfaceNormal( Time, posMid, n_hat, ErrStat2, ErrMsg2 )
                     CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
                   FSPt = (/posMid(1),posMid(2),ZetaMid/) ! Reference point on the free surface
                ELSE
@@ -4561,22 +4557,18 @@ SUBROUTINE Morison_CalcOutput( Time, u, p, x, xd, z, OtherState, y, m, errStat, 
          if (mem%MSecGeom==MSecGeom_Cyl) then
             r1      = mem%RMGB(  1)
             r2      = mem%RMGB(N+1)
-            rn1     = r1
-            rn2     = r2
          else if (mem%MSecGeom==MSecGeom_Rec) then
             Sa1     = mem%SaMGB(  1)
             Sa2     = mem%SaMGB(N+1)
             Sb1     = mem%SbMGB(  1)
             Sb2     = mem%SbMGB(N+1)
-            rn1     = MAX(Sa1,Sb1)
-            rn2     = MAX(Sa2,Sb2)
          end if
          if (mem%i_floor == 0) then  ! both ends above or at seabed
             ! Compute loads on the end plate of node 1
             IF (p%WaveField%WaveStMod > 0) THEN
                CALL GetTotalWaveElev( Time, pos1, Zeta1, ErrStat2, ErrMsg2 )
                  CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
-               CALL GetFreeSurfaceNormal( Time, pos1, rn1, n_hat, ErrStat2, ErrMsg2 )
+               CALL GetFreeSurfaceNormal( Time, pos1, n_hat, ErrStat2, ErrMsg2 )
                  CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
                FSPt = (/pos1(1),pos1(2),Zeta1/) ! Reference point on the free surface
             ELSE
@@ -4604,7 +4596,7 @@ SUBROUTINE Morison_CalcOutput( Time, u, p, x, xd, z, OtherState, y, m, errStat, 
             IF (p%WaveField%WaveStMod > 0) THEN
                CALL GetTotalWaveElev( Time, pos2, Zeta2, ErrStat2, ErrMsg2 )
                  CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
-               CALL GetFreeSurfaceNormal( Time, pos2, rn2, n_hat, ErrStat2, ErrMsg2 )
+               CALL GetFreeSurfaceNormal( Time, pos2, n_hat, ErrStat2, ErrMsg2 )
                  CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
                FSPt = (/pos2(1),pos2(2),Zeta2/) ! Reference point on the free surface
             ELSE
@@ -4633,7 +4625,7 @@ SUBROUTINE Morison_CalcOutput( Time, u, p, x, xd, z, OtherState, y, m, errStat, 
             IF (p%WaveField%WaveStMod > 0) THEN
                CALL GetTotalWaveElev( Time, pos2, Zeta2, ErrStat2, ErrMsg2 )
                  CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
-               CALL GetFreeSurfaceNormal( Time, pos2, rn2, n_hat, ErrStat2, ErrMsg2 )
+               CALL GetFreeSurfaceNormal( Time, pos2, n_hat, ErrStat2, ErrMsg2 )
                  CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
                FSPt = (/pos2(1),pos2(2),Zeta2/) ! Reference point on the free surface
             ELSE
@@ -4767,10 +4759,9 @@ SUBROUTINE Morison_CalcOutput( Time, u, p, x, xd, z, OtherState, y, m, errStat, 
 
    END SUBROUTINE GetTotalWaveElev
 
-   SUBROUTINE GetFreeSurfaceNormal( Time, pos, r, n, ErrStat, ErrMsg)
+   SUBROUTINE GetFreeSurfaceNormal( Time, pos, n, ErrStat, ErrMsg)
       REAL(DbKi),      INTENT( In    ) :: Time
       REAL(ReKi),      INTENT( In    ) :: pos(*)  ! Position at which free-surface normal is to be calculated. Third entry ignored if present.
-      REAL(ReKi),      INTENT( In    ) :: r       ! Distance for central differencing
       REAL(ReKi),      INTENT(   OUT ) :: n(3)    ! Free-surface normal vector
       INTEGER(IntKi),  INTENT(   OUT ) :: ErrStat ! Error status of the operation
       CHARACTER(*),    INTENT(   OUT ) :: ErrMsg  ! Error message if errStat /= ErrID_None
@@ -4780,7 +4771,7 @@ SUBROUTINE Morison_CalcOutput( Time, u, p, x, xd, z, OtherState, y, m, errStat, 
       ErrStat   = ErrID_None
       ErrMsg    = ""
 
-      CALL WaveField_GetNodeWaveNormal( p%WaveField, m%WaveField_m, Time, pos, r, n, ErrStat2, ErrMsg2 )
+      CALL WaveField_GetNodeWaveNormal( p%WaveField, m%WaveField_m, Time, pos, n, ErrStat2, ErrMsg2 )
         CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
 
    END SUBROUTINE GetFreeSurfaceNormal
@@ -5714,7 +5705,7 @@ SUBROUTINE Morison_CalcOutput( Time, u, p, x, xd, z, OtherState, y, m, errStat, 
          rh       = r1 + h0*dRdl
          ! Estimate the free-surface normal at the free-surface intersection, n_hat
          IF ( p%WaveField%WaveStMod > 0_IntKi ) THEN ! If wave stretching is enabled, compute free surface normal
-            CALL GetFreeSurfaceNormal( Time, FSInt, rh, n_hat, ErrStat2, ErrMsg2 )
+            CALL GetFreeSurfaceNormal( Time, FSInt, n_hat, ErrStat2, ErrMsg2 )
               CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
          ELSE ! Without wave stretching, use the normal of the SWL
             n_hat = (/0.0_ReKi,0.0_ReKi,1.0_ReKi/)
