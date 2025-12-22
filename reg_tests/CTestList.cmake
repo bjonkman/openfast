@@ -356,6 +356,7 @@ of_regression("StC_test_OC4Semi"                       "openfast;servodyn;hydrod
 of_regression("MHK_RM1_Fixed"                          "openfast;elastodyn;aerodyn;mhk;offshore")
 of_regression("MHK_RM1_Floating"                       "openfast;elastodyn;aerodyn;hydrodyn;moordyn;mhk;offshore")
 of_regression("MHK_RM1_Floating_wNacDrag"              "openfast;elastodyn;aerodyn;hydrodyn;moordyn;mhk;offshore")
+of_regression("MHK_RM1_Floating_Tank-scaled"           "openfast;elastodyn;aerodyn;hydrodyn;moordyn;mhk;offshore")
 of_regression("Tailfin_FreeYaw1DOF_PolarBased"         "openfast;elastodyn;aerodyn")
 of_regression("Tailfin_FreeYaw1DOF_Unsteady"           "openfast;elastodyn;aerodyn")
 of_regression("5MW_Land_DLL_WTurb_ADsk"                "openfast;elastodyn;aerodisk")
