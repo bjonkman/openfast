@@ -400,16 +400,18 @@ class SeaStateLib(OpenFASTInterfaceType):
         pos[2] = position[2]
         vel = np.zeros( 3, dtype=c_float )
         acc = np.zeros( 3, dtype=c_float )
+        nodeInWater_c = c_int(0)
         self.SeaSt_C_GetFluidVelAcc(
             byref(c_double(time)),                      # IN -> current simulation time
             pos.ctypes.data_as(POINTER(c_float)),       # IN -> position (3 vector)
             vel.ctypes.data_as(POINTER(c_float)),       # OUT <- velocity (3 vector)
             acc.ctypes.data_as(POINTER(c_float)),       # OUT <- acceleration (3 vector)
-            nodeInWater.ctypes.data_as(POINTER(c_int)), # OUT <- node is in water (0=false, 1=true)
+            nodeInWater_c,                              # OUT <- node is in water (0=false, 1=true)
             byref(self.error_status_c),                 # OUT <- error status
             self.error_message_c                        # OUT <- error message
         )
         self.check_error()
+        nodeInWater = nodeInWater_c.value
         return vel,acc,nodeInWater
 
 
