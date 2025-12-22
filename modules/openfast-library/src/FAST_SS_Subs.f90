@@ -103,6 +103,13 @@ SUBROUTINE FAST_InitializeSteadyState_T( Turbine, ErrStat, ErrMsg )
                      Turbine%SeaSt, Turbine%HD, Turbine%SD, Turbine%ExtPtfm, Turbine%MAP, Turbine%FEAM, Turbine%MD, Turbine%Orca, &
                      Turbine%IceF, Turbine%IceD, Turbine%MeshMapData, CompAeroMaps, ErrStat, ErrMsg )
 
+      ! If BeamDyn blades are being used, return error
+      if (Turbine%p_FAST%CompElast == Module_BD) then
+         ErrStat = ErrID_Fatal
+         ErrMsg = "AeroMap does not currently work with BeamDyn blades, support will be added in a future version of OpenFAST"
+         return
+      end if
+
       call InitFlowField()
       
       CALL SimStatus_FirstTime( Turbine%m_FAST%TiLstPrn, Turbine%m_FAST%PrevClockTime, Turbine%m_FAST%SimStrtTime, Turbine%m_FAST%UsrTime2, &
