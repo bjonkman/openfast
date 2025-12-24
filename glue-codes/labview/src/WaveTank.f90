@@ -109,6 +109,10 @@ subroutine WaveTank_Init(  &
    integer(IntKi)                          :: i,k
    integer(c_int),             allocatable :: tmpMeshPtToBladeNum(:)
    type(FileInfoType)                      :: FileInfo_In   !< The derived type for holding the full input file for parsing -- we may pass this in the future
+
+   ! debug level for passing to modules.  Backing down the level by 1 for modules
+   integer(IntKi)                          :: DebugLevelMod
+
    ! local C variables for transferring names
    character(kind=c_char) :: WrVTK_Dir_C(IntfStrLen)
    character(kind=c_char) :: OutRootName_C(IntfStrLen)
@@ -164,6 +168,9 @@ subroutine WaveTank_Init(  &
    if (SimSettings%Sim%DebugLevel > 0_c_int) call ShowPassedData()
    if (SimSettings%Sim%DebugLevel > 2_c_int) call Print_FileInfo_Struct(CU,FileInfo_In)
 
+   ! set debug level for modules (backing off by 1 to allow just checking wavetank io)
+   DebugLevelMod = max( 0_IntKi, SimSettings%Sim%DebugLevel-1_IntKi)
+
    ! VTK directory
    WrVTK_Dir_C = c_null_char
    WrVTK_Dir_C = transfer( trim(SimSettings%Viz%WrVTK_Dir), WrVTK_Dir_C )
@@ -209,7 +216,7 @@ subroutine WaveTank_Init(  &
       SimSettings%Env%WtrDens,      &
       SimSettings%Env%WtrDpth,      &
       SimSettings%Env%MSL2SWL,      &
-      SimSettings%Sim%DebugLevel-1, &     ! adjust down 1 for SS
+      DebugLevelMod,                &
       WrVTK_Dir_C,                  &
       SimSettings%Viz%WrVTK,        &
       SimSettings%Viz%WrVTK_DT,     &
@@ -270,7 +277,7 @@ subroutine WaveTank_Init(  &
       ErrStat_C2, ErrMsg_C2                  &
    )
 !FIXME: add this when updating MD interface
-!      SimSettings%Sim%DebugLevel-1, &     ! adjust down 1 for MD
+!      DebugLevelMod,                         &
    if (Failed_c('MD_C_Init')) return
 
    ! store channel info
@@ -294,7 +301,7 @@ subroutine WaveTank_Init(  &
       SimSettings%Env%WtrDpth,               &
       SimSettings%Env%MSL2SWL,               &
       SimSettings%Sim%MHK,                   &
-      SimSettings%Sim%DebugLevel-1,          &     ! adjust down 1 for ADI
+      DebugLevelMod,                         &
       ErrStat_C2, ErrMsg_C2                  &
    )
    call SetErrStat_C(ErrStat_C2, ErrMsg_C2, ErrStat_C, ErrMsg_C, 'ADI_C_PreInit')
