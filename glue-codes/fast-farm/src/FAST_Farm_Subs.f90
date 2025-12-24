@@ -522,13 +522,13 @@ contains
       logical    :: HResDimsSame
       ! Check if all turbines use the same high res deltas
       HResDimsSame = .true.
-      TmpDx = AWAE_InitInp%dX_high(1)
-      TmpDy = AWAE_InitInp%dY_high(1)
-      TmpDz = AWAE_InitInp%dZ_high(1)
-      do i=2,size(AWAE_InitInp%dX_high)
-         if (.not. EqualRealNos(TmpDx,AWAE_InitInp%dX_high(i))) HResDimsSame = .false.
-         if (.not. EqualRealNos(TmpDy,AWAE_InitInp%dY_high(i))) HResDimsSame = .false.
-         if (.not. EqualRealNos(TmpDz,AWAE_InitInp%dZ_high(i))) HResDimsSame = .false.
+      TmpDx = AWAE_InitInput%InputFileData%dX_high(1)
+      TmpDy = AWAE_InitInput%InputFileData%dY_high(1)
+      TmpDz = AWAE_InitInput%InputFileData%dZ_high(1)
+      do i=2,size(AWAE_InitInput%InputFileData%dX_high)
+         if (.not. EqualRealNos(TmpDx,AWAE_InitInput%InputFileData%dX_high(i))) HResDimsSame = .false.
+         if (.not. EqualRealNos(TmpDy,AWAE_InitInput%InputFileData%dY_high(i))) HResDimsSame = .false.
+         if (.not. EqualRealNos(TmpDz,AWAE_InitInput%InputFileData%dZ_high(i))) HResDimsSame = .false.
       enddo
       ! if all turbines use same high res spacing, use that for WAT spacing
       if (HResDimsSame) then
