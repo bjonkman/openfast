@@ -316,6 +316,15 @@ function(py_openfast_io_library_pytest TESTNAME LABEL)
 endfunction(py_openfast_io_library_pytest)
 
 
+# py_wavetank
+function(py_wavetank_regression TESTNAME LABEL)
+  set(TEST_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/executeWavetankPyRegressionCase.py")
+  set(SEASTATE_EXECUTABLE "${Python_EXECUTABLE}")
+  set(SOURCE_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/..")
+  set(BUILD_DIRECTORY "${CTEST_BINARY_DIR}/glue-codes/other")
+  regression(${TEST_SCRIPT} ${SEASTATE_EXECUTABLE} ${SOURCE_DIRECTORY} ${BUILD_DIRECTORY} " " ${TESTNAME} "${LABEL}" " ")
+endfunction(py_wavetank_regression)
+
 #===============================================================================
 # Regression tests
 #===============================================================================
@@ -551,3 +560,6 @@ adsk_regression("adsk_timeseries_shutdown"                    "aerodisk")
 # SimplifiedElastoDyn regression tests
 sed_regression("sed_test_HSSbrk"                              "simple-elastodyn")
 sed_regression("sed_test_freewheel"                           "simple-elastodyn")
+
+# Wavetank library interface (MD + SS + AD)
+py_wavetank_regression("py_wavetank_test1"                    "wavetank;aerodyn;moordyn;seastate;python")

@@ -1,4 +1,7 @@
-# FIXME: Check if we can do some sloppy timesteps
+# 2025.12.23
+#   This is a work in progress.  It is used for testing of the
+#   wavetanktestinglib that can be coupled to labview.  It is not complete at
+#   this point
 from ctypes import (
     CDLL,
     POINTER,
@@ -21,11 +24,6 @@ from pathlib import Path
 from typing import Any,Dict, List, Optional, Tuple, Union
 
 from pyOpenFAST.interface_abc import OpenFASTInterfaceType
-from pyOpenFAST.tdmslib import TdmsToDict 
-
-
-project_root = '../../../'
-library_path = project_root + '/build-Single-Debug/glue-codes/labview/libwavetanktestinglib.dylib'
 
 def to_c_array(array: npt.NDArray, c_type: Any = c_float) -> Any:
     """Converts numpy array to C array of specified type.
@@ -206,7 +204,7 @@ class WaveTankLib(OpenFASTInterfaceType):
     ERROR_MESSAGE_LENGTH: int = 8197
     DEFAULT_STRING_LENGTH: int = 1025
 
-    def __init__(self, library_path: str, input_file_names: dict):
+    def __init__(self, library_path: str):
         """
 
         Args:
@@ -215,12 +213,6 @@ class WaveTankLib(OpenFASTInterfaceType):
                 - WT_InputFile
         """
         super().__init__(library_path)
-
-        # Create C-compatible string buffers for input file names
-        self.input_file_names = {
-            k: create_string_buffer(str(Path(v).absolute()).encode('utf-8'), self.IntfStrLen)
-            for k,v in input_file_names.items()
-        }
 
         self._initialize_routines()
 
@@ -385,8 +377,14 @@ class WaveTankLib(OpenFASTInterfaceType):
 
 
 
-    def init(self):
+    def init(self, input_file_names: dict):
         _error_message = create_string_buffer(self.ERROR_MSG_C_LEN)
+
+        # Create C-compatible string buffers for input file names
+        self.input_file_names = {
+            k: create_string_buffer(str(Path(v).absolute()).encode('utf-8'), self.IntfStrLen)
+            for k,v in input_file_names.items()
+        }
 
         # # Convert the initial positions array into c_float array
         # init_positions_c = (c_float * 6)(0.0, )
@@ -394,7 +392,7 @@ class WaveTankLib(OpenFASTInterfaceType):
         #     init_positions_c[i] = c_float(p)
 
         self.WaveTank_Init(
-            self.input_file_names["WaveTank"],
+            self.input_file_names["WaveTankConfig"],
             self.rootname_c,                        # OUT <- rootname of output files
             self.vtkdir_c,                          # OUT <- directory for vtk output
             byref(self.error_status_c),             # OUT <- error status code
@@ -445,90 +443,3 @@ class WaveTankLib(OpenFASTInterfaceType):
             self.error_message_c                    # OUT <- error message buffer
         )
         self.check_error()
-
-
-if __name__=="__main__":
-
-    # Read a motion series from a prior tank run
-    TDMSfile="0822_4.tdms"
-    floater_motions = TdmsToDict(TDMSfile)["Winch System"]
-
-    n_timesteps = len(floater_motions["x"])
-    dt = 0.01   # seconds
-
-    wavetanklib = WaveTankLib(
-        library_path,
-        {
-            "WaveTank":   "wavetankconfig.in",
-        },
-    )
-    wavetanklib.init()
-
-    # output everything going through interface
-    if wavetanklib.debug_outputs:
-        debug_output_file = DriverDbg(
-            wavetanklib.debug_output_file
-        )
-
-
- 
-    for i in range(n_timesteps):
-
-        time = dt*i
-
-        # position/orientation
-        x=floater_motions["x"][i]
-        y=floater_motions["y"][i]
-        z=floater_motions["z"][i]
-        r=floater_motions["phi"][i]
-        p=floater_motions["theta"][i]
-        y=floater_motions["psi"][i]
-        pos = np.array([x, y, z, r, p, y], dtype=np.float32)
-
-        # vel 
-        x_dot=floater_motions["x_dot"][i]
-        y_dot=floater_motions["y_dot"][i]
-        z_dot=floater_motions["z_dot"][i]
-        r_dot=floater_motions["phi_dot"][i]
-        p_dot=floater_motions["theta_dot"][i]
-        y_dot=floater_motions["psi_dot"][i]
-        vel = np.array([x_dot, y_dot, z_dot, r_dot, p_dot, y_dot], dtype=np.float32)
-
-        # acc 
-        x_ddot=floater_motions["x_ddot"][i]
-        y_ddot=floater_motions["y_ddot"][i]
-        z_ddot=floater_motions["z_ddot"][i]
-        r_ddot=floater_motions["phi_ddot"][i]
-        p_ddot=floater_motions["theta_ddot"][i]
-        y_ddot=floater_motions["psi_ddot"][i]
-        acc = np.array([x_ddot, y_ddot, z_ddot, r_ddot, p_ddot, y_ddot], dtype=np.float32)
-
-        #vel=pos
-        #acc=pos
-        body_motion=MotionData(pos,vel,acc)
-        body_loads=LoadsData(np.array([0, 0, 0, 0, 0, 0], dtype=np.float32))
-
-        wavetanklib.calc_step(
-            time,
-            body_motion,
-            body_loads,
-        )
-
-        # Write debug output if enabled
-        if wavetanklib.debug_outputs:
-            debug_output_file.write(
-                time, body_motion, body_loads
-            )
-
-
-
-    # Close debug output file if it was opened
-    if wavetanklib.debug_outputs:
-        debug_output_file.end()
-
-
-    wavetanklib.end()
-
-    print("WaveTank run completed")
-
-
