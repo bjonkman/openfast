@@ -168,7 +168,23 @@ SUBROUTINE Farm_PrintSum( farm, WD_InputFileData, ErrStat, ErrMsg )
    end select
    WRITE (UnSum,'(2X,A)')      'Calibrated parameter for wake meandering (-): '//trim(Num2LStr(farm%AWAE%p%C_Meander))
    
-!FIXME: add summary info about WAT
+   if (farm%p%WAT == 0) then
+      write (UnSum,'(/,2X,A)') 'Wake added turbulence:  off'
+   else
+      write (UnSum,'(/,2X,A)') 'Wake-Added Turbulence (WAT):'
+      write (UnSum,'(4X,A,6(f9.3))') 'WAT_NxNyNz:   ',farm%p%WAT_NxNyNz(1:3)
+      write (UnSum,'(4X,A,6(f9.3))') 'WAT_DxDyDz:   ',farm%p%WAT_DxDyDz(1:3)
+      if (farm%p%WAT_ScaleBox) then
+         write (UnSum,'(4X,A,A)')       'WAT_ScaleBox: ','.TRUE.'
+      else
+         write (UnSum,'(4X,A,A)')       'WAT_ScaleBox: ','.FALSE.'
+      endif
+      write (UnSum,'(4X,A)') 'coefficients:'
+      write (UnSum,'(12X,A)') '                k_c      f_min    D_min    D_max    e'
+      write (UnSum,'(A6,A6,6(f9.3))') '','k_Def', farm%WD%p%WAT_k_Def_k_c, farm%WD%p%WAT_k_Def_FMin, farm%WD%p%WAT_k_Def_DMin, farm%WD%p%WAT_k_Def_DMax, farm%WD%p%WAT_k_Def_Exp
+      write (UnSum,'(A6,A6,6(f9.3))') '','k_Grad',farm%WD%p%WAT_k_Grad_k_c,farm%WD%p%WAT_k_Grad_FMin,farm%WD%p%WAT_k_Grad_DMin,farm%WD%p%WAT_k_Grad_DMax,farm%WD%p%WAT_k_Grad_Exp
+   endif
+
 
    WRITE (UnSum,'(/,A)'   )  'Time Steps'
    WRITE (UnSum,'(2X,A)')      'Component                        Time Step         Subcyles'
