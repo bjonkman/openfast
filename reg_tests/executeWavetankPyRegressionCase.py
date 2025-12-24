@@ -37,6 +37,9 @@ import openfastDrivers
 import pass_fail
 from errorPlotting import exportCaseSummary
 
+##### Helper functions
+excludeExt=['.out','.outb','.ech','.yaml','.sum','.log']
+
 ##### Main program
 
 ### Store the python executable for future python calls
@@ -80,6 +83,8 @@ moduleDirectory = os.path.join(rtest, "glue-codes", "other")
 inputsDirectory = os.path.join(moduleDirectory, caseName)
 targetOutputDirectory = os.path.join(inputsDirectory)
 testBuildDirectory = os.path.join(buildDirectory, caseName)
+
+dependsDir = os.path.join("..", "..", "openfast", "MHK_RM1_Floating_Tank-scaled")
     
 # verify all the required directories exist
 if not os.path.isdir(rtest):
@@ -92,26 +97,13 @@ if not os.path.isdir(inputsDirectory):
 # create the local output directory if it does not already exist
 # and initialize it with input files for all test cases
 if not os.path.isdir(testBuildDirectory):
-    os.makedirs(testBuildDirectory)
-    for file in glob.glob(os.path.join(inputsDirectory,"*py")):
-        filename = file.split(os.path.sep)[-1]
-        shutil.copy(os.path.join(inputsDirectory,filename), os.path.join(testBuildDirectory,filename))
-    for file in glob.glob(os.path.join(inputsDirectory,"*in")):
-        filename = file.split(os.path.sep)[-1]
-        shutil.copy(os.path.join(inputsDirectory,filename), os.path.join(testBuildDirectory,filename))
-    for file in glob.glob(os.path.join(inputsDirectory,"*Elev")):
-        filename = file.split(os.path.sep)[-1]
-        shutil.copy(os.path.join(inputsDirectory,filename), os.path.join(testBuildDirectory,filename))
-    for file in glob.glob(os.path.join(inputsDirectory,"*dat")):
-        filename = file.split(os.path.sep)[-1]
-        shutil.copy(os.path.join(inputsDirectory,filename), os.path.join(testBuildDirectory,filename))
-    for file in glob.glob(os.path.join(inputsDirectory,"*tdms")):
-        filename = file.split(os.path.sep)[-1]
-        shutil.copy(os.path.join(inputsDirectory,filename), os.path.join(testBuildDirectory,filename))
-    src = os.path.join(inputsDirectory, "Airfoils")
-    dst = os.path.join(testBuildDirectory, "Airfoils")
-    if not os.path.isdir(dst):
-        rtl.copyTree(src, dst)
+    rtl.copyTree(inputsDirectory, testBuildDirectory, excludeExt)
+
+# Dependency
+src = os.path.join(inputsDirectory, dependsDir)
+dst = os.path.join(testBuildDirectory, dependsDir)
+if not os.path.isdir(dst):
+    rtl.copyTree(src, dst, excludeExt)
 
 ### Run inflowwind on the test case
 if not noExec:
