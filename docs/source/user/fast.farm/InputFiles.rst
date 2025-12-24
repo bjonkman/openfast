@@ -637,7 +637,10 @@ These are used only if WAT=2.
 **WAT_DxDyDz**: [three floats, comma separated] 
 Distances (in meters) between points in the x, y, and z directions of the WAT_BoxFile 
 These are used only if WAT=2.
-When **WAT=1** the dimensions in each directions are taken as :math:`dx=dy=dz=0.03*\text{RotorDiamRef}`.
+When **WAT=1** the dimensions will be set to **[dX_high, dY_high, dZ_high]** if
+that is the same for all turbines, otherwise the dimeinaiona will be calculated
+using the guidance with :math:`dx=dy=dz=0.03*\text{RotorDiamRef}`.
+
 
 **WAT_ScaleBox**: [flag]  
 When set to True, the input turbulence box is scaled so that it has zero mean and unit standard deviation at every node.
