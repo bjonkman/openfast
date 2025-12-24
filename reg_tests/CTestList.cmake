@@ -365,7 +365,7 @@ of_regression("StC_test_OC4Semi"                       "openfast;servodyn;hydrod
 of_regression("MHK_RM1_Fixed"                          "openfast;elastodyn;aerodyn;mhk;offshore")
 of_regression("MHK_RM1_Floating"                       "openfast;elastodyn;aerodyn;hydrodyn;moordyn;mhk;offshore")
 of_regression("MHK_RM1_Floating_wNacDrag"              "openfast;elastodyn;aerodyn;hydrodyn;moordyn;mhk;offshore")
-of_regression("MHK_RM1_Floating_Tank-scaled"           "openfast;elastodyn;aerodyn;hydrodyn;moordyn;mhk;offshore")
+of_regression("MHK_RM1_Floating_Tank-scaled"           "openfast;elastodyn;aerodyn;hydrodyn;moordyn;mhk;offshore;scaled")
 of_regression("Tailfin_FreeYaw1DOF_PolarBased"         "openfast;elastodyn;aerodyn")
 of_regression("Tailfin_FreeYaw1DOF_Unsteady"           "openfast;elastodyn;aerodyn")
 of_regression("5MW_Land_DLL_WTurb_ADsk"                "openfast;elastodyn;aerodisk")
@@ -562,4 +562,4 @@ sed_regression("sed_test_HSSbrk"                              "simple-elastodyn"
 sed_regression("sed_test_freewheel"                           "simple-elastodyn")
 
 # Wavetank library interface (MD + SS + AD)
-py_wavetank_regression("py_wavetank_test1"                    "wavetank;aerodyn;moordyn;seastate;python")
+py_wavetank_regression("py_wavetank_test1"                    "wavetank;aerodyn;moordyn;seastate;python;scaled")

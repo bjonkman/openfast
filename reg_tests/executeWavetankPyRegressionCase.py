@@ -99,9 +99,19 @@ if not os.path.isdir(testBuildDirectory):
     for file in glob.glob(os.path.join(inputsDirectory,"*in")):
         filename = file.split(os.path.sep)[-1]
         shutil.copy(os.path.join(inputsDirectory,filename), os.path.join(testBuildDirectory,filename))
+    for file in glob.glob(os.path.join(inputsDirectory,"*Elev")):
+        filename = file.split(os.path.sep)[-1]
+        shutil.copy(os.path.join(inputsDirectory,filename), os.path.join(testBuildDirectory,filename))
+    for file in glob.glob(os.path.join(inputsDirectory,"*dat")):
+        filename = file.split(os.path.sep)[-1]
+        shutil.copy(os.path.join(inputsDirectory,filename), os.path.join(testBuildDirectory,filename))
     for file in glob.glob(os.path.join(inputsDirectory,"*tdms")):
         filename = file.split(os.path.sep)[-1]
         shutil.copy(os.path.join(inputsDirectory,filename), os.path.join(testBuildDirectory,filename))
+    src = os.path.join(inputsDirectory, "Airfoils")
+    dst = os.path.join(testBuildDirectory, "Airfoils")
+    if not os.path.isdir(dst):
+        rtl.copyTree(src, dst)
 
 ### Run inflowwind on the test case
 if not noExec:
@@ -112,8 +122,8 @@ if not noExec:
     
 ### Build the filesystem navigation variables for running the regression test.
 # the "Points.Results.dat" file is from calls to routines other than CalcOutput
-localOutFile = os.path.join(testBuildDirectory, "RM1_tank_test.out")
-baselineOutFile = os.path.join(targetOutputDirectory, "RM1_tank_test.out")
+localOutFile = os.path.join(testBuildDirectory, "FRM1Q_Floating_tank_test.out")
+baselineOutFile = os.path.join(targetOutputDirectory, "FRM1Q_Floating_tank_test.out")
 rtl.validateFileOrExit(localOutFile)
 rtl.validateFileOrExit(baselineOutFile)
 
