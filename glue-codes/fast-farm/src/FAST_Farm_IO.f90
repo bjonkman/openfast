@@ -172,17 +172,17 @@ SUBROUTINE Farm_PrintSum( farm, WD_InputFileData, ErrStat, ErrMsg )
       write (UnSum,'(/,2X,A)') 'Wake added turbulence:  off'
    else
       write (UnSum,'(/,2X,A)') 'Wake-Added Turbulence (WAT):'
-      write (UnSum,'(4X,A,6(f9.3))') 'WAT_NxNyNz:   ',farm%p%WAT_NxNyNz(1:3)
-      write (UnSum,'(4X,A,6(f9.3))') 'WAT_DxDyDz:   ',farm%p%WAT_DxDyDz(1:3)
+      write (UnSum,'(4X,A,3(I8,1X))') 'WAT_NxNyNz:   ',farm%p%WAT_NxNyNz(1:3)
+      write (UnSum,'(4X,A,3(f9.3))')  'WAT_DxDyDz:   ',farm%p%WAT_DxDyDz(1:3)
       if (farm%p%WAT_ScaleBox) then
          write (UnSum,'(4X,A,A)')       'WAT_ScaleBox: ','.TRUE.'
       else
          write (UnSum,'(4X,A,A)')       'WAT_ScaleBox: ','.FALSE.'
       endif
       write (UnSum,'(4X,A)') 'coefficients:'
-      write (UnSum,'(12X,A)') '                k_c      f_min    D_min    D_max    e'
-      write (UnSum,'(A6,A6,6(f9.3))') '','k_Def', farm%WD%p%WAT_k_Def_k_c, farm%WD%p%WAT_k_Def_FMin, farm%WD%p%WAT_k_Def_DMin, farm%WD%p%WAT_k_Def_DMax, farm%WD%p%WAT_k_Def_Exp
-      write (UnSum,'(A6,A6,6(f9.3))') '','k_Grad',farm%WD%p%WAT_k_Grad_k_c,farm%WD%p%WAT_k_Grad_FMin,farm%WD%p%WAT_k_Grad_DMin,farm%WD%p%WAT_k_Grad_DMax,farm%WD%p%WAT_k_Grad_Exp
+      write (UnSum,'(16X,A)') 'k_c      f_min    D_min    D_max    e'
+      write (UnSum,'(A12,5(f9.3))') 'k_Def', WD_InputFileData%WAT_k_Def_k_c, WD_InputFileData%WAT_k_Def_FMin, WD_InputFileData%WAT_k_Def_DMin, WD_InputFileData%WAT_k_Def_DMax, WD_InputFileData%WAT_k_Def_Exp
+      write (UnSum,'(A12,5(f9.3))') 'k_Grad',WD_InputFileData%WAT_k_Grad_k_c,WD_InputFileData%WAT_k_Grad_FMin,WD_InputFileData%WAT_k_Grad_DMin,WD_InputFileData%WAT_k_Grad_DMax,WD_InputFileData%WAT_k_Grad_Exp
    endif
 
 
@@ -1102,9 +1102,9 @@ SUBROUTINE Farm_ValidateInput( p, WD_InitInp, AWAE_InitInp, ErrStat, ErrMsg )
       ! summary table
       call WrScr('  Wake-Added Turbulence (WAT): coefficients:')
       call WrScr('                k_c      f_min    D_min    D_max    e')
-      write(tmpStr,'(A6,A6,6(f9.3))') '','k_Def', WD_InitInp%WAT_k_Def_k_c, WD_InitInp%WAT_k_Def_FMin, WD_InitInp%WAT_k_Def_DMin, WD_InitInp%WAT_k_Def_DMax, WD_InitInp%WAT_k_Def_Exp
+      write(tmpStr,'(A12,5(f9.3))') 'k_Def', WD_InitInp%WAT_k_Def_k_c, WD_InitInp%WAT_k_Def_FMin, WD_InitInp%WAT_k_Def_DMin, WD_InitInp%WAT_k_Def_DMax, WD_InitInp%WAT_k_Def_Exp
       call WrScr(tmpStr)
-      write(tmpStr,'(A6,A6,6(f9.3))') '','k_Grad',WD_InitInp%WAT_k_Grad_k_c,WD_InitInp%WAT_k_Grad_FMin,WD_InitInp%WAT_k_Grad_DMin,WD_InitInp%WAT_k_Grad_DMax,WD_InitInp%WAT_k_Grad_Exp
+      write(tmpStr,'(A12,5(f9.3))') 'k_Grad',WD_InitInp%WAT_k_Grad_k_c,WD_InitInp%WAT_k_Grad_FMin,WD_InitInp%WAT_k_Grad_DMin,WD_InitInp%WAT_k_Grad_DMax,WD_InitInp%WAT_k_Grad_Exp
       call WrScr(tmpStr)
    endif
 
