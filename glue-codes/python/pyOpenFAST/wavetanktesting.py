@@ -79,7 +79,7 @@ class DriverDbg:
     A helper class for debugging the wavetankinterface. This class writes out all the
     input positions/orientations, velocities, accelerations, and the resulting
     forces and moments at the platform mesh point. If functioning correctly, this
-    will be identical to the corresponding values in the wavetank o utput
+    will be identical to the corresponding values in the wavetank output
     channels.
 
     NOTE: This may not output everything in the interface as updates have been made
