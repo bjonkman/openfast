@@ -48,7 +48,7 @@ pythonCommand = sys.executable
 ### Verify input arguments
 parser = argparse.ArgumentParser(description="Executes wavetank c-bindings library interface with a regression test for a single test case.")
 parser.add_argument("caseName", metavar="Case-Name", type=str, nargs=1, help="The name of the test case.")
-parser.add_argument("executable", metavar="WaveTank-Python", type=str, nargs=1, help="The path to the InflowWind driver executable.")
+parser.add_argument("executable", metavar="WaveTank-Python", type=str, nargs=1, help="The path to the wavetank python driver case.")
 parser.add_argument("sourceDirectory", metavar="path/to/openfast_repo", type=str, nargs=1, help="The path to the OpenFAST repository.")
 parser.add_argument("buildDirectory", metavar="path/to/openfast_repo/build", type=str, nargs=1, help="The path to the OpenFAST repository build directory.")
 parser.add_argument("rtol", metavar="Relative-Tolerance", type=float, nargs=1, help="Relative tolerance to allow the solution to deviate; expressed as order of magnitudes less than baseline.")
