@@ -98,17 +98,36 @@ add_executable(unsteadyaero_driver
 )
 target_link_libraries(unsteadyaero_driver basicaerolib lindynlib versioninfolib)
 
+
 # AeroDyn-InflowWind c-bindings interface library
-add_library(aerodyn_inflow_c_binding SHARED 
+#   create object instead of directly linking into shared and static -- causes issues in parallel builds
+#   This is only required because we are static linking the library for wavetank
+#   NOTE: target linking at the object, static, and shared libraries.  Different CMake versions handle this
+#         slightly differently with unpredictable results if I don't.
+add_library(aerodyn_inflow_c_binding_object OBJECT
   src/AeroDyn_Inflow_C_Binding_Types.f90
   src/AeroDyn_Inflow_C_Binding.f90
 )
-target_link_libraries(aerodyn_inflow_c_binding aerodyn_driver_subs versioninfolib)
+target_link_libraries(aerodyn_inflow_c_binding_object adilib aerodyn_driver_subs nwtclibs versioninfolib)
+set_property(TARGET aerodyn_inflow_c_binding_object PROPERTY POSITION_INDEPENDENT_CODE 1) # required for shared libs
+
+#   shared
+add_library(aerodyn_inflow_c_binding SHARED $<TARGET_OBJECTS:aerodyn_inflow_c_binding_object>)
+target_link_libraries(aerodyn_inflow_c_binding adilib aerodyn_driver_subs nwtclibs versioninfolib)
 if(APPLE OR UNIX)
    target_compile_definitions(aerodyn_inflow_c_binding PRIVATE IMPLICIT_DLLEXPORT)
 endif()
 
-install(TARGETS aerodynlib basicaerolib aerodyn_driver_subs aerodyn_driver unsteadyaero_driver aerodyn_inflow_c_binding adilib
+# C-bindings non-shared interface
+# This is a workaround for building wavetank into a single DLL (also allows setting CU globaly for sending screen to file for labview integration)
+add_library(aerodyn_inflow_c_bind_static STATIC $<TARGET_OBJECTS:aerodyn_inflow_c_binding_object>)
+target_link_libraries(aerodyn_inflow_c_bind_static adilib aerodyn_driver_subs nwtclibs versioninfolib)
+if(APPLE OR UNIX)
+   target_compile_definitions(aerodyn_inflow_c_bind_static PRIVATE IMPLICIT_DLLEXPORT)
+endif()
+
+
+install(TARGETS aerodynlib basicaerolib aerodyn_driver_subs aerodyn_driver unsteadyaero_driver aerodyn_inflow_c_binding adilib aerodyn_inflow_c_bind_static
   EXPORT "${CMAKE_PROJECT_NAME}Libraries"
   RUNTIME DESTINATION bin
   LIBRARY DESTINATION lib

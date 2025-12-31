@@ -38,7 +38,7 @@ function WaveField_GetNodeWaveElev1( WaveField, WaveField_m, Time, pos, ErrStat,
    ErrMsg    = ""
 
    IF (ALLOCATED(WaveField%WaveElev1)) THEN
-      CALL WaveField_Interp_Setup3D( Time, pos, WaveField%SrfGridParams, WaveField_m, ErrStat2, ErrMsg2 )
+      CALL WaveField_Interp_Setup3D( Time+WaveField%WaveTimeShift, pos, WaveField%SrfGridParams, WaveField_m, ErrStat2, ErrMsg2 )
       CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
       Zeta = GridInterp3D(WaveField%WaveElev1,WaveField_m)
    ELSE
@@ -68,7 +68,7 @@ function WaveField_GetNodeWaveElev2( WaveField, WaveField_m, Time, pos, ErrStat,
    ErrMsg    = ""
 
    IF (ALLOCATED(WaveField%WaveElev2)) THEN
-      CALL WaveField_Interp_Setup3D( Time, pos, WaveField%SrfGridParams, WaveField_m, ErrStat2, ErrMsg2 )
+      CALL WaveField_Interp_Setup3D( Time+WaveField%WaveTimeShift, pos, WaveField%SrfGridParams, WaveField_m, ErrStat2, ErrMsg2 )
       CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
       Zeta = GridInterp3D(WaveField%WaveElev2,WaveField_m)
    ELSE
@@ -126,7 +126,7 @@ SUBROUTINE WaveField_GetNodeWaveNormal( WaveField, WaveField_m, Time, pos, n, Er
    ErrStat   = ErrID_None
    ErrMsg    = ""
 
-   call GridInterpSetupN( (/Real(Time,ReKi),pos(1),pos(2)/), WaveField%SrfGridParams, WaveField_m, ErrStat2, ErrMsg2 )
+   call GridInterpSetupN( (/Real(Time+WaveField%WaveTimeShift,ReKi),pos(1),pos(2)/), WaveField%SrfGridParams, WaveField_m, ErrStat2, ErrMsg2 )
    slope = GridInterpS( WaveField%WaveElev1, WaveField%SrfGridParams, WaveField_m )
    if (ALLOCATED(WaveField%WaveElev2)) then
       slope = slope + GridInterpS( WaveField%WaveElev2, WaveField%SrfGridParams, WaveField_m )
@@ -183,7 +183,7 @@ SUBROUTINE WaveField_GetNodeWaveKin( WaveField, WaveField_m, Time, pos, forceNod
       IF ( pos(3) <= 0.0_ReKi) THEN ! Node is at or below the SWL
          nodeInWater = 1_IntKi
          ! Use location to obtain interpolated values of kinematics
-         CALL WaveField_Interp_Setup4D( Time, pos, WaveField%GridDepth, WaveField%VolGridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
+         CALL WaveField_Interp_Setup4D( Time+WaveField%WaveTimeShift, pos, WaveField%GridDepth, WaveField%VolGridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
          FV(:) = GridInterp4DVec( WaveField%WaveVel,  WaveField_m )
          FA(:) = GridInterp4DVec( WaveField%WaveAcc,  WaveField_m )
          FDynP = GridInterp4D   ( WaveField%WaveDynP, WaveField_m )
@@ -209,7 +209,7 @@ SUBROUTINE WaveField_GetNodeWaveKin( WaveField, WaveField_m, Time, pos, forceNod
             IF ( pos(3) <= 0.0_SiKi) THEN ! Node is below the SWL - evaluate wave dynamics as usual
 
                ! Use location to obtain interpolated values of kinematics
-               CALL WaveField_Interp_Setup4D( Time, pos, WaveField%GridDepth, WaveField%VolGridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
+               CALL WaveField_Interp_Setup4D( Time+WaveField%WaveTimeShift, pos, WaveField%GridDepth, WaveField%VolGridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
                FV(:) = GridInterp4DVec( WaveField%WaveVel,  WaveField_m )
                FA(:) = GridInterp4DVec( WaveField%WaveAcc,  WaveField_m )
                FDynP = GridInterp4D   ( WaveField%WaveDynP, WaveField_m )
@@ -220,7 +220,7 @@ SUBROUTINE WaveField_GetNodeWaveKin( WaveField, WaveField_m, Time, pos, forceNod
             ELSE ! Node is above SWL - need wave stretching
 
                ! Vertical wave stretching
-               CALL WaveField_Interp_Setup4D( Time, posXY0, WaveField%GridDepth, WaveField%VolGridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
+               CALL WaveField_Interp_Setup4D( Time+WaveField%WaveTimeShift, posXY0, WaveField%GridDepth, WaveField%VolGridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
                FV(:) = GridInterp4DVec( WaveField%WaveVel,  WaveField_m )
                FA(:) = GridInterp4DVec( WaveField%WaveAcc,  WaveField_m )
                FDynP = GridInterp4D   ( WaveField%WaveDynP, WaveField_m )
@@ -230,7 +230,7 @@ SUBROUTINE WaveField_GetNodeWaveKin( WaveField, WaveField_m, Time, pos, forceNod
 
                ! Extrapoled wave stretching
                IF (WaveField%WaveStMod == 2) THEN
-                  CALL WaveField_Interp_Setup3D( Time, posXY, WaveField%SrfGridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
+                  CALL WaveField_Interp_Setup3D( Time+WaveField%WaveTimeShift, posXY, WaveField%SrfGridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
                   FV(:) = FV(:) + GridInterp3DVec( WaveField%PWaveVel0,  WaveField_m ) * pos(3)
                   FA(:) = FA(:) + GridInterp3DVec( WaveField%PWaveAcc0,  WaveField_m ) * pos(3)
                   FDynP = FDynP + GridInterp3D   ( WaveField%PWaveDynP0, WaveField_m ) * pos(3)
@@ -249,7 +249,7 @@ SUBROUTINE WaveField_GetNodeWaveKin( WaveField, WaveField_m, Time, pos, forceNod
             posPrime(3) = MIN( posPrime(3), 0.0_ReKi) ! Clamp z-position to zero. Needed when forceNodeInWater=.TRUE.
 
             ! Obtain the wave-field variables by interpolation with the mapped position.
-            CALL WaveField_Interp_Setup4D( Time, posPrime, WaveField%GridDepth, WaveField%VolGridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
+            CALL WaveField_Interp_Setup4D( Time+WaveField%WaveTimeShift, posPrime, WaveField%GridDepth, WaveField%VolGridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
             FV(:) = GridInterp4DVec( WaveField%WaveVel,  WaveField_m )
             FA(:) = GridInterp4DVec( WaveField%WaveAcc,  WaveField_m )
             FDynP = GridInterp4D   ( WaveField%WaveDynP, WaveField_m )
@@ -311,7 +311,7 @@ SUBROUTINE WaveField_GetNodeWaveVelAcc( WaveField, WaveField_m, Time, pos, force
       IF ( pos(3) <= 0.0_ReKi) THEN ! Node is at or below the SWL
          nodeInWater = 1_IntKi
          ! Use location to obtain interpolated values of kinematics
-         CALL WaveField_Interp_Setup4D( Time, pos, WaveField%GridDepth, WaveField%VolGridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
+         CALL WaveField_Interp_Setup4D( Time+WaveField%WaveTimeShift, pos, WaveField%GridDepth, WaveField%VolGridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
          FV(:) = GridInterp4DVec( WaveField%WaveVel,  WaveField_m )
          FA(:) = GridInterp4DVec( WaveField%WaveAcc,  WaveField_m )
       ELSE ! Node is above the SWL
@@ -331,7 +331,7 @@ SUBROUTINE WaveField_GetNodeWaveVelAcc( WaveField, WaveField_m, Time, pos, force
             IF ( pos(3) <= 0.0_SiKi) THEN ! Node is below the SWL - evaluate wave dynamics as usual
 
                ! Use location to obtain interpolated values of kinematics
-               CALL WaveField_Interp_Setup4D( Time, pos, WaveField%GridDepth, WaveField%VolGridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
+               CALL WaveField_Interp_Setup4D( Time+WaveField%WaveTimeShift, pos, WaveField%GridDepth, WaveField%VolGridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
                FV(:) = GridInterp4DVec( WaveField%WaveVel,  WaveField_m )
                FA(:) = GridInterp4DVec( WaveField%WaveAcc,  WaveField_m )
 
@@ -344,7 +344,7 @@ SUBROUTINE WaveField_GetNodeWaveVelAcc( WaveField, WaveField_m, Time, pos, force
 
                ! Extrapoled wave stretching
                IF (WaveField%WaveStMod == 2) THEN
-                  CALL WaveField_Interp_Setup3D( Time, posXY, WaveField%SrfGridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
+                  CALL WaveField_Interp_Setup3D( Time+WaveField%WaveTimeShift, posXY, WaveField%SrfGridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
                   FV(:) = FV(:) + GridInterp3DVec( WaveField%PWaveVel0, WaveField_m ) * pos(3)
                   FA(:) = FA(:) + GridInterp3DVec( WaveField%PWaveAcc0, WaveField_m ) * pos(3)
                END IF
@@ -359,7 +359,7 @@ SUBROUTINE WaveField_GetNodeWaveVelAcc( WaveField, WaveField_m, Time, pos, force
             posPrime(3) = MIN( posPrime(3), 0.0_ReKi) ! Clamp z-position to zero. Needed when forceNodeInWater=.TRUE.
 
             ! Obtain the wave-field variables by interpolation with the mapped position.
-            CALL WaveField_Interp_Setup4D( Time, posPrime, WaveField%GridDepth, WaveField%VolGridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
+            CALL WaveField_Interp_Setup4D( Time+WaveField%WaveTimeShift, posPrime, WaveField%GridDepth, WaveField%VolGridParams, WaveField_m, ErrStat2, ErrMsg2 ); if (Failed()) return;
             FV(:) = GridInterp4DVec( WaveField%WaveVel,  WaveField_m )
             FA(:) = GridInterp4DVec( WaveField%WaveAcc,  WaveField_m )
 

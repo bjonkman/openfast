@@ -32,6 +32,7 @@ IMPLICIT NONE
 !     to correctly handle different lengths of the strings
 INTEGER(IntKi), PARAMETER   :: ErrMsgLen_C = ErrMsgLen + 1  ! Currently, this is 8197
 INTEGER(IntKi), PARAMETER   :: IntfStrLen  = 1025           ! length of other strings through the C interface such as file paths
+integer(c_int), PARAMETER   :: AbortErrLev_C = 4_c_int
 
 CONTAINS
 
