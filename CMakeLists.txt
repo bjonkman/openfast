@@ -125,6 +125,11 @@ if (OPENMP)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
     link_libraries("${OpenMP_CXX_LIBRARIES}")
   endif()
+elseif (NOT BLA_VENDOR)
+  # If we're not using OpenMP, and a specific BLAS vendor has not been set, 
+  # set MKL threading to sequential to avoid potential issues with 
+  # small calculations taking longer due to threading overhead (turbsim).
+  set(MKL_THREADING "sequential")
 endif()
 
 #-------------------------------------------------------------------------------

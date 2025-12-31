@@ -1158,7 +1158,7 @@ CONTAINS
          END IF
 
          ! Check for if SeaState grid does not match water depth
-         IF (p%WaveField%GridParams%Z_Depth /= p%WtrDpth) THEN
+         IF (p%WaveField%GridDepth /= p%WtrDpth) THEN
             IF (p%writeLog > 0) THEN
                WRITE(p%UnLog, '(A)'        ) "   INFO SeaState grid depth does not match MoorDyn water depth."
             ENDIF

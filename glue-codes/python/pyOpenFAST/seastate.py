@@ -114,8 +114,8 @@ class SeaStateLib(OpenFASTInterfaceType):
         self.SeaSt_C_Init.argtypes = [
             POINTER(c_char),        # intent(in   ) :: InputFile_c(IntfStrLen)
             POINTER(c_char),        # intent(in   ) :: OutRootName_c(IntfStrLen)
-            POINTER(c_int),         # intent(in   ) :: NSteps_c
             POINTER(c_double),      # intent(in   ) :: TimeInterval_c
+            POINTER(c_double),      # intent(in   ) :: TMax_c
             POINTER(c_double),      # intent(in   ) :: WaveTimeShift (positive only)
             POINTER(c_int),         # intent(  out) :: NumChannels_c
             POINTER(c_char),        # intent(  out) :: OutputChannelNames_C
@@ -266,7 +266,7 @@ class SeaStateLib(OpenFASTInterfaceType):
         self,
         primary_ss_file,
         outrootname: str = "./seastate.SeaSt",
-        n_steps: int = 801,
+        time_max: float = 60,
         time_interval: float = 0.125,
     ):
 
@@ -288,8 +288,8 @@ class SeaStateLib(OpenFASTInterfaceType):
         self.SeaSt_C_Init(
             ss_file_c,
             outrootname_c,
-            byref(c_int(n_steps)),
             byref(c_double(time_interval)),
+            byref(c_double(time_max)),
             byref(c_double(self.WaveTimeShift)),
             byref(self._numChannels),
             _channel_names,
@@ -405,16 +405,18 @@ class SeaStateLib(OpenFASTInterfaceType):
         pos[2] = position[2]
         vel = np.zeros( 3, dtype=c_float )
         acc = np.zeros( 3, dtype=c_float )
+        nodeInWater_c = c_int(0)
         self.SeaSt_C_GetFluidVelAcc(
             byref(c_double(time)),                      # IN -> current simulation time
             pos.ctypes.data_as(POINTER(c_float)),       # IN -> position (3 vector)
             vel.ctypes.data_as(POINTER(c_float)),       # OUT <- velocity (3 vector)
             acc.ctypes.data_as(POINTER(c_float)),       # OUT <- acceleration (3 vector)
-            nodeInWater.ctypes.data_as(POINTER(c_int)), # OUT <- node is in water (0=false, 1=true)
+            nodeInWater_c,                              # OUT <- node is in water (0=false, 1=true)
             byref(self.error_status_c),                 # OUT <- error status
             self.error_message_c                        # OUT <- error message
         )
         self.check_error()
+        nodeInWater = nodeInWater_c.value
         return vel,acc,nodeInWater
 
 

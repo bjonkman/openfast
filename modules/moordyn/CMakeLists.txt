@@ -37,20 +37,25 @@ add_executable(moordyn_driver
 target_link_libraries(moordyn_driver moordynlib versioninfolib)
 
 # C-bindings interface library
-add_library(moordyn_c_binding SHARED 
-  src/MoorDyn_C_Binding.f90
-)
-target_link_libraries(moordyn_c_binding moordynlib seastlib versioninfolib)
+#   create object instead of directly linking into shared and static -- causes issues in parallel builds
+#   This is only required because we are static linking the library for wavetank
+#   NOTE: target linking at the object, static, and shared libraries.  Different CMake versions handle this
+#         slightly differently with unpredictable results if I don't.
+add_library(moordyn_c_binding_object OBJECT src/MoorDyn_C_Binding.f90)
+target_link_libraries(moordyn_c_binding_object moordynlib seastlib nwtclibs versioninfolib)
+set_property(TARGET moordyn_c_binding_object PROPERTY POSITION_INDEPENDENT_CODE 1) # required for shared libs
+
+#   shared
+add_library(moordyn_c_binding SHARED $<TARGET_OBJECTS:moordyn_c_binding_object>)
+target_link_libraries(moordyn_c_binding moordynlib seastlib nwtclibs versioninfolib)
 if(APPLE OR UNIX)
    target_compile_definitions(moordyn_c_binding PRIVATE IMPLICIT_DLLEXPORT)
 endif()
 
 # C-bindings non-shared interface
 # This is a workaround for building wavetank into a single DLL (also allows setting CU globaly for sending screen to file for labview integration)
-add_library(moordyn_c_bind_static STATIC 
-  src/MoorDyn_C_Binding.f90
-)
-target_link_libraries(moordyn_c_bind_static moordynlib seastlib versioninfolib)
+add_library(moordyn_c_bind_static SHARED $<TARGET_OBJECTS:moordyn_c_binding_object>)
+target_link_libraries(moordyn_c_bind_static moordynlib seastlib nwtclibs versioninfolib)
 if(APPLE OR UNIX)
    target_compile_definitions(moordyn_c_bind_static PRIVATE IMPLICIT_DLLEXPORT)
 endif()
