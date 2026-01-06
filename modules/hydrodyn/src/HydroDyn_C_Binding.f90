@@ -691,6 +691,11 @@ CONTAINS
    !!    If more than one input node was passed in, but only a single HD node
    !!    exits (single Morison or single WAMIT), then give error that too many
    !!    nodes passed.
+   !!    More than one node is passed in (NumNodePts>1) indicates that the structure
+   !!    is modeled as flexible.  This requires more than one destination node on
+   !!    either the Morison or WAMIT meshes.  Note that some nodes may be
+   !!    co-located, so checking that the total number of nodes is the same does
+   !!    not work.
    subroutine CheckNodes(ErrStat3,ErrMsg3)
       integer(IntKi),         intent(  out)  :: ErrStat3    !< temporary error status
       character(ErrMsgLen),   intent(  out)  :: ErrMsg3     !< temporary error message
