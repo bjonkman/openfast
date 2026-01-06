@@ -3478,6 +3478,8 @@ class InputReader_OpenFAST(object):
 
             if not os.path.isabs(self.fst_vt['ElastoDyn']['TwrFile']):
                 ed_tower_file = os.path.join(os.path.dirname(ed_file), self.fst_vt['ElastoDyn']['TwrFile'])
+            else:
+                ed_tower_file = self.fst_vt['ElastoDyn']['TwrFile']
             self.read_ElastoDynTower(ed_tower_file)
         
         if self.fst_vt['Fst']['CompInflow'] == 1:
