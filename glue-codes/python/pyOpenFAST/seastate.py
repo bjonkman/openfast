@@ -480,16 +480,16 @@ class SeaStateLib(OpenFASTInterfaceType):
         self.check_error()
         return norm
 
-    def get_elevMinMax(self,
-        elevMin: float,
-        elevMax: float,
-    ) -> None:
+    def get_elevMinMax(self) -> tuple[float, float]:
         """
         Get estimate of the min and max total wave elevation. Will over
         estimate range when 2nd order waves used
-        Args:
-            minElev: minimum elevation
-            maxElev: maximum elevation
+        
+        Returns:
+            tuple[float, float]: A tuple containing (elevMin, elevMax) where:
+                - elevMin: minimum elevation estimate in meters
+                - elevMax: maximum elevation estimate in meters
+        
         Raises:
             RuntimeError: If calculation fails
         """
