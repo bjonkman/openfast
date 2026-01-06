@@ -301,6 +301,13 @@ subroutine WaveTank_Init(  &
       SimSettings%Env%WtrDpth,               &
       SimSettings%Env%MSL2SWL,               &
       SimSettings%Sim%MHK,                   &
+      0_c_int,                               &  ! externFlowfield_in
+      WrVTK_Dir_C,                           &  ! vtk directory to use
+      SimSettings%Viz%WrVTK,                 &  ! VTK visualization data output: (switch) {0=none; 1=initialization data only; 2=animation; 3=mode shapes}
+      SimSettings%Viz%WrVTK_Type,            &  ! Type of VTK visualization data: (switch) {1=surfaces; 2=basic meshes (lines/points); 3=all meshes (debug)} [unused if WrVTK=0]
+      SimSettings%Viz%WrVTK_DT,              &  ! timestep of VTK writing
+      SimSettings%Viz%VTKNacDim,             &  ! Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz] (m)
+      SimSettings%TrbCfg%HubRad,             &  ! Hub radius for VTK surface rendering
       DebugLevelMod,                         &
       ErrStat_C2, ErrMsg_C2                  &
    )
@@ -351,16 +358,10 @@ subroutine WaveTank_Init(  &
       c_loc(IfW_InputFile_C(1)),             &  ! IfWinputFileString_C; Input file as a single string with lines delineated by C_NULL_CHAR
       IntfStrLen,                            &  ! IfWinputFileStringLength_C; length of the input file string
       OutRootName_C,                         &  ! Root name to use for echo files and other
-      WrVTK_Dir_C,                           &  ! vtk directory to use
       SimSettings%Sim%InterpOrd,             &  ! interpolation order for extrap/interp
       SimSettings%Sim%DT,                    &  ! DT for simulation (used in checks only)
       SimSettings%Sim%TMax,                  &  ! Max time for simulation (not used here)
       0_c_int,                               &  ! storeHHVel - Store hub height time series from IfW -- set to false since not used here
-      SimSettings%Viz%WrVTK,                 &  ! VTK visualization data output: (switch) {0=none; 1=initialization data only; 2=animation; 3=mode shapes}
-      SimSettings%Viz%WrVTK_Type,            &  ! Type of VTK visualization data: (switch) {1=surfaces; 2=basic meshes (lines/points); 3=all meshes (debug)} [unused if WrVTK=0]
-      SimSettings%Viz%WrVTK_DT,              &  ! timestep of VTK writing
-      SimSettings%Viz%VTKNacDim,             &  ! Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz] (m)
-      SimSettings%TrbCfg%HubRad,             &  ! Hub radius for VTK surface rendering
       1_c_int,                               &  ! wrOuts_C -- Write ADI output file -- hard code to true for now
       SimSettings%Sim%DT,                    &  ! Timestep to write output file from ADI
       ADI_NumChannels_C, ADI_WriteOutputHdr_C, ADI_WriteOutputUnt_C, &
