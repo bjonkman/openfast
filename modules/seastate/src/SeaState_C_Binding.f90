@@ -742,7 +742,7 @@ subroutine SeaSt_C_GetElevMinMaxEstimate(Min_C, Max_C, ErrStat_C,ErrMsg_C) BIND 
    endif
 
    ! Measure directly from the data set (this is not ideal and will break if the layout changes)
-   call WaveField_GetMinWaveElevEstimate( p%WaveField, MinElev, MaxElev, ErrStat, ErrMsg)
+   call WaveField_GetMinMaxWaveElevEstimate( p%WaveField, MinElev, MaxElev, ErrStat, ErrMsg)
    Min_C = real(MinElev, c_float)
    Max_C = real(MaxElev, c_float)
 
