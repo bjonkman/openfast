@@ -189,7 +189,6 @@ CONTAINS
 !===============================================================================================================
 !--------------------------------------------- AeroDyn PreInit -------------------------------------------------
 !===============================================================================================================
-!FIXME: add way to indicate externally passed pointer for wind.  Propagate down to ADI
 !> Allocate all the arrays for data storage for all turbine rotors
 subroutine ADI_C_PreInit(                       &
    NumTurbines_C,                               &
