@@ -88,9 +88,10 @@ subroutine ADI_Init(InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOut
    case (2)   ! FlowField pointer is passed in
       InitInp%AD%FlowField => InitInp%FlowField
    case default
-      call SetErrStat(ErrID_Fatal, 'Invalid value for CompInflow', ErrStat, ErrMsg, RoutineName)
-      return
-   endif
+      ErrStat2 = ErrID_Fatal
+      ErrMsg2  = 'Invalid value for CompInflow'
+      if (Failed()) return
+   end select 
 
    call AD_Init(InitInp%AD, u%AD, p%AD, x%AD, xd%AD, z%AD, OtherState%AD, y%AD, m%AD, Interval, InitOut_AD, errStat2, errMsg2); if (Failed()) return
    InitOut%Ver = InitOut_AD%ver
