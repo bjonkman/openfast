@@ -80,12 +80,16 @@ subroutine ADI_Init(InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOut
 
    ! --- Initialize AeroDyn
    ! Link InflowWind's FlowField to AeroDyn's FlowField
-   if (m%IW%CompInflow == 0) then   ! steady wind - data stored as a flowfield dataset
+   select case (m%IW%CompInflow) 
+   case (0)   ! steady wind - data stored as a flowfield dataset
       InitInp%AD%FlowField => InitOut_IW%FlowField
-   elseif (m%IW%CompInflow == 1) then   ! IfW is used directly in ADI
+   case (1)   ! IfW is used directly in ADI
       InitInp%AD%FlowField => InitOut_IW%FlowField
-   elseif (m%IW%CompInflow == 2) then  ! FlowField pointer is passed in
+   case (2)   ! FlowField pointer is passed in
       InitInp%AD%FlowField => InitInp%FlowField
+   case default
+      call SetErrStat(ErrID_Fatal, 'Invalid value for CompInflow', ErrStat, ErrMsg, RoutineName)
+      return
    endif
 
    call AD_Init(InitInp%AD, u%AD, p%AD, x%AD, xd%AD, z%AD, OtherState%AD, y%AD, m%AD, Interval, InitOut_AD, errStat2, errMsg2); if (Failed()) return
