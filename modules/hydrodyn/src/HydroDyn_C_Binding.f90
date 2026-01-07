@@ -691,6 +691,11 @@ CONTAINS
    !!    If more than one input node was passed in, but only a single HD node
    !!    exits (single Morison or single WAMIT), then give error that too many
    !!    nodes passed.
+   !!    More than one node is passed in (NumNodePts>1) indicates that the structure
+   !!    is modeled as flexible.  This requires more than one destination node on
+   !!    either the Morison or WAMIT meshes.  Note that some nodes may be
+   !!    co-located, so checking that the total number of nodes is the same does
+   !!    not work.
    subroutine CheckNodes(ErrStat3,ErrMsg3)
       integer(IntKi),         intent(  out)  :: ErrStat3    !< temporary error status
       character(ErrMsgLen),   intent(  out)  :: ErrMsg3     !< temporary error message
@@ -698,19 +703,19 @@ CONTAINS
       ErrMsg3  = ""
       if ( NumNodePts > 1 ) then
          if ( HD%u(1)%Morison%Mesh%Committed .and. HD%u(1)%WAMITMesh%Committed ) then
-            if ( (HD%u(1)%Morison%Mesh%Nnodes + HD%u(1)%WAMITMesh%Nnodes) < NumNodePts ) then
+            if ( (HD%u(1)%Morison%Mesh%Nnodes + HD%u(1)%WAMITMesh%Nnodes) < 2_IntKi) then
                ErrStat3 = ErrID_Fatal
-               ErrMsg3  = "More nodes passed into library than exist in HydroDyn model"
+               ErrMsg3  = "More than one node passed into library, but only one HydroDyn node exists."
             endif
          elseif ( HD%u(1)%Morison%Mesh%Committed ) then     ! No WAMIT
-            if ( HD%u(1)%Morison%Mesh%Nnodes < NumNodePts ) then
+            if ( HD%u(1)%Morison%Mesh%Nnodes < 2_IntKi ) then
                ErrStat3 = ErrID_Fatal
-               ErrMsg3  = "More nodes passed into library than exist in HydroDyn model Morison mesh"
+               ErrMsg3  = "More than one node passed into library, but only one HydroDyn node exists on Morison mesh."
             endif
          elseif ( HD%u(1)%WAMITMesh%Committed    ) then     ! No Morison
-            if ( HD%u(1)%WAMITMesh%Nnodes < NumNodePts ) then
+            if ( HD%u(1)%WAMITMesh%Nnodes  < 2_IntKi ) then
                ErrStat3 = ErrID_Fatal
-               ErrMsg3  = "More nodes passed into library than exist in HydroDyn model WAMIT mesh"
+               ErrMsg3  = "More than one node passed into library, but only one HydroDyn node exists on the WAMIT mesh."
             endif
          endif
       endif

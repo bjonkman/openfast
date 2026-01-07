@@ -12,6 +12,7 @@ PRIVATE
 PUBLIC WaveField_GetNodeWaveElev1
 PUBLIC WaveField_GetNodeWaveElev2
 PUBLIC WaveField_GetNodeTotalWaveElev
+PUBLIC WaveField_GetMinMaxWaveElevEstimate
 PUBLIC WaveField_GetNodeWaveNormal
 PUBLIC WaveField_GetNodeWaveKin
 PUBLIC WaveField_GetNodeWaveVelAcc
@@ -108,6 +109,37 @@ contains
    end function
 END FUNCTION WaveField_GetNodeTotalWaveElev
 
+
+!> Gives an estimate of the min and max wave elevation.  It will overshoot for second order
+subroutine WaveField_GetMinMaxWaveElevEstimate( WaveField, MinElev, MaxElev, ErrStat, ErrMsg )
+   type(SeaSt_WaveFieldType), pointer, intent(in   ) :: WaveField
+   real(SiKi),                         intent(  out) :: MinElev
+   real(SiKi),                         intent(  out) :: MaxElev
+   integer(IntKi),                     intent(  out) :: ErrStat ! Error status of the operation
+   character(*),                       intent(  out) :: ErrMsg  ! Error message if errStat /= ErrID_None
+   character(*),                       parameter     :: RoutineName = 'WaveField_GetMinMaxWaveElevEstimate'
+
+   ErrStat   = ErrID_None
+   ErrMsg    = ""
+   MinElev = 0.0_SiKi
+   MaxElev = 0.0_SiKi
+
+   ! Check that data exists
+   if (.not. associated(WaveField)) then
+      ErrStat = ErrID_Fatal
+      ErrMsg  = trim(RoutineName)//": WaveField data does not exist."
+      return
+   endif
+
+   if (allocated(WaveField%WaveElev1)) then
+      MinElev = minval(WaveField%WaveElev1)
+      MaxElev = maxval(WaveField%WaveElev1)
+   endif
+   if (allocated(WaveField%WaveElev2)) then
+      MinElev = MinElev + minval(WaveField%WaveElev2)
+      MaxElev = MaxElev + maxval(WaveField%WaveElev2)
+   endif
+end subroutine WaveField_GetMinMaxWaveElevEstimate
 
 SUBROUTINE WaveField_GetNodeWaveNormal( WaveField, WaveField_m, Time, pos, n, ErrStat, ErrMsg )
    type(SeaSt_WaveFieldType),          intent(in   ) :: WaveField

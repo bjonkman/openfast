@@ -37,15 +37,24 @@ MODULE AeroDyn_Inflow_C_BINDING
    PUBLIC :: ADI_C_CalcOutput
    PUBLIC :: ADI_C_UpdateStates
    PUBLIC :: ADI_C_End
-   PUBLIC :: ADI_C_PreInit            ! Initial call to setup number of turbines
-   PUBLIC :: ADI_C_SetupRotor         ! Initial node positions etc for a rotor
-   PUBLIC :: ADI_C_SetRotorMotion     ! Set motions for a given rotor
-   PUBLIC :: ADI_C_GetRotorLoads      ! Retrieve loads for a given rotor
-   PUBLIC :: ADI_C_GetDiskAvgVel      ! Get the disk average velocity for the rotor
+   PUBLIC :: ADI_C_PreInit             ! Initial call to setup number of turbines
+   PUBLIC :: ADI_C_SetupRotor          ! Initial node positions etc for a rotor
+   PUBLIC :: ADI_C_SetRotorMotion      ! Set motions for a given rotor
+   PUBLIC :: ADI_C_GetRotorLoads       ! Retrieve loads for a given rotor
+   PUBLIC :: ADI_C_GetDiskAvgVel       ! Get the disk average velocity for the rotor
+   PUBLIC :: ADI_C_SetFlowFieldPointer ! Set the pointer to the flowfield data (from external IfW instance)
+   PUBLIC :: ADI_C_GetFlowFieldPointer ! Get the pointer to the flowfield data (to pass to external IfW instance)
 
    !------------------------------------------------------------------------------------
    !  Version info for display
    type(ProgDesc), parameter              :: version   = ProgDesc( 'AeroDyn-Inflow library', '', '' )
+
+   !------------------------------------------------------------------------------------
+   !  Wind
+   !     externFlowField   - FlowField is handled externally to ADI, pointer must be set manually
+   !     FlowFieldPtrSet   - is the FlowField pointer set from external?
+   logical                                :: externFlowField = .false.
+   logical                                :: FlowFieldPtrSet = .false.
 
    !------------------------------------------------------------------------------------
    !  Debugging: DebugLevel -- passed at PreInit
@@ -125,8 +134,9 @@ MODULE AeroDyn_Inflow_C_BINDING
    !     interface and therefore must store it here analogously to how it is handled
    !     in the OpenFAST glue code.
    integer(IntKi)                         :: n_Global             ! global timestep
-   integer(IntKi)                         :: VTKn_Global    ! global timestep for VTK
-   integer(IntKi)                         :: VTKn_last      ! last global timestep for VTK
+   integer(IntKi)                         :: VTKn_Global          ! global timestep for VTK
+   integer(IntKi)                         :: VTKn_last            ! last global timestep for VTK
+   character(IntfStrLen)                  :: OutVTKDir            !< Output directory for files (relative to current location)
    real(DbKi)                             :: InputTimePrev        ! input time of last UpdateStates call
    real(DbKi)                             :: InputTimePrev_Calc   ! input time of last CalcOutput call
    ! Note that we are including the previous state info here (not done in OF this way)
@@ -187,6 +197,10 @@ subroutine ADI_C_PreInit(                       &
    defSpdSound_in, defPatm_in, defPvap_in,      &
    WtrDpth_in, MSL2SWL_in,                      &
    MHK_in,                                      &
+   externFlowField_in,                          &
+   OutVTKDir_C,                                 &
+   WrVTK_in, WrVTK_inType, WrVTK_inDT,          &
+   VTKNacDim_in, VTKHubRad_in,                  &
    DebugLevel_in, ErrStat_C, ErrMsg_C           &
 ) BIND (C, NAME='ADI_C_PreInit')
    implicit none
@@ -194,24 +208,34 @@ subroutine ADI_C_PreInit(                       &
 !DEC$ ATTRIBUTES DLLEXPORT :: ADI_C_PreInit
 !GCC$ ATTRIBUTES DLLEXPORT :: ADI_C_PreInit
 #endif
-   integer(c_int),          intent(in   ) :: NumTurbines_C
-   integer(c_int),          intent(in   ) :: TransposeDCM_in        !< Transpose DCMs as they are passed i
-   integer(c_int),          intent(in   ) :: PointLoadOutput_in
-   real(c_float),           intent(in   ) :: gravity_in             !< Gravitational acceleration (m/s^2)
-   real(c_float),           intent(in   ) :: defFldDens_in          !< Air density (kg/m^3)
-   real(c_float),           intent(in   ) :: defKinVisc_in          !< Kinematic viscosity of working fluid (m^2/s)
-   real(c_float),           intent(in   ) :: defSpdSound_in         !< Speed of sound in working fluid (m/s)
-   real(c_float),           intent(in   ) :: defPatm_in             !< Atmospheric pressure (Pa) [used only for an MHK turbine cavitation check]
-   real(c_float),           intent(in   ) :: defPvap_in             !< Vapour pressure of working fluid (Pa) [used only for an MHK turbine cavitation check]
-   real(c_float),           intent(in   ) :: WtrDpth_in             !< Water depth (m) [used only for an MHK turbine]
-   real(c_float),           intent(in   ) :: MSL2SWL_in             !< Offset between still-water level and mean sea level (m) [positive upward, used only for an MHK turbine]
-   integer(c_int),          intent(in   ) :: MHK_in                 !< Marine hydrokinetic turbine [0: none; 1: fixed bottom MHK; 2: Floating MHK]
-   integer(c_int),          intent(in   ) :: DebugLevel_in
-   integer(c_int),          intent(  out) :: ErrStat_C
-   character(kind=c_char),  intent(  out) :: ErrMsg_C(ErrMsgLen_C)
+   integer(c_int),         intent(in   )  :: NumTurbines_C
+   integer(c_int),         intent(in   )  :: TransposeDCM_in        !< Transpose DCMs as they are passed in
+   integer(c_int),         intent(in   )  :: PointLoadOutput_in
+   real(c_float),          intent(in   )  :: gravity_in             !< Gravitational acceleration (m/s^2)
+   real(c_float),          intent(in   )  :: defFldDens_in          !< Air density (kg/m^3)
+   real(c_float),          intent(in   )  :: defKinVisc_in          !< Kinematic viscosity of working fluid (m^2/s)
+   real(c_float),          intent(in   )  :: defSpdSound_in         !< Speed of sound in working fluid (m/s)
+   real(c_float),          intent(in   )  :: defPatm_in             !< Atmospheric pressure (Pa) [used only for an MHK turbine cavitation check]
+   real(c_float),          intent(in   )  :: defPvap_in             !< Vapour pressure of working fluid (Pa) [used only for an MHK turbine cavitation check]
+   real(c_float),          intent(in   )  :: WtrDpth_in             !< Water depth (m) [used only for an MHK turbine]
+   real(c_float),          intent(in   )  :: MSL2SWL_in             !< Offset between still-water level and mean sea level (m) [positive upward, used only for an MHK turbine]
+   integer(c_int),         intent(in   )  :: MHK_in                 !< Marine hydrokinetic turbine [0: none; 1: fixed bottom MHK; 2: Floating MHK]
+   ! inflow
+   integer(c_int),         intent(in   )  :: externFlowField_in     !< skip IfW setup and use external module with pointer
+   ! VTK
+   character(kind=c_char), intent(in   )  :: OutVTKDir_C(IntfStrLen)    !< Directory to put all vtk output
+   integer(c_int),         intent(in   )  :: WrVTK_in                   !< Write VTK outputs [0: none, 1: init only, 2: animation]
+   integer(c_int),         intent(in   )  :: WrVTK_inType               !< Write VTK outputs as [1: surface, 2: lines, 3: both]
+   real(c_double),         intent(in   )  :: WrVTK_inDT                 !< Timestep between VTK writes
+   real(c_float),          intent(in   )  :: VTKNacDim_in(6)            !< Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz] (m)
+   real(c_float),          intent(in   )  :: VTKHubrad_in               !< Hub radius for VTK surface rendering
+   integer(c_int),         intent(in   )  :: DebugLevel_in
+   integer(c_int),         intent(  out)  :: ErrStat_C
+   character(kind=c_char), intent(  out)  :: ErrMsg_C(ErrMsgLen_C)
 
    ! Local variables
    integer(IntKi)             :: iWT                              !< current turbine
+   integer(IntKi)             :: i                                !< generic index variables
    integer                    :: ErrStat_F                        !< aggregated error status
    character(ErrMsgLen)       :: ErrMsg_F                         !< aggregated error message
    integer                    :: ErrStat_F2                       !< temporary error status  from a call
@@ -225,6 +249,9 @@ subroutine ADI_C_PreInit(                       &
    CALL NWTC_Init( ProgNameIn=version%Name )
    CALL DispCopyrightLicense( version%Name )
    CALL DispCompileRuntimeInfo( version%Name )
+
+   ! clear out any memory that may be leftover from previous use of library without unloading
+   call ClearTmpStorage()
 
    ! Save flag for outputting point or distributed loads
    PointLoadOutput = PointLoadOutput_in /= 0
@@ -328,6 +355,31 @@ subroutine ADI_C_PreInit(                       &
       end if
    enddo
 
+
+   !----------------------------------------------------
+   ! ADI settings
+   !----------------------------------------------------
+   ! FlowField - internal to ADI library, or external
+   ! if externally set, must call the ADI_C_SetFlowFieldPointer routine
+   if (externFlowField_in==1_c_int) then
+      externFlowField = .true.
+   endif
+
+   ! Setup VTK
+   ! OutVTKDir -- output directory
+   OutVTKDir = TRANSFER( OutVTKDir_C, OutVTKDir )
+   i = INDEX(OutVTKDir,C_NULL_CHAR) - 1               ! if this has a c null character at the end...
+   if ( i > 0 ) OutVTKDir = OutVTKDir(1:I)            ! remove it
+
+   ! VTK writing
+   WrOutputsData%WrVTK        = int(WrVTK_in,     IntKi)
+   WrOutputsData%WrVTK_Type   = int(WrVTK_inType, IntKi)
+   WrOutputsData%VTK_dt       = real(WrVTK_inDT,   DbKi)
+   WrOutputsData%VTKNacDim    = real(VTKNacDim_in, SiKi)
+   WrOutputsData%VTKHubrad    = real(VTKHubrad_in, SiKi)
+   WrOutputsData%VTKRefPoint  = (/ 0.0_ReKi, 0.0_ReKi, 0.0_ReKi /)    !TODO: should this be an input?
+   WrOutputsData%n_VTKTime    = 1   ! output every timestep
+
    call SetErrStat_F2C(ErrStat_F,ErrMsg_F,ErrStat_C,ErrMsg_C)
 
 contains
@@ -377,6 +429,14 @@ contains
       call WrScr("       defPvap_C                      "//trim(Num2LStr( defPvap_in     )) )
       call WrScr("       WtrDpth_C                      "//trim(Num2LStr( WtrDpth_in     )) )
       call WrScr("       MSL2SWL_C                      "//trim(Num2LStr( MSL2SWL_in     )) )
+      call WrScr("   Wind from external IfW instance")
+      TmpFlag="F";   if (externFlowField_in==1_c_int) TmpFlag="T"
+      call WrScr("       externFlowField_in             "//TmpFlag )
+      call WrScr("   VTK visualization variables")
+      call WrScr("       OutVTKDir                      "//trim(OutVTKDir)   )
+      call WrScr("       WrVTK_in                       "//trim(Num2LStr( WrVTK_in      )) )
+      call WrScr("       WrVTK_inType                   "//trim(Num2LStr( WrVTK_inType  )) )
+      call WrScr("       WrVTK_inDT                     "//trim(Num2LStr( WrVTK_inDT    )) )
       call WrScr("-----------------------------------------------------------")
    end subroutine ShowPassedData
 
@@ -387,11 +447,8 @@ end subroutine ADI_C_PreInit
 !===============================================================================================================
 SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileStringLength_C, &
                IfWinputFilePassed, IfWinputFileString_C, IfWinputFileStringLength_C, OutRootName_C,  &
-               OutVTKDir_C,                                               &
                InterpOrder_C, DT_C, TMax_C,                               &
                storeHHVel,                                                &
-               WrVTK_in, WrVTK_inType, WrVTK_inDT,                        &
-               VTKNacDim_in, VTKHubRad_in,                                &
                wrOuts_C, DT_Outs_C,                                       &
                NumChannels_C, OutputChannelNames_C, OutputChannelUnits_C, &
                ErrStat_C, ErrMsg_C) BIND (C, NAME='ADI_C_Init')
@@ -408,7 +465,6 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
    type(c_ptr),               intent(in   )  :: IfWinputFileString_C                   !< Input file as a single string with lines delineated by C_NULL_CHAR
    integer(c_int),            intent(in   )  :: IfWinputFileStringLength_C             !< length of the input file string
    character(kind=c_char),    intent(in   )  :: OutRootName_C(IntfStrLen)              !< Root name to use for echo files and other
-   character(kind=c_char),    intent(in   )  :: OutVTKDir_C(IntfStrLen)                !< Directory to put all vtk output
    ! Interpolation
    integer(c_int),            intent(in   )  :: InterpOrder_C                          !< Interpolation order to use (must be 1 or 2)
    ! Time
@@ -416,12 +472,6 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
    real(c_double),            intent(in   )  :: TMax_C                                 !< Maximum time for simulation
    ! Flags
    integer(c_int),            intent(in   )  :: storeHHVel                             !< Store hub height time series from IfW
-   ! VTK
-   integer(c_int),            intent(in   )  :: WrVTK_in                               !< Write VTK outputs [0: none, 1: init only, 2: animation]
-   integer(c_int),            intent(in   )  :: WrVTK_inType                           !< Write VTK outputs as [1: surface, 2: lines, 3: both]
-   real(c_double),            intent(in   )  :: WrVTK_inDT                             !< Timestep between VTK writes
-   real(c_float),             intent(in   )  :: VTKNacDim_in(6)                        !< Nacelle dimension passed in for VTK surface rendering [0,y0,z0,Lx,Ly,Lz] (m)
-   real(c_float),             intent(in   )  :: VTKHubrad_in                           !< Hub radius for VTK surface rendering
    integer(c_int),            intent(in   )  :: wrOuts_C                               !< Write ADI output file
    real(c_double),            intent(in   )  :: DT_Outs_C                              !< Timestep to write output file from ADI
    ! Output
@@ -441,7 +491,6 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
    character(ErrMsgLen)                                           :: ErrMsg_F          !< aggregated error message
    integer(IntKi)                                                 :: ErrStat_F2        !< temporary error status  from a call
    character(ErrMsgLen)                                           :: ErrMsg_F2         !< temporary error message from a call
-   character(IntfStrLen)                                          :: OutVTKDir         !< Output directory for files (relative to current location)
    integer(IntKi)                                                 :: i,j,k             !< generic index variables
    integer(IntKi)                                                 :: iWT               !< current turbine number (iterate through during setup for ADI_Init call)
    integer(IntKi)                                                 :: AeroProjMod       !< for checking that all turbines use the same AeroProjMod
@@ -464,6 +513,24 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
       if (Failed()) return
    endif
 
+   ! if using an external IfW, check that the pointer was actually set and is valid
+   if (externFlowField) then
+      if (.not. FlowFieldPtrSet) then
+         ErrStat_F2 = ErrID_Fatal
+         ErrMsg_F2  = "FlowField data from an external InflowWind instance declared, but pointer to data not set.  Call ADI_C_SetFlowFieldPointer after ADI_C_PreInit, but before ADI_C_Init"
+         if (Failed()) return
+      endif
+      if (associated(InitInp%FlowField)) then
+         ! basic sanity check
+         if (InitInp%FlowField%FieldType <= 0_IntKi) then
+            ErrStat_F2 = ErrID_Fatal
+            ErrMsg_F2  = "Invalid FlowField pointer passed in, or external InflowWind FlowField not initialized.  Call ADI_C_SetFlowFieldPointer after ADI_C_PreInit, but before ADI_C_Init"
+         if (Failed()) return
+         endif
+      endif
+   endif
+
+
    do iWT=1,Sim%NumTurbines
       if (Sim%WT(iWT)%NumBlades < 0)   call SetErrStat(ErrID_Fatal,"Rotor "//trim(Num2LStr(iWT))//" not initialized. Call ADI_C_SetupRotor prior to calling ADI_C_Init",ErrStat_F2,ErrMsg_F2,RoutineName)
    enddo
@@ -480,9 +547,6 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
       endif
    enddo
 
-   ! Setup temporary storage arrays for simpler transfers
-   call SetTempStorage(ErrStat_F2,ErrMsg_F2); if (Failed()) return
-
 
    !--------------------------
    ! Input files
@@ -492,20 +556,15 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
    i = INDEX(OutRootName,C_NULL_CHAR) - 1             ! if this has a c null character at the end...
    if ( i > 0 ) OutRootName = OutRootName(1:I)        ! remove it
 
-   ! OutVTKDir -- output directory
-   OutVTKDir = TRANSFER( OutVTKDir_C, OutVTKDir )
-   i = INDEX(OutVTKDir,C_NULL_CHAR) - 1               ! if this has a c null character at the end...
-   if ( i > 0 ) OutVTKDir = OutVTKDir(1:I)            ! remove it
-
-   ! Get fortran pointer to C_NULL_CHAR deliniated input files as a string
-   call C_F_pointer(ADinputFileString_C,  ADinputFileString)
-   call C_F_pointer(IfWinputFileString_C, IfWinputFileString)
-
    ! For debugging the interface:
    if (DebugLevel > 0) then
       call ShowPassedData()
    endif
 
+
+   ! Get fortran pointer to C_NULL_CHAR deliniated input files as a string
+   call C_F_pointer(ADinputFileString_C,  ADinputFileString)
+   call C_F_pointer(IfWinputFileString_C, IfWinputFileString)
 
    ! Format AD input file contents
    InitInp%AD%RootName                 = OutRootName
@@ -561,13 +620,7 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
    ! Interpolation order
    InterpOrder             = int(InterpOrder_C, IntKi)
 
-   ! VTK outputs
-   WrOutputsData%WrVTK        = int(WrVTK_in,     IntKi)
-   WrOutputsData%WrVTK_Type   = int(WrVTK_inType, IntKi)
-   WrOutputsData%VTK_dt       = real(WrVTK_inDT,   DbKi)
-   WrOutputsData%VTKNacDim    = real(VTKNacDim_in, SiKi)
-   WrOutputsData%VTKHubrad    = real(VTKHubrad_in, SiKi)
-   WrOutputsData%VTKRefPoint  = (/ 0.0_ReKi, 0.0_ReKi, 0.0_ReKi /)    !TODO: should this be an input?
+   ! VTK output file
    WrOutputsData%root         = trim(OutRootName)
 
    ! Write outputs to file
@@ -576,6 +629,7 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
 
    ! Validate and set some inputs (moved to subroutine to make cleaner to read
    call ValidateSetInputs(ErrStat_F2,ErrMsg_F2); if(Failed()) return
+   call ValidateSetVTK(ErrStat_F2,ErrMsg_F2); if(Failed()) return
 
    ! Linearization
    !     for now, set linearization to false. Pass this in later when interface supports it
@@ -591,7 +645,11 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
    InitInp%storeHHVel     = storeHHVel==1_c_int
    InitInp%WrVTK          = WrOutputsData%WrVTK
    InitInp%WrVTK_Type     = WrOutputsData%WrVTK_Type
-   InitInp%IW_InitInp%CompInflow = 1    ! Use InflowWind
+   if (externFlowField) then
+      InitInp%IW_InitInp%CompInflow = 2    ! Use external instance of InflowWind
+   else
+      InitInp%IW_InitInp%CompInflow = 1    ! Use InflowWind
+   endif
 
    !----------------------------------------------------
    ! Allocate input array u and corresponding InputTimes
@@ -630,7 +688,7 @@ SUBROUTINE ADI_C_Init( ADinputFilePassed, ADinputFileString_C, ADinputFileString
    ! Set the interface  meshes for motion inputs and loads output
    !-------------------------------------------------------------
    call SetupMotionLoadsInterfaceMeshes();    if (Failed())  return
-   ! setup meshes
+   ! setup VTK params
    if (WrOutputsData%WrVTK > 0_IntKi) then
       if (len_trim(OutVTKDir) <= 0) then
          OutVTKDir = 'vtk-ADI'
@@ -777,23 +835,6 @@ CONTAINS
          return
       endif
 
-      ! VTK outputs
-      if ( WrOutputsData%WrVTK < 0_IntKi .or. WrOutputsData%WrVTK > 2_IntKi ) then
-         call SetErrStat(ErrID_Fatal,"WrVTK option for writing VTK visualization files must be [0: none, 1: init only, 2: animation]",ErrStat3,ErrMsg3,RoutineName)
-         return
-      endif
-      if ( WrOutputsData%WrVTK_Type > 0_IntKi ) then
-         if ( WrOutputsData%WrVTK_Type < 1_IntKi .or. WrOutputsData%WrVTK_Type > 3_IntKi ) then
-            call SetErrStat(ErrID_Fatal,"WrVTK_Type option for writing VTK visualization files must be [1: surface, 2: lines, 3: both]",ErrStat3,ErrMsg3,RoutineName)
-            return
-         endif
-         if (WrOutputsData%VTKHubRad < 0.0_SiKi) then
-            call SetErrStat(ErrID_Warn,"VTKHubRad for surface visualization of hub less than zero.  Setting to zero.",ErrStat3,ErrMsg3,RoutineName)
-            WrOutputsData%VTKHubRad = 0.0_SiKi
-         endif
-      endif
-
-
       ! check fileFmt
       if ( WrOutputsData%fileFmt /= idFmtNone .and. WrOutputsData%fileFmt /= idFmtAscii .and. &
            WrOutputsData%fileFmt /= idFmtBinary .and. WrOutputsData%fileFmt /= idFmtBoth) then
@@ -813,6 +854,31 @@ CONTAINS
             call SetErrStat(ErrID_Warn,"Requested DT_Outs is not an integer multiple of DT.  Changing DT_Outs to "//trim(Num2LStr(WrOutputsData%DT_Outs))//".",ErrStat3,ErrMsg3,RoutineName)
          endif
       endif
+   end subroutine ValidateSetInputs
+   !> Validate and set some of the outputs (values must be stored before here as some might be changed)
+   subroutine ValidateSetVTK(ErrStat3,ErrMsg3)
+      integer(IntKi),         intent(  out)  :: ErrStat3    !< temporary error status
+      character(ErrMsgLen),   intent(  out)  :: ErrMsg3     !< temporary error message
+
+      ErrStat3 = ErrID_None
+      ErrMsg3  = ""
+
+      ! VTK outputs
+      if ( WrOutputsData%WrVTK < 0_IntKi .or. WrOutputsData%WrVTK > 2_IntKi ) then
+         call SetErrStat(ErrID_Fatal,"WrVTK option for writing VTK visualization files must be [0: none, 1: init only, 2: animation]",ErrStat3,ErrMsg3,RoutineName)
+         return
+      endif
+      if ( WrOutputsData%WrVTK_Type > 0_IntKi ) then
+         if ( WrOutputsData%WrVTK_Type < 1_IntKi .or. WrOutputsData%WrVTK_Type > 3_IntKi ) then
+            call SetErrStat(ErrID_Fatal,"WrVTK_Type option for writing VTK visualization files must be [1: surface, 2: lines, 3: both]",ErrStat3,ErrMsg3,RoutineName)
+            return
+         endif
+         if (WrOutputsData%VTKHubRad < 0.0_SiKi) then
+            call SetErrStat(ErrID_Warn,"VTKHubRad for surface visualization of hub less than zero.  Setting to zero.",ErrStat3,ErrMsg3,RoutineName)
+            WrOutputsData%VTKHubRad = 0.0_SiKi
+         endif
+      endif
+
       if (WrOutputsData%WrVTK > 1_IntKi) then   ! only if writing during simulation is requested (ignore init or no outputs)
          ! If a smaller timestep between outputs is requested than the simulation runs at, change to DT
          if (WrOutputsData%VTK_DT < Sim%dT) then
@@ -826,7 +892,7 @@ CONTAINS
             call SetErrStat(ErrID_Warn,"Requested VTK_DT is not an integer multiple of DT.  Changing VTK_DT to "//trim(Num2LStr(WrOutputsData%VTK_DT))//".",ErrStat3,ErrMsg3,RoutineName)
          endif
       endif
-   end subroutine ValidateSetInputs
+   end subroutine ValidateSetVTK
 
    !> allocate data storage for file outputs
    subroutine SetupFileOutputs()
@@ -882,7 +948,6 @@ CONTAINS
          call WrScr("       IfWinputFileString_C           "//trim(IfWinputFileString(1:i)))
       endif
       call WrScr("       OutRootName                    "//trim(OutRootName) )
-      call WrScr("       OutVTKDir                      "//trim(OutVTKDir)   )
       call WrScr("   Interpolation")
       call WrScr("       InterpOrder_C                  "//trim(Num2LStr( InterpOrder_C )) )
       call WrScr("   Time variables")
@@ -894,11 +959,10 @@ CONTAINS
       call WrScr("   Flags")
       TmpFlag="F";   if (storeHHVel==1_c_int) TmpFlag="T"
       call WrScr("       storeHHVel                     "//TmpFlag )
-      call WrScr("       WrVTK_in                       "//trim(Num2LStr( WrVTK_in      )) )
-      call WrScr("       WrVTK_inType                   "//trim(Num2LStr( WrVTK_inType  )) )
-      call WrScr("       WrVTK_inDT                     "//trim(Num2LStr( WrVTK_inDT    )) )
       call WrScr("-----------------------------------------------------------")
    end subroutine ShowPassedData
+!FIXME: add a ShowReturnData here!
+
 
    !> This subroutine sets the interface meshes to map to the input motions to the AD
    !! meshes
@@ -1085,6 +1149,7 @@ CONTAINS
          call SetErrStat_F2C(ErrStat_F,ErrMsg_F,ErrStat_C,ErrMsg_C)
       endif
    end function Failed
+!FIXME: add a showpassed/return routine
 END SUBROUTINE ADI_C_CalcOutput
 
 !===============================================================================================================
@@ -1751,15 +1816,13 @@ subroutine ADI_C_SetRotorMotion( iWT_c,                             &
    enddo
 
    ! Transfer motions to input meshes
-   do iWT=1,Sim%NumTurbines
-      call Set_MotionMesh(iWT, ErrStat_F2, ErrMsg_F2);    if (Failed())  return
-      call AD_SetInputMotion( iWT, ADI_u, &
-               HubPos_C,   HubOri_C,   HubVel_C,   HubAcc_C,      &
-               NacPos_C,   NacOri_C,   NacVel_C,   NacAcc_C,      &
-               BldRootPos_C, BldRootOri_C, BldRootVel_C,   BldRootAcc_C,   &
-               ErrStat_F2, ErrMsg_F2 )  ! transfer input motion mesh to u(1) meshes
-         if (Failed())  return
-   enddo
+   call Set_MotionMesh(iWT, ErrStat_F2, ErrMsg_F2);    if (Failed())  return
+   call AD_SetInputMotion( iWT, ADI_u, &
+            HubPos_C,   HubOri_C,   HubVel_C,   HubAcc_C,      &
+            NacPos_C,   NacOri_C,   NacVel_C,   NacAcc_C,      &
+            BldRootPos_C, BldRootOri_C, BldRootVel_C,   BldRootAcc_C,   &
+            ErrStat_F2, ErrMsg_F2 )  ! transfer input motion mesh to u(1) meshes
+      if (Failed())  return
 
    ! Set error status
    call SetErrStat_F2C(ErrStat_F,ErrMsg_F,ErrStat_C,ErrMsg_C)
@@ -2518,34 +2581,6 @@ end subroutine WrVTK_Ground
 
 
 !--------------------------------------------------------------------
-!> Set some temporary data storage arrays to simplify data conversion
-subroutine SetTempStorage(ErrStat,ErrMsg)
-   INTEGER(IntKi),  intent(out)  :: errStat         !< Indicates whether an error occurred (see NWTC_Library)
-   character(*),    intent(out)  :: errMsg          !< Error message associated with the errStat
-   INTEGER(IntKi)                :: ErrStat_F2
-   CHARACTER(ErrMsgLen)          :: ErrMsg_F2
-   character(*), parameter       :: RoutineName = 'SetTempStorage'  !< for error handling
-   ErrStat = ErrID_None
-   ErrMsg  = ""
-   if (.not. allocated(NumMeshPts)) then
-      ErrStat = ErrID_Fatal
-      ErrMSg  = "Pre-Init has not been called yet"
-      return
-   endif
-   if (minval(NumMeshPts) < 0) then
-      ErrStat = ErrID_Fatal
-      ErrMSg  = "ADI_C_SetupRotor haven't been called for all rotors"
-      return
-   endif
-
-contains
-   logical function Failed()
-      CALL SetErrStat( ErrStat_F2, ErrMsg_F2, ErrStat, ErrMsg, RoutineName )
-      Failed = ErrStat >= AbortErrLev
-   end function Failed
-end subroutine SetTempStorage
-
-!--------------------------------------------------------------------
 !> Don't leave junk in memory.  So destroy meshes and mappings.
 subroutine ClearTmpStorage()
    INTEGER(IntKi)                :: ErrStat_F2, iWT
@@ -2570,7 +2605,6 @@ contains
       enddo
       deallocate(MeshName)
    end subroutine ClearMeshArr1
-
    subroutine ClearMeshMapArr2(MapName)
       type(MeshMapType), allocatable :: MapName(:,:)
       integer :: i,j
@@ -2581,8 +2615,85 @@ contains
       enddo
       deallocate(MapName)
    end subroutine ClearMeshMapArr2
-
 end subroutine ClearTmpStorage
+
+
+!> return the pointer to the WaveField data
+subroutine ADI_C_GetFlowFieldPointer(FlowFieldPointer_C,ErrStat_C,ErrMsg_C) BIND (C, NAME='ADI_C_GetFlowFieldPointer')
+#ifndef IMPLICIT_DLLEXPORT
+!DEC$ ATTRIBUTES DLLEXPORT :: ADI_C_GetFlowFieldPointer
+!GCC$ ATTRIBUTES DLLEXPORT :: ADI_C_GetFlowFieldPointer
+#endif
+   type(c_ptr),               intent(  out)  :: FlowFieldPointer_C
+   integer(c_int),            intent(  out)  :: ErrStat_C
+   character(kind=c_char),    intent(  out)  :: ErrMsg_C(ErrMsgLen_C)
+   integer                                   :: ErrStat
+   character(ErrMsgLen)                      :: ErrMsg
+   character(*),              parameter      :: RoutineName = 'ADI_C_GetFlowFieldPointer'
+   ErrStat = ErrID_None
+   ErrMSg = ""
+   if (associated(ADI%m%IW%p%FlowField)) then
+      FlowFieldPointer_C = C_LOC(ADI%m%IW%p%FlowField)
+   else
+      FlowFieldPointer_C = C_NULL_PTR
+      call SetErrStat(ErrID_Fatal,"Pointer to FlowField data not valid: data not initialized",ErrStat,ErrMsg,RoutineName)
+   endif
+   call SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )
+   if (DebugLevel > 1) call ShowPassedData()
+   return
+contains
+   subroutine ShowPassedData()
+      call WrScr("-----------------------------------------------------------")
+      call WrScr("Interface debugging:  ADI_C_GetFlowFieldPointer")
+      call WrScr("   --------------------------------------------------------")
+      call WrScr("   FlowFieldPointer_C       -> "//trim(Num2LStr(loc(ADI%m%IW%p%FlowField))))
+      call WrScr("-----------------------------------------------------------")
+   end subroutine ShowPassedData
+end subroutine
+
+
+!> set the pointer to the FlowField data
+subroutine ADI_C_SetFlowFieldPointer(FlowFieldPointer_C,ErrStat_C,ErrMsg_C) BIND (C, NAME='ADI_C_SetFlowFieldPointer')
+#ifndef IMPLICIT_DLLEXPORT
+!DEC$ ATTRIBUTES DLLEXPORT :: ADI_C_SetFlowFieldPointer
+!GCC$ ATTRIBUTES DLLEXPORT :: ADI_C_SetFlowFieldPointer
+#endif
+   type(c_ptr),               intent(in   )  :: FlowFieldPointer_C
+   integer(c_int),            intent(  out)  :: ErrStat_C
+   character(kind=c_char),    intent(  out)  :: ErrMsg_C(ErrMsgLen_C)
+   integer                                   :: ErrStat
+   character(ErrMsgLen)                      :: ErrMsg
+   character(*),              parameter      :: RoutineName = 'ADI_C_SetFlowFieldPointer'
+   ErrStat = ErrID_None
+   ErrMSg = ""
+   ! check if externFlowField expected
+   if (.not. externFlowField) then
+      call SetErrStat(ErrID_Severe,"External flowfield not expected. Set externFlowField_in=1 in call to ADI_C_PreInit prior to calling ADI_C_SetFlowFieldPointer.",ErrStat,ErrMsg,RoutineName)
+   endif
+   ! set pointer
+   call C_F_POINTER(FlowFieldPointer_C, InitInp%FlowField)
+   if (associated(InitInp%FlowField)) then
+      ! basic sanity check
+      if (InitInp%FlowField%FieldType <= 0_IntKi) then
+         call SetErrStat(ErrID_Fatal,"Invalid pointer passed in, or FlowField not initialized",ErrStat,ErrMsg,RoutineName)
+      else
+         FlowFieldPtrSet = .true.
+      endif
+   else
+      call SetErrStat(ErrID_Fatal,"Invalid pointer passed in, or FlowField not initialized.",ErrStat,ErrMsg,RoutineName)
+   endif
+   call SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )
+   if (DebugLevel > 1) call ShowPassedData()
+   return
+contains
+   subroutine ShowPassedData()
+      call WrScr("-----------------------------------------------------------")
+      call WrScr("Interface debugging:  ADI_C_SetFlowFieldPointer")
+      call WrScr("   --------------------------------------------------------")
+      call WrScr("   FlowFieldPointer_C       <- "//trim(Num2LStr(loc(InitInp%FlowField))))
+      call WrScr("-----------------------------------------------------------")
+   end subroutine ShowPassedData
+end subroutine
 
 
 END MODULE AeroDyn_Inflow_C_BINDING

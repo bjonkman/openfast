@@ -46,10 +46,6 @@ class MotionData:
         position information for SeaState
     """
     position: npt.NDArray[np.float32]
-    #orientation: npt.NDArray[np.float64]
-    #velocity: npt.NDArray[np.float32]
-    #acceleration: npt.NDArray[np.float32]
-
 
 
 class SeaStateLib(OpenFASTInterfaceType):
@@ -72,7 +68,6 @@ class SeaStateLib(OpenFASTInterfaceType):
         self.ended = False                  # For error handling at end
 
         # Create buffers for class data
-        #self.abort_error_level = 4
         self.error_status_c = c_int(0)
         self.error_message_c = create_string_buffer(self.ERROR_MSG_C_LEN)
 
@@ -188,6 +183,16 @@ class SeaStateLib(OpenFASTInterfaceType):
             POINTER(c_char)         # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
         self.SeaSt_C_GetSurfNorm.restype = None
+
+        self.SeaSt_C_GetElevMinMaxEstimate.argtypes = [ 
+            POINTER(c_float),       # intent(  out) :: elevMin_c
+            POINTER(c_float),       # intent(  out) :: elevMax_c
+            POINTER(c_int),         # intent(  out) :: ErrStat_C
+            POINTER(c_char)         # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
+        ]
+        self.SeaSt_C_GetElevMinMaxEstimate.restype = None
+
+
 
     def check_error(self) -> None:
         """Checks for and handles any errors from the Fortran library.
@@ -475,8 +480,32 @@ class SeaStateLib(OpenFASTInterfaceType):
         self.check_error()
         return norm
 
-
-
+    def get_elevMinMax(self) -> tuple[float, float]:
+        """
+        Get estimate of the min and max total wave elevation. Will over
+        estimate range when 2nd order waves used
+        
+        Returns:
+            tuple[float, float]: A tuple containing (elevMin, elevMax) where:
+                - elevMin: minimum elevation estimate in meters
+                - elevMax: maximum elevation estimate in meters
+        
+        Raises:
+            RuntimeError: If calculation fails
+        """
+        elevMin_c = c_float(0.0)
+        elevMax_c = c_float(0.0)
+        print("Calling SeaSt_C_GetElevMinMaxEstimate")
+        self.SeaSt_C_GetElevMinMaxEstimate(
+            elevMin_c,                                  # out <- min elev
+            elevMax_c,                                  # out <- max elev
+            byref(self.error_status_c),                 # OUT <- error status
+            self.error_message_c                        # OUT <- error message
+        )
+        self.check_error()
+        elevMin = elevMin_c.value
+        elevMax = elevMax_c.value
+        return elevMin,elevMax 
 
 
     @property

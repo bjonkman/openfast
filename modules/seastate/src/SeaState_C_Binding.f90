@@ -40,6 +40,10 @@ MODULE SeaState_C_Binding
    PUBLIC :: SeaSt_C_GetFluidVelAcc
    PUBLIC :: SeaSt_C_GetSurfElev
    PUBLIC :: SeaSt_C_GetSurfNorm
+   PUBLIC :: SeaSt_C_GetElevMinMaxEstimate
+   PUBLIC :: SeaSt_C_GetDens
+   PUBLIC :: SeaSt_C_GetDpth
+   PUBLIC :: SeaSt_C_GetMSL2SWL
 
    !------------------------------------------------------------------------------------
    !  Debugging: DebugLevel -- passed at PreInit
@@ -229,6 +233,13 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, TimeInterval_C, TMax_C, Wave
    ! Initialize error handling
    ErrStat =  ErrID_None
    ErrMsg  =  ""
+   ErrStat_C = ErrID_None
+   ErrMsg_C  = c_null_char
+
+   ! Initialize vars in case of early return
+   NumChannels_C = 0_IntKi
+   OutputChannelNames_C = c_null_char
+   OutputChannelUnits_C = c_null_char
 
    call NWTC_Init( ProgNameIn=  SeaSt_ProgDesc%Name )
    call DispCopyrightLicense(   SeaSt_ProgDesc%Name )
@@ -438,23 +449,21 @@ subroutine SeaSt_C_GetWaveFieldPointer(WaveFieldPointer_C,ErrStat_C,ErrMsg_C) BI
    integer                                   :: ErrStat
    character(ErrMsgLen)                      :: ErrMsg
    character(*),              parameter      :: RoutineName = 'SeaSt_C_GetWaveFieldPointer'
+   logical                                   :: valid
    ErrStat = ErrID_None
    ErrMSg = ""
-   if (associated(p%WaveField)) then
-      WaveFieldPointer_C = C_LOC(p%WaveField)
-   else
-      WaveFieldPointer_C = C_NULL_PTR
-      call SetErrStat(ErrID_Fatal,"Pointer to WaveField data not valid: data not initialized",ErrStat,ErrMsg,RoutineName)
-   endif
+   WaveFieldPointer_C = C_NULL_PTR
+   call CheckWaveFieldPtr(RoutineName, valid, ErrStat, ErrMsg)
+   if (valid) WaveFieldPointer_C = C_LOC(p%WaveField)
    call SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )
    if (DebugLevel > 1) call ShowPassedData()
    return
 contains
    subroutine ShowPassedData()
       call WrScr("-----------------------------------------------------------")
-      call WrScr("Interface debugging:  SeaSt_C_GetWaveFieldPointer")
+      call WrScr("Interface debugging:  SeaSt_C_GetWaveFieldPointer returns")
       call WrScr("   --------------------------------------------------------")
-      call WrScr("   WaveFieldPointer_C     -> "//trim(Num2LStr(loc(p%WaveField))))
+      call WrScr("   WaveFieldPointer_C     <- "//trim(Num2LStr(loc(p%WaveField))))
       call WrScr("-----------------------------------------------------------")
    end subroutine ShowPassedData
 end subroutine
@@ -472,26 +481,20 @@ subroutine SeaSt_C_SetWaveFieldPointer(WaveFieldPointer_C,ErrStat_C,ErrMsg_C) BI
    integer                                   :: ErrStat
    character(ErrMsgLen)                      :: ErrMsg
    character(*),              parameter      :: RoutineName = 'SeaSt_C_SetWaveFieldPointer'
+   logical                                   :: valid
    ErrStat = ErrID_None
    ErrMSg = ""
    call C_F_POINTER(WaveFieldPointer_C, p%WaveField)
-   if (associated(p%WaveField)) then
-      ! basic sanity check
-      if (.not. allocated(p%WaveField%WaveTime)) then
-         call SetErrStat(ErrID_Fatal,"Invalid pointer passed in, or WaveField not initialized",ErrStat,ErrMsg,RoutineName)
-      endif
-   else
-      call SetErrStat(ErrID_Fatal,"Invalid pointer passed in, or WaveField not initialized",ErrStat,ErrMsg,RoutineName)
-   endif
+   call CheckWaveFieldPtr(RoutineName, valid, ErrStat, ErrMsg)
    call SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )
    if (DebugLevel > 1) call ShowPassedData()
    return
 contains
    subroutine ShowPassedData()
       call WrScr("-----------------------------------------------------------")
-      call WrScr("Interface debugging:  SeaSt_C_SetWaveFieldPointer")
+      call WrScr("Interface debugging:  SeaSt_C_SetWaveFieldPointer inputs")
       call WrScr("   --------------------------------------------------------")
-      call WrScr("   WaveFieldPointer_C     <- "//trim(Num2LStr(loc(p%WaveField))))
+      call WrScr("   WaveFieldPointer_C     -> "//trim(Num2LStr(loc(p%WaveField))))
       call WrScr("-----------------------------------------------------------")
    end subroutine ShowPassedData
 end subroutine
@@ -522,11 +525,14 @@ subroutine SeaSt_C_GetFluidVelAcc(Time_C, Pos_C, Vel_C, Acc_C, NodeInWater_C, Er
    integer                    :: ErrStat, ErrStat2
    character(ErrMsgLen)       :: ErrMsg,  ErrMsg2
    character(*), parameter    :: RoutineName = 'SeaSt_C_GetFluidVelAcc'
+   logical                    :: valid
 
-   ! Initialize error handling
+   ! Initialize
    ErrStat  =  ErrID_None
    ErrMsg   =  ""
-   
+   Vel_c    =  0.0_c_float
+   Acc_c    =  0.0_c_float
+
    forceNodeInWater = .false.
 
    if (DebugLevel > 1) call ShowPassedData()
@@ -534,6 +540,13 @@ subroutine SeaSt_C_GetFluidVelAcc(Time_C, Pos_C, Vel_C, Acc_C, NodeInWater_C, Er
    ! convert position and time to fortran types
    Time = real(Time_C, DbKi)
    Pos = real(Pos_C, ReKi)
+
+   ! verify there is actually wavefield data
+   call CheckWaveFieldPtr(RoutineName, valid, ErrStat, ErrMsg)
+   if (.not. valid) then
+      call SetErrStat_F2C(ErrStat, ErrMsg, ErrStat_C, ErrMsg_C)
+      return
+   endif
 
    ! get wave field velocity and acceleration (current is included in this)
    ! Notes:
@@ -594,12 +607,20 @@ subroutine SeaSt_C_GetSurfElev(Time_C, Pos_C, Elev_C, ErrStat_C,ErrMsg_C) BIND (
    integer                    :: ErrStat
    character(ErrMsgLen)       :: ErrMsg
    character(*), parameter    :: RoutineName = 'SeaSt_C_GetSurfElev'
+   logical                    :: valid
 
    if (DebugLevel > 1) call ShowPassedData()
 
    ! convert position and time to fortran types
    Time = real(Time_C, DbKi)
    Pos = real(Pos_C(1:2), ReKi)
+
+   ! verify there is actually wavefield data
+   call CheckWaveFieldPtr(RoutineName, valid, ErrStat, ErrMsg)
+   if (.not. valid) then
+      call Cleanup()
+      return
+   endif
 
    ! get wave elevation (total combined first and second order)
    ! Notes:
@@ -650,8 +671,16 @@ subroutine SeaSt_C_GetSurfNorm(Time_C, Pos_C, NormVec_C, ErrStat_C,ErrMsg_C) BIN
    integer                    :: ErrStat
    character(ErrMsgLen)       :: ErrMsg
    character(*), parameter    :: RoutineName = 'SeaSt_C_GetSurfNorm'
+   logical                    :: valid
 
    if (DebugLevel > 1) call ShowPassedData()
+
+   ! verify there is actually wavefield data
+   call CheckWaveFieldPtr(RoutineName, valid, ErrStat, ErrMsg)
+   if (.not. valid) then
+      call Cleanup()
+      return
+   endif
 
    ! convert position and time to fortran types
    Time = real(Time_C, DbKi)
@@ -684,6 +713,189 @@ contains
 end subroutine SeaSt_C_GetSurfNorm
 
 
+!> return the min and max levels across entire wavefield.  This only needs to be called once at the
+!! start if desired
+subroutine SeaSt_C_GetElevMinMaxEstimate(Min_C, Max_C, ErrStat_C,ErrMsg_C) BIND (C, NAME='SeaSt_C_GetElevMinMaxEstimate')
+#ifndef IMPLICIT_DLLEXPORT
+!DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetElevMinMaxEstimate
+!GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetElevMinMaxEstimate
+#endif
+   real(c_float),             intent(  out) :: Min_C
+   real(c_float),             intent(  out) :: Max_C
+   integer(c_int),            intent(  out) :: ErrStat_C
+   character(kind=c_char),    intent(  out) :: ErrMsg_C(ErrMsgLen_C)
+
+   real(SiKi)                 :: MinElev
+   real(SiKi)                 :: MaxElev
+   integer                    :: ErrStat
+   character(ErrMsgLen)       :: ErrMsg
+   character(*), parameter    :: RoutineName = 'SeaSt_C_GetElevMinMaxEstimate'
+   logical                    :: valid
+
+   if (DebugLevel > 1) call ShowPassedData()
+
+   ! verify there is actually wavefield data
+   call CheckWaveFieldPtr(RoutineName, valid, ErrStat, ErrMsg)
+   if (.not. valid) then
+      call Cleanup()
+      return
+   endif
+
+   ! Measure directly from the data set (this is not ideal and will break if the layout changes)
+   call WaveField_GetMinMaxWaveElevEstimate( p%WaveField, MinElev, MaxElev, ErrStat, ErrMsg)
+   Min_C = real(MinElev, c_float)
+   Max_C = real(MaxElev, c_float)
+
+   if (DebugLevel > 1) call ShowReturnData()
+   call Cleanup()
+   return
+contains
+   subroutine Cleanup()    ! NOTE: we are ignoring any error reporting from here
+      CALL SetErrStat_F2C(ErrStat,ErrMsg,ErrStat_C,ErrMsg_C)
+   end subroutine Cleanup
+   subroutine ShowPassedData()
+      call WrScr("-----------------------------------------------------------")
+      call WrScr("Interface debugging:  SeaSt_C_GetElevMinMaxEstimate")
+      call WrScr("   --------------------------------------------------------")
+   end subroutine ShowPassedData
+   subroutine ShowReturnData()
+      call WrScr("   Min_C                  <- "//trim(Num2LStr(Min_C)))
+      call WrScr("   Max_C                  <- "//trim(Num2LStr(Max_C)))
+      call WrScr("-----------------------------------------------------------")
+   end subroutine ShowReturnData
+end subroutine SeaSt_C_GetElevMinMaxEstimate
+
+
+!----------------------------------------------------------------------------------------------------------------------------------
+! Routines to return environment vars
+!----------------------------------------------------------------------------------------------------------------------------------
+!> retrieve the water density
+subroutine SeaSt_C_GetDens(Dens_C, ErrStat_C, ErrMsg_C) BIND (C, NAME='SeaSt_C_GetDens')
+#ifndef IMPLICIT_DLLEXPORT
+!DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetDens
+!GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetDens
+#endif
+   real(c_float),             intent(  out) :: Dens_C
+   integer(c_int),            intent(  out) :: ErrStat_C
+   character(kind=c_char),    intent(  out) :: ErrMsg_C(ErrMsgLen_C)
+   integer                    :: ErrStat
+   character(ErrMsgLen)       :: ErrMsg
+   character(*), parameter    :: RoutineName = 'SeaSt_C_GetDens'
+   logical                    :: valid
+
+   ! verify there is actually wavefield data
+   call CheckWaveFieldPtr(RoutineName, valid, ErrStat, ErrMsg)
+   if (.not. valid) then
+      call SetErrStat_F2C(ErrStat, ErrMsg, ErrStat_C, ErrMsg_C)
+      Dens_C = 0.0_c_float
+      return
+   endif
+
+   Dens_C = real(p%WaveField%WtrDens, c_float)
+   if (DebugLevel > 1) call ShowReturnData()
+contains
+   subroutine ShowReturnData()
+      call WrScr("-----------------------------------------------------------")
+      call WrScr("Interface debugging:  SeaSt_C_GetDens returns")
+      call WrScr("   --------------------------------------------------------")
+      call WrScr("   Dens_C                 <- "//trim(Num2LStr(Dens_C)))
+      call WrScr("   --------------------------------------------------------")
+   end subroutine ShowReturnData
+end subroutine
+
+
+!> retrieve the water depth
+subroutine SeaSt_C_GetDpth(Dpth_C, ErrStat_C, ErrMsg_C) BIND (C, NAME='SeaSt_C_GetDpth')
+#ifndef IMPLICIT_DLLEXPORT
+!DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetDpth
+!GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetDpth
+#endif
+   real(c_float),             intent(  out) :: Dpth_C
+   integer(c_int),            intent(  out) :: ErrStat_C
+   character(kind=c_char),    intent(  out) :: ErrMsg_C(ErrMsgLen_C)
+   integer                    :: ErrStat
+   character(ErrMsgLen)       :: ErrMsg
+   character(*), parameter    :: RoutineName = 'SeaSt_C_GetDpth'
+   logical                    :: valid
+
+   ! verify there is actually wavefield data
+   call CheckWaveFieldPtr(RoutineName, valid, ErrStat, ErrMsg)
+   if (.not. valid) then
+      call SetErrStat_F2C(ErrStat, ErrMsg, ErrStat_C, ErrMsg_C)
+      Dpth_C = 0.0_c_float
+      return
+   endif
+
+   Dpth_C = real(p%WaveField%WtrDpth, c_float)
+   if (DebugLevel > 1) call ShowReturnData()
+contains
+   subroutine ShowReturnData()
+      call WrScr("-----------------------------------------------------------")
+      call WrScr("Interface debugging:  SeaSt_C_GetDpth returns")
+      call WrScr("   --------------------------------------------------------")
+      call WrScr("   Dpth_C                 <- "//trim(Num2LStr(Dpth_C)))
+      call WrScr("   --------------------------------------------------------")
+   end subroutine ShowReturnData
+end subroutine
+
+
+!> retrieve MSL to SWL distance
+subroutine SeaSt_C_GetMSL2SWL(MSL2SWL_C, ErrStat_C, ErrMsg_C) BIND (C, NAME='SeaSt_C_GetMSL2SWL')
+#ifndef IMPLICIT_DLLEXPORT
+!DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetMSL2SWL
+!GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetMSL2SWL
+#endif
+   real(c_float),             intent(  out) :: MSL2SWL_C
+   integer(c_int),            intent(  out) :: ErrStat_C
+   character(kind=c_char),    intent(  out) :: ErrMsg_C(ErrMsgLen_C)
+   integer                    :: ErrStat
+   character(ErrMsgLen)       :: ErrMsg
+   character(*), parameter    :: RoutineName = 'SeaSt_C_GetMSL2SWL'
+   logical                    :: valid
+
+   ! verify there is actually wavefield data
+   call CheckWaveFieldPtr(RoutineName, valid, ErrStat, ErrMsg)
+   if (.not. valid) then
+      call SetErrStat_F2C(ErrStat, ErrMsg, ErrStat_C, ErrMsg_C)
+      MSL2SWL_C = 0.0_c_float
+      return
+   endif
+
+   MSL2SWL_C = real(p%WaveField%MSL2SWL, c_float)
+   if (DebugLevel > 1) call ShowReturnData()
+contains
+   subroutine ShowReturnData()
+      call WrScr("-----------------------------------------------------------")
+      call WrScr("Interface debugging:  SeaSt_C_GetMSL2SWL returns")
+      call WrScr("   --------------------------------------------------------")
+      call WrScr("   MSL2SWL_C                 <- "//trim(Num2LStr(MSL2SWL_C)))
+      call WrScr("   --------------------------------------------------------")
+   end subroutine ShowReturnData
+end subroutine
+
+
+!> routine to check if the WaveField pointer is valid. ErrStat==ErrID_None is a valid pointer
+subroutine CheckWaveFieldPtr(callingRoutine,valid,ErrStat,ErrMsg)
+   character(*),              intent(in   ) :: callingRoutine
+   logical,                   intent(  out) :: valid
+   integer(IntKi),            intent(  out) :: ErrStat
+   character(ErrMsgLen),      intent(  out) :: ErrMsg
+   ErrStat = ErrID_None
+   ErrMsg  = ""
+   valid = .true.
+   if (associated(p%WaveField)) then
+      ! basic sanity check
+      if (.not. allocated(p%WaveField%WaveTime)) then
+         ErrStat = ErrID_Fatal
+         ErrMsg  = trim(callingRoutine)//":: Invalid pointer passed in, or WaveField not initialized"
+         valid = .false.
+      endif
+   else
+      ErrStat = ErrID_Fatal
+      ErrMsg  = trim(callingRoutine)//":: Invalid pointer passed in, or WaveField not initialized"
+      valid = .false.
+   endif
+end subroutine
 
 
 !FIXME: the following visualization writer should be merged into the library vtk.f90
