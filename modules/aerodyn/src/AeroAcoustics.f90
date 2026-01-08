@@ -947,7 +947,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
          ENDIF
             
          IF (J .EQ. p%NumBlNds) THEN
-            elementspan =   (p%BlSpn(J,I)-p%BlSpn(J-1,I))/2 
+            elementspan =   p%BlSpn(J,I)-p%BlSpn(J-1,I)
          ELSE
             elementspan =   (p%BlSpn(J,I)-p%BlSpn(J-1,I))/2    +    (p%BlSpn(J+1,I)-p%BlSpn(J,I))/2  
          ENDIF
