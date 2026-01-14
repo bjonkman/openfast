@@ -700,7 +700,7 @@ IMPLICIT NONE
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: FirstMom      !< First mass moment of inertia of blades wrt the root [-]
     REAL(ReKi)  :: GenIner = 0.0_ReKi      !< Generator inertia about HSS [-]
     REAL(ReKi)  :: Hubf1Iner = 0.0_ReKi      !< Inertia of hub about f1-axis (rotor centerline) [-]
-    REAL(ReKi)  :: Hubf2Iner = 0.0_ReKi      !< Inertia of hub about f2-axis (transverse to the hub and passing through its c.g.) [-]
+    REAL(ReKi)  :: Hubf2Iner = 0.0_ReKi      !< Inertia of hub about f2-axis (teeter axis) [-]
     REAL(ReKi)  :: HubMass = 0.0_ReKi      !< Hub mass [-]
     REAL(ReKi)  :: Nacd2Iner = 0.0_ReKi      !< Inertia of nacelle about the d2-axis whose origin is the nacelle center of mass [-]
     REAL(ReKi)  :: NacMass = 0.0_ReKi      !< Nacelle mass [-]

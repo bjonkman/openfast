@@ -72,6 +72,7 @@ typedef   ^                  ^                      ReKi                     def
 typedef   ^                  ^                      ReKi                     defWtrDpth                      -          -          -         "Default water depth from the driver; may be overwritten                        "  "m"
 typedef   ^                  ^                      ReKi                     defMSL2SWL                      -          -          -         "Default mean sea level to still water level from the driver; may be overwritten"  "m"
 typedef   ^                  ^                      DbKi                     TMax                            -          -          -         "Supplied by Driver:  The total simulation time"    "(sec)"
+typedef   ^                  ^                      DbKi                     WaveTimeShift                   -          0          -         "Add this to the time to effectively phase shift the wave (useful for hybrid tank testing). Positive value only (advance time)" (s)
 typedef   ^                  ^                      INTEGER                  WaveFieldMod                    -          -          -         "Wave field handling (-) (switch) 0: use individual SeaState inputs without adjustment, 1: adjust wave phases based on turbine offsets from farm origin"   -
 typedef   ^                  ^                      ReKi                     PtfmLocationX                   -          -          -         "Supplied by Driver:  X coordinate of platform location in the wave field"    "m"
 typedef   ^                  ^                      ReKi                     PtfmLocationY                   -          -          -         "Supplied by Driver:  Y coordinate of platform location in the wave field"    "m"
@@ -126,7 +127,7 @@ typedef   ^                            OtherStateType                R8Ki    Unu
 typedef   ^                  MiscVarType            INTEGER                        Decimate           -       -      -  "The output decimation counter" -
 typedef   ^                  ^                      DbKi                           LastOutTime        -       -      -  "Last time step which was written to the output file (sec)"    -
 typedef   ^                  ^                      INTEGER                        LastIndWave        -       -      -  "The last index used in the wave kinematics arrays, used to optimize interpolation"   -
-typedef   ^                  ^                      SeaSt_WaveField_MiscVarType    WaveField_m        -       -      -  "misc var information from the SeaState Interpolation module"   -
+typedef   ^                  ^                      GridInterp_MiscVarType         WaveField_m        -       -      -  "misc var information from the Grid Interpolation module" -
 
 # .... Linearization params .......................................................................................................
 # NOTE:  This is overkill given how limited linearization is. For completeness and similarity to other modules, keeping all this here.  Also note some

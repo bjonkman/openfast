@@ -46,10 +46,6 @@ class MotionData:
         position information for SeaState
     """
     position: npt.NDArray[np.float32]
-    #orientation: npt.NDArray[np.float64]
-    #velocity: npt.NDArray[np.float32]
-    #acceleration: npt.NDArray[np.float32]
-
 
 
 class SeaStateLib(OpenFASTInterfaceType):
@@ -72,7 +68,6 @@ class SeaStateLib(OpenFASTInterfaceType):
         self.ended = False                  # For error handling at end
 
         # Create buffers for class data
-        #self.abort_error_level = 4
         self.error_status_c = c_int(0)
         self.error_message_c = create_string_buffer(self.ERROR_MSG_C_LEN)
 
@@ -86,6 +81,8 @@ class SeaStateLib(OpenFASTInterfaceType):
         self.numResPts = 0                  # Number of wind points we will
                                             # request information from
                                             # non-CalcOutput routines.
+
+        self.WaveTimeShift = 0              # shift wave time (positive only)
 
         self.numChannels = 0                # Number of channels returned
 
@@ -115,10 +112,11 @@ class SeaStateLib(OpenFASTInterfaceType):
         self.SeaSt_C_PreInit.restype = None
 
         self.SeaSt_C_Init.argtypes = [
-            POINTER(c_char_p),      # intent(in   ) :: InputFile_c(IntfStrLen)
-            POINTER(c_char_p),      # intent(in   ) :: OutRootName_c(IntfStrLen)
-            POINTER(c_int),         # intent(in   ) :: NSteps_c
-            POINTER(c_float),       # intent(in   ) :: TimeInterval_c
+            POINTER(c_char),        # intent(in   ) :: InputFile_c(IntfStrLen)
+            POINTER(c_char),        # intent(in   ) :: OutRootName_c(IntfStrLen)
+            POINTER(c_double),      # intent(in   ) :: TimeInterval_c
+            POINTER(c_double),      # intent(in   ) :: TMax_c
+            POINTER(c_double),      # intent(in   ) :: WaveTimeShift (positive only)
             POINTER(c_int),         # intent(  out) :: NumChannels_c
             POINTER(c_char),        # intent(  out) :: OutputChannelNames_C
             POINTER(c_char),        # intent(  out) :: OutputChannelUnits_C
@@ -185,6 +183,16 @@ class SeaStateLib(OpenFASTInterfaceType):
             POINTER(c_char)         # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
         self.SeaSt_C_GetSurfNorm.restype = None
+
+        self.SeaSt_C_GetElevMinMaxEstimate.argtypes = [ 
+            POINTER(c_float),       # intent(  out) :: elevMin_c
+            POINTER(c_float),       # intent(  out) :: elevMax_c
+            POINTER(c_int),         # intent(  out) :: ErrStat_C
+            POINTER(c_char)         # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
+        ]
+        self.SeaSt_C_GetElevMinMaxEstimate.restype = None
+
+
 
     def check_error(self) -> None:
         """Checks for and handles any errors from the Fortran library.
@@ -258,9 +266,16 @@ class SeaStateLib(OpenFASTInterfaceType):
         self,
         primary_ss_file,
         outrootname: str = "./seastate.SeaSt",
-        n_steps: int = 801,
+        time_max: float = 60,
         time_interval: float = 0.125,
     ):
+
+        ss_file_c = create_string_buffer(
+            primary_ss_file.ljust(self.default_str_c_len).encode('utf-8')
+        )
+        outrootname_c = create_string_buffer(
+            outrootname.ljust(self.default_str_c_len).encode('utf-8')
+        )
 
         # This buffer for the channel names and units is set arbitrarily large
         # to start. Channel name and unit lengths are currently hard
@@ -271,10 +286,11 @@ class SeaStateLib(OpenFASTInterfaceType):
 
 
         self.SeaSt_C_Init(
-            c_char_p(primary_ss_file.encode('utf-8')),  #FIXME: this might overrun the buffer!!!!!
-            c_char_p(outrootname.encode('utf-8')),
-            byref(c_int(n_steps)),
-            byref(c_float(time_interval)),
+            ss_file_c,
+            outrootname_c,
+            byref(c_double(time_interval)),
+            byref(c_double(time_max)),
+            byref(c_double(self.WaveTimeShift)),
             byref(self._numChannels),
             _channel_names,
             _channel_units,
@@ -389,16 +405,18 @@ class SeaStateLib(OpenFASTInterfaceType):
         pos[2] = position[2]
         vel = np.zeros( 3, dtype=c_float )
         acc = np.zeros( 3, dtype=c_float )
+        nodeInWater_c = c_int(0)
         self.SeaSt_C_GetFluidVelAcc(
             byref(c_double(time)),                      # IN -> current simulation time
             pos.ctypes.data_as(POINTER(c_float)),       # IN -> position (3 vector)
             vel.ctypes.data_as(POINTER(c_float)),       # OUT <- velocity (3 vector)
             acc.ctypes.data_as(POINTER(c_float)),       # OUT <- acceleration (3 vector)
-            nodeInWater.ctypes.data_as(POINTER(c_int)), # OUT <- node is in water (0=false, 1=true)
+            nodeInWater_c,                              # OUT <- node is in water (0=false, 1=true)
             byref(self.error_status_c),                 # OUT <- error status
             self.error_message_c                        # OUT <- error message
         )
         self.check_error()
+        nodeInWater = nodeInWater_c.value
         return vel,acc,nodeInWater
 
 
@@ -462,8 +480,32 @@ class SeaStateLib(OpenFASTInterfaceType):
         self.check_error()
         return norm
 
-
-
+    def get_elevMinMax(self) -> tuple[float, float]:
+        """
+        Get estimate of the min and max total wave elevation. Will over
+        estimate range when 2nd order waves used
+        
+        Returns:
+            tuple[float, float]: A tuple containing (elevMin, elevMax) where:
+                - elevMin: minimum elevation estimate in meters
+                - elevMax: maximum elevation estimate in meters
+        
+        Raises:
+            RuntimeError: If calculation fails
+        """
+        elevMin_c = c_float(0.0)
+        elevMax_c = c_float(0.0)
+        print("Calling SeaSt_C_GetElevMinMaxEstimate")
+        self.SeaSt_C_GetElevMinMaxEstimate(
+            elevMin_c,                                  # out <- min elev
+            elevMax_c,                                  # out <- max elev
+            byref(self.error_status_c),                 # OUT <- error status
+            self.error_message_c                        # OUT <- error message
+        )
+        self.check_error()
+        elevMin = elevMin_c.value
+        elevMax = elevMax_c.value
+        return elevMin,elevMax 
 
 
     @property

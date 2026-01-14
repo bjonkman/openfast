@@ -586,6 +586,7 @@ SUBROUTINE FAST_InitializeAll( t_initial, p_FAST, y_FAST, m_FAST, ED, SED, BD, S
       Init%InData_SeaSt%hasIce        = p_FAST%CompIce /= Module_None
       Init%InData_SeaSt%InputFile     = p_FAST%SeaStFile
       Init%InData_SeaSt%OutRootName   = TRIM(p_FAST%OutFileRoot)//'.'//TRIM(y_FAST%Module_Abrev(Module_SeaSt))
+      Init%InData_SeaSt%WaveTimeShift = 0.0_DbKi         ! for phase shifting wave field in time (positive value only)
 
          ! these values support wave field handling
       Init%InData_SeaSt%WaveFieldMod  = p_FAST%WaveFieldMod
@@ -2087,7 +2088,7 @@ SUBROUTINE ValidateInputData(p, m_FAST, ErrStat, ErrMsg)
    IF ( p%TMax < 0.0_DbKi  )  THEN
       CALL SetErrStat( ErrID_Fatal, 'TMax must not be a negative number.', ErrStat, ErrMsg, RoutineName )
    ELSE IF ( p%TMax < p%TStart )  THEN
-      CALL SetErrStat( ErrID_Fatal, 'TStart ('//trim(num2lstr(p%TStart))//') should be greater than TMax ('//trim(num2lstr(p%TMax))//') in OpenFAST input file.', ErrStat, ErrMsg, RoutineName )
+      CALL SetErrStat( ErrID_Fatal, 'TMax ('//trim(num2lstr(p%TMax))//') should be greater than TStart ('//trim(num2lstr(p%TStart))//') in the OpenFAST input file.', ErrStat, ErrMsg, RoutineName )
    END IF
 
    IF ( p%n_ChkptTime < p%n_TMax_m1 ) THEN

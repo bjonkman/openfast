@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 authors = [
     { name = "Rafael Mudafort", email = "Rafael.Mudafort@nrel.gov" },
+    { name = "Andy Platt",      email = "Andy.Platt@nrel.gov"      },
 ]
 license = { file = "LICENSE.txt" }
 keywords = ["openfast"]
