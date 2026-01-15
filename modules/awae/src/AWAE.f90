@@ -725,7 +725,7 @@ contains
       end select
 
       ! Step 3: add background XY plane flow to keep plane drifting (will have already returned on any planes still in bounds)
-      V_plane(1:2) = V_plane(1:2) + xd%Ufarm(1:2)
+      V_plane(1:3) = V_plane(1:3) + xd%Ufarm(1:3)
 
    end subroutine PlaneOutOfDomain
 end subroutine LowResGridCalcOutput
