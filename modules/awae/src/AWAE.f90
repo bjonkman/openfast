@@ -724,7 +724,7 @@ contains
             V_plane(3) = (D_tgt - p_plane(3)) / (2.0_ReKi * real(p%dt_low,ReKi))    ! push towards (+Z_bound + D_wake)
       end select
 
-      ! Step 3: add background XY plane flow to keep plane drifting (will have already returned on any planes still in bounds)
+      ! Step 3: add background XYZ flow to keep plane drifting (will have already returned on any planes still in bounds)
       V_plane(1:3) = V_plane(1:3) + xd%Ufarm(1:3)
 
    end subroutine PlaneOutOfDomain
