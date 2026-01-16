@@ -677,15 +677,6 @@ void gen_pack(std::ostream &w, const Module &mod, const DataType::Derived &ddt,
 
     w << indent << "if (RF%ErrStat >= AbortErrLev) return";
 
-    if (gen_c_code)
-    {
-        w << indent << "if (c_associated(InData%C_obj%object)) then";
-        w << indent << "   RF%ErrStat = ErrID_Fatal";
-        w << indent << "   RF%ErrMsg = RoutineName//': C_obj%object cannot be packed.'";
-        w << indent << "   return";
-        w << indent << "end if";
-    }
-
     // Pack data
     for (auto &field : ddt.fields)
     {

@@ -273,11 +273,6 @@ subroutine ExtLdDX_PackInput(RF, Indata)
    character(*), parameter         :: RoutineName = 'ExtLdDX_PackInput'
    logical         :: PtrInIndex
    if (RF%ErrStat >= AbortErrLev) return
-   if (c_associated(InData%C_obj%object)) then
-      RF%ErrStat = ErrID_Fatal
-      RF%ErrMsg = RoutineName//': C_obj%object cannot be packed.'
-      return
-   end if
    call RegPackPtr(RF, InData%twrDef)
    call RegPackPtr(RF, InData%bldDef)
    call RegPackPtr(RF, InData%hubDef)
@@ -769,11 +764,6 @@ subroutine ExtLdDX_PackParam(RF, Indata)
    character(*), parameter         :: RoutineName = 'ExtLdDX_PackParam'
    logical         :: PtrInIndex
    if (RF%ErrStat >= AbortErrLev) return
-   if (c_associated(InData%C_obj%object)) then
-      RF%ErrStat = ErrID_Fatal
-      RF%ErrMsg = RoutineName//': C_obj%object cannot be packed.'
-      return
-   end if
    call RegPackPtr(RF, InData%nBlades)
    call RegPackPtr(RF, InData%nBladeNodes)
    call RegPackPtr(RF, InData%nTowerNodes)
@@ -1217,11 +1207,6 @@ subroutine ExtLdDX_PackOutput(RF, Indata)
    character(*), parameter         :: RoutineName = 'ExtLdDX_PackOutput'
    logical         :: PtrInIndex
    if (RF%ErrStat >= AbortErrLev) return
-   if (c_associated(InData%C_obj%object)) then
-      RF%ErrStat = ErrID_Fatal
-      RF%ErrMsg = RoutineName//': C_obj%object cannot be packed.'
-      return
-   end if
    call RegPackPtr(RF, InData%twrLd)
    call RegPackPtr(RF, InData%bldLd)
    if (RegCheckErr(RF, RoutineName)) return
