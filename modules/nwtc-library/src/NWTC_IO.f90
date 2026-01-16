@@ -2400,8 +2400,9 @@ END SUBROUTINE CheckR8Var
    OPEN( Un, FILE=TRIM( InFile ), STATUS='OLD', FORM='UNFORMATTED', ACCESS='STREAM', IOSTAT=ErrStat, ACTION='READ' )
 
    IF ( ErrStat /= 0 ) THEN
+      ErrMsg  = 'OpenBInpFile:Cannot open file "'//TRIM( InFile )//'" for reading. Another program may have locked it.' &
+                //' (IOSTAT is '//TRIM(Num2LStr(ErrStat))//')'
       ErrStat = ErrID_Fatal
-      ErrMsg  = 'OpenBInpFile:Cannot open file "'//TRIM( InFile )//'" for reading. Another program may have locked it.'
    ELSE
       ErrStat = ErrID_None
       ErrMsg  = ''
@@ -2429,9 +2430,9 @@ END SUBROUTINE CheckR8Var
    OPEN( Un, FILE=TRIM( OutFile ), STATUS='UNKNOWN', FORM='UNFORMATTED' , ACCESS='STREAM', IOSTAT=ErrStat, ACTION='WRITE' )
 
    IF ( ErrStat /= 0 ) THEN
-      ErrStat = ErrID_Fatal
       ErrMsg  = 'OpenBOutFile:Cannot open file "'//TRIM( OutFile )//'". Another program may have locked it for writing.' &
                 //' (IOSTAT is '//TRIM(Num2LStr(ErrStat))//')'
+      ErrStat = ErrID_Fatal
    ELSE
       ErrStat = ErrID_None
       ErrMsg  = ''

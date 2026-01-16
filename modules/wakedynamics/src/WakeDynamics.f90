@@ -883,7 +883,7 @@ subroutine WD_UpdateStates( t, n, u, p, x, xd, z, OtherState, m, errStat, errMsg
    dx = 0.0_ReKi
    dy_HWkDfl = GetYawCorrection(xd%YawErr_filt(0), xd%xhat_plane(:,0), dx, p, errStat2, errMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, errStat, errMsg, RoutineName)   
-   if (errStat /= ErrID_None) then
+   if (errStat >= AbortErrLev) then
       ! TEST: E3
       call Cleanup()
       return
@@ -906,7 +906,13 @@ subroutine WD_UpdateStates( t, n, u, p, x, xd, z, OtherState, m, errStat, errMsg
    if (p%Mod_Wake == Mod_Wake_Polar) then
 
       ! Compute wake deficit of first plane based on rotor loading, outputs: Vx_Wake, m
-       call NearWakeCorrection( xd%Ct_azavg_filt, xd%Cq_azavg_filt, xd%Vx_rel_disk_filt, p, m, xd%Vx_wake(:,0), m%Vt_wake, xd%D_rotor_filt(0), errStat, errMsg )
+      call NearWakeCorrection( xd%Ct_azavg_filt, xd%Cq_azavg_filt, xd%Vx_rel_disk_filt, p, m, xd%Vx_wake(:,0), m%Vt_wake, xd%D_rotor_filt(0), errStat2, errMsg2 )
+      call SetErrStat(ErrStat2, ErrMsg2, errStat, errMsg, RoutineName)
+      if (errStat >= AbortErrLev) then
+         call Cleanup()
+         return
+      end if
+      m%Ct_avg =  get_Ctavg(p%r, xd%Ct_azavg_filt, xd%D_rotor_filt(0))
 
    else if (p%Mod_Wake == Mod_Wake_Cartesian .or. p%Mod_Wake == Mod_Wake_Curl) then
 
@@ -917,7 +923,12 @@ subroutine WD_UpdateStates( t, n, u, p, x, xd, z, OtherState, m, errStat, errMsg
 
       ! --- Compute Vx
       ! Compute Vx(r)
-      call NearWakeCorrection( xd%Ct_azavg_filt, xd%Cq_azavg_filt, xd%Vx_rel_disk_filt, p, m, m%Vx_polar(:), m%Vt_wake, xd%D_rotor_filt(0), errStat, errMsg )
+      call NearWakeCorrection( xd%Ct_azavg_filt, xd%Cq_azavg_filt, xd%Vx_rel_disk_filt, p, m, m%Vx_polar(:), m%Vt_wake, xd%D_rotor_filt(0), errStat2, errMsg2 )
+      call SetErrStat(ErrStat2, ErrMsg2, errStat, errMsg, RoutineName)
+      if (errStat >= AbortErrLev) then
+         call Cleanup()
+         return
+      end if
       ! Convert to Cartesian
       call Axisymmetric2CartesianVx(m%Vx_polar, p%r, p%y, p%z, xd%Vx_wake2(:,:,0))
       call FilterVx(xd%Vx_wake2(:,:,0), p%FilterInit) ! don't filter if FilterInit is 0

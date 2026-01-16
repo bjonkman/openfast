@@ -299,11 +299,6 @@ subroutine MAP_PackInitInput(RF, Indata)
    type(MAP_InitInputType), intent(in) :: InData
    character(*), parameter         :: RoutineName = 'MAP_PackInitInput'
    if (RF%ErrStat >= AbortErrLev) return
-   if (c_associated(InData%C_obj%object)) then
-      RF%ErrStat = ErrID_Fatal
-      RF%ErrMsg = RoutineName//': C_obj%object cannot be packed.'
-      return
-   end if
    call RegPack(RF, InData%gravity)
    call RegPack(RF, InData%sea_density)
    call RegPack(RF, InData%depth)
@@ -471,11 +466,6 @@ subroutine MAP_PackInitOutput(RF, Indata)
    type(MAP_InitOutputType), intent(in) :: InData
    character(*), parameter         :: RoutineName = 'MAP_PackInitOutput'
    if (RF%ErrStat >= AbortErrLev) return
-   if (c_associated(InData%C_obj%object)) then
-      RF%ErrStat = ErrID_Fatal
-      RF%ErrMsg = RoutineName//': C_obj%object cannot be packed.'
-      return
-   end if
    call RegPack(RF, InData%progName)
    call RegPack(RF, InData%version)
    call RegPack(RF, InData%compilingData)
@@ -573,11 +563,6 @@ subroutine MAP_PackContState(RF, Indata)
    type(MAP_ContinuousStateType), intent(in) :: InData
    character(*), parameter         :: RoutineName = 'MAP_PackContState'
    if (RF%ErrStat >= AbortErrLev) return
-   if (c_associated(InData%C_obj%object)) then
-      RF%ErrStat = ErrID_Fatal
-      RF%ErrMsg = RoutineName//': C_obj%object cannot be packed.'
-      return
-   end if
    call RegPack(RF, InData%dummy)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
@@ -654,11 +639,6 @@ subroutine MAP_PackDiscState(RF, Indata)
    type(MAP_DiscreteStateType), intent(in) :: InData
    character(*), parameter         :: RoutineName = 'MAP_PackDiscState'
    if (RF%ErrStat >= AbortErrLev) return
-   if (c_associated(InData%C_obj%object)) then
-      RF%ErrStat = ErrID_Fatal
-      RF%ErrMsg = RoutineName//': C_obj%object cannot be packed.'
-      return
-   end if
    call RegPack(RF, InData%dummy)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
@@ -1072,11 +1052,6 @@ subroutine MAP_PackOtherState(RF, Indata)
    character(*), parameter         :: RoutineName = 'MAP_PackOtherState'
    logical         :: PtrInIndex
    if (RF%ErrStat >= AbortErrLev) return
-   if (c_associated(InData%C_obj%object)) then
-      RF%ErrStat = ErrID_Fatal
-      RF%ErrMsg = RoutineName//': C_obj%object cannot be packed.'
-      return
-   end if
    call RegPackPtr(RF, InData%H)
    call RegPackPtr(RF, InData%V)
    call RegPackPtr(RF, InData%Ha)
@@ -1691,11 +1666,6 @@ subroutine MAP_PackConstrState(RF, Indata)
    character(*), parameter         :: RoutineName = 'MAP_PackConstrState'
    logical         :: PtrInIndex
    if (RF%ErrStat >= AbortErrLev) return
-   if (c_associated(InData%C_obj%object)) then
-      RF%ErrStat = ErrID_Fatal
-      RF%ErrMsg = RoutineName//': C_obj%object cannot be packed.'
-      return
-   end if
    call RegPackPtr(RF, InData%H)
    call RegPackPtr(RF, InData%V)
    call RegPackPtr(RF, InData%x)
@@ -1926,11 +1896,6 @@ subroutine MAP_PackParam(RF, Indata)
    type(MAP_ParameterType), intent(in) :: InData
    character(*), parameter         :: RoutineName = 'MAP_PackParam'
    if (RF%ErrStat >= AbortErrLev) return
-   if (c_associated(InData%C_obj%object)) then
-      RF%ErrStat = ErrID_Fatal
-      RF%ErrMsg = RoutineName//': C_obj%object cannot be packed.'
-      return
-   end if
    call RegPack(RF, InData%g)
    call RegPack(RF, InData%depth)
    call RegPack(RF, InData%rho_sea)
@@ -2105,11 +2070,6 @@ subroutine MAP_PackInput(RF, Indata)
    character(*), parameter         :: RoutineName = 'MAP_PackInput'
    logical         :: PtrInIndex
    if (RF%ErrStat >= AbortErrLev) return
-   if (c_associated(InData%C_obj%object)) then
-      RF%ErrStat = ErrID_Fatal
-      RF%ErrMsg = RoutineName//': C_obj%object cannot be packed.'
-      return
-   end if
    call RegPackPtr(RF, InData%x)
    call RegPackPtr(RF, InData%y)
    call RegPackPtr(RF, InData%z)
@@ -2377,11 +2337,6 @@ subroutine MAP_PackOutput(RF, Indata)
    character(*), parameter         :: RoutineName = 'MAP_PackOutput'
    logical         :: PtrInIndex
    if (RF%ErrStat >= AbortErrLev) return
-   if (c_associated(InData%C_obj%object)) then
-      RF%ErrStat = ErrID_Fatal
-      RF%ErrMsg = RoutineName//': C_obj%object cannot be packed.'
-      return
-   end if
    call RegPackPtr(RF, InData%Fx)
    call RegPackPtr(RF, InData%Fy)
    call RegPackPtr(RF, InData%Fz)

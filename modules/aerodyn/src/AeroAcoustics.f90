@@ -635,7 +635,8 @@ subroutine AA_UpdateStates( t, n, m, u, p,  xd, OtherState, errStat, errMsg )
                if (EqualRealNos(abs_le_x, 0.0_ReKi)) then
                   angletemp = 0.0_ReKi
                else
-                  angletemp = ATAN2(m%LE_Location(2,j,i), abs_le_x) * R2D_D
+                  angletemp = ATAN2(m%LE_Location(2,j,i), abs_le_x) * R2D ! returns angles in the range [-180, 180] degrees
+                  if (angletemp<0.) angletemp = angletemp + 360. ! in calculation for rco_minus1 below, we compare angles in the range [0, 360] degrees
                end if
 
                k_minus1 = 0

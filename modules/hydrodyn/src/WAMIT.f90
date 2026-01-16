@@ -1100,16 +1100,18 @@ end if
                      ! Apply rotation only for NBodyMod = 1,3
                   do J = 1, NInpWvDir  
                      do I = 1, NInpFreq
+                        do iBody = 1, p%NBody
+                           K = 6*(iBody-1)
+                           Ctmp1 = ( HdroExctn(I,J,K+1)*cos(InitInp%PtfmRefztRot(iBody)) ) - ( HdroExctn(I,J,K+2)*sin(InitInp%PtfmRefztRot(iBody)) )
+                           Ctmp2 = ( HdroExctn(I,J,K+1)*sin(InitInp%PtfmRefztRot(iBody)) ) + ( HdroExctn(I,J,K+2)*cos(InitInp%PtfmRefztRot(iBody)) )
+                           Ctmp4 = ( HdroExctn(I,J,K+4)*cos(InitInp%PtfmRefztRot(iBody)) ) - ( HdroExctn(I,J,K+5)*sin(InitInp%PtfmRefztRot(iBody)) )
+                           Ctmp5 = ( HdroExctn(I,J,K+4)*sin(InitInp%PtfmRefztRot(iBody)) ) + ( HdroExctn(I,J,K+5)*cos(InitInp%PtfmRefztRot(iBody)) )
 
-                        Ctmp1 = ( HdroExctn(I,J,1)*cos(InitInp%PtfmRefztRot(1)) ) - ( HdroExctn(I,J,2)*sin(InitInp%PtfmRefztRot(1)) )
-                        Ctmp2 = ( HdroExctn(I,J,1)*sin(InitInp%PtfmRefztRot(1)) ) + ( HdroExctn(I,J,2)*cos(InitInp%PtfmRefztRot(1)) )  
-                        Ctmp4 = ( HdroExctn(I,J,4)*cos(InitInp%PtfmRefztRot(1)) ) - ( HdroExctn(I,J,5)*sin(InitInp%PtfmRefztRot(1)) )
-                        Ctmp5 = ( HdroExctn(I,J,4)*sin(InitInp%PtfmRefztRot(1)) ) + ( HdroExctn(I,J,5)*cos(InitInp%PtfmRefztRot(1)) )
-
-                        HdroExctn(I,J,1) = Ctmp1
-                        HdroExctn(I,J,2) = Ctmp2
-                        HdroExctn(I,J,4) = Ctmp4
-                        HdroExctn(I,J,5) = Ctmp5
+                           HdroExctn(I,J,K+1) = Ctmp1
+                           HdroExctn(I,J,K+2) = Ctmp2
+                           HdroExctn(I,J,K+4) = Ctmp4
+                           HdroExctn(I,J,K+5) = Ctmp5
+                        end do
                      end do
                   end do  
                   
