@@ -374,6 +374,8 @@ of_regression("5MW_Land_DLL_WTurb_ADsk"                "openfast;elastodyn;aerod
 of_regression("5MW_Land_DLL_WTurb_ADsk_SED"            "openfast;simple-elastodyn;aerodisk")
 of_regression("5MW_Land_DLL_WTurb_SED"                 "openfast;simple-elastodyn;aerodyn")
 
+of_regression("MinimalExample"                         "openfast;elastodyn")
+
 of_aeromap_regression("5MW_Land_AeroMap"               "aeromap;elastodyn;aerodyn")
 
 # OpenFAST C++ API test
