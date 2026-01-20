@@ -64,7 +64,7 @@ MODULE BladedInterface_EX
    integer(IntKi),   parameter   :: CableCtrl_MaxChan    = 200    !< Maximum channels in cable control group
    integer(IntKi),   parameter   :: StCCtrl_StartIdx     = 2801   !< Starting index for the StC control
    integer(IntKi),   parameter   :: StCCtrl_MaxChan      = 200    !< Maximum channels in StC control group
-   integer(IntKi),   parameter   :: StCCtrl_ChanPerSet   = 20     !< Channels needed per set (10 sets for total channels)
+   integer(IntKi),   parameter   :: StCCtrl_ChanPerSet   = 25     !< Channels needed per set (8 sets for total channels)
 
 
 CONTAINS
@@ -293,7 +293,8 @@ contains
             (size(StC_CtrlChanInitInfo%InitStiff   ,2) /= p%NumStC_Control) .or. &
             (size(StC_CtrlChanInitInfo%InitDamp    ,2) /= p%NumStC_Control) .or. &
             (size(StC_CtrlChanInitInfo%InitBrake   ,2) /= p%NumStC_Control) .or. &
-            (size(StC_CtrlChanInitInfo%InitForce   ,2) /= p%NumStC_Control) ) then
+            (size(StC_CtrlChanInitInfo%InitForce   ,2) /= p%NumStC_Control) .or. &
+            (size(StC_CtrlChanInitInfo%InitMoment  ,2) /= p%NumStC_Control) ) then
          ErrStat2=ErrID_Fatal
          ErrMsg2='Size of StC control initialization arrays  (StC_CtrlChanInitInfo%Init*) do not match the number of requested cable control channels.  Programming error somewhere.'
          if (Failed())  return
@@ -324,6 +325,8 @@ contains
          if (Failed())  return
       call AllocAry( dll_data%PrevStCCmdForce, 3, p%NumStC_Control, 'PrevStCCmdForce', ErrStat2, ErrMsg2 )
          if (Failed())  return
+      call AllocAry( dll_data%PrevStCCmdMoment,3, p%NumStC_Control, 'PrevStCCmdMoment', ErrStat2, ErrMsg2 )
+         if (Failed())  return
       call AllocAry( dll_data%StCCmdStiff,     3, p%NumStC_Control, 'StCCmdStiff',     ErrStat2, ErrMsg2 )
          if (Failed())  return
       call AllocAry( dll_data%StCCmdDamp,      3, p%NumStC_Control, 'StCCmdDamp',      ErrStat2, ErrMsg2 )
@@ -341,11 +344,12 @@ contains
       dll_data%PrevStCCmdDamp    =  real(StC_CtrlChanInitInfo%InitDamp    ,SiKi)
       dll_data%PrevStCCmdBrake   =  real(StC_CtrlChanInitInfo%InitBrake   ,SiKi)
       dll_data%PrevStCCmdForce   =  real(StC_CtrlChanInitInfo%InitForce   ,SiKi)
+      dll_data%PrevStCCmdMoment  =  real(StC_CtrlChanInitInfo%InitMoment   ,SiKi)
       dll_data%StCCmdStiff       =  real(StC_CtrlChanInitInfo%InitStiff   ,SiKi)
       dll_data%StCCmdDamp        =  real(StC_CtrlChanInitInfo%InitDamp    ,SiKi)
       dll_data%StCCmdBrake       =  real(StC_CtrlChanInitInfo%InitBrake   ,SiKi)
       dll_data%StCCmdForce       =  real(StC_CtrlChanInitInfo%InitForce   ,SiKi)
-      dll_data%StCCmdMoment      =  0.0_SiKi    ! not supported at present
+      dll_data%StCCmdMoment      =  real(StC_CtrlChanInitInfo%InitMoment  ,SiKi)
 
       ! Create info for summary file about channels
       if (UnSum > 0) then
@@ -369,9 +373,13 @@ contains
             call WrSumInfoRcvd(    J+16,StC_CtrlChanInitInfo%Requestor(I),'StC control channel group '//trim(Num2LStr(I))//' -- StC_Force_X (additional force)')
             call WrSumInfoRcvd(    J+17,StC_CtrlChanInitInfo%Requestor(I),'StC control channel group '//trim(Num2LStr(I))//' -- StC_Force_Y (additional force)')
             call WrSumInfoRcvd(    J+18,StC_CtrlChanInitInfo%Requestor(I),'StC control channel group '//trim(Num2LStr(I))//' -- StC_Force_Z (additional force)')
-            call WrSumInfoRcvd(    J+19,StC_CtrlChanInitInfo%Requestor(I),'StC control channel group '//trim(Num2LStr(I))//' -- Reserved for future')
-            call WrSumInfoRcvd(    J+20,StC_CtrlChanInitInfo%Requestor(I),'StC control channel group '//trim(Num2LStr(I))//' -- Reserved for future')
-            ! NOTE: Moments are not passed through this interface.  Channel allocations will need revision for this to happen (change to 21 or more channels per group)
+            call WrSumInfoRcvd(    J+19,StC_CtrlChanInitInfo%Requestor(I),'StC control channel group '//trim(Num2LStr(I))//' -- StC_Moment_X (additional moment)')
+            call WrSumInfoRcvd(    J+20,StC_CtrlChanInitInfo%Requestor(I),'StC control channel group '//trim(Num2LStr(I))//' -- StC_Moment_Y (additional moment)')
+            call WrSumInfoRcvd(    J+21,StC_CtrlChanInitInfo%Requestor(I),'StC control channel group '//trim(Num2LStr(I))//' -- StC_Moment_Z (additional moment)')
+            call WrSumInfoRcvd(    J+22,StC_CtrlChanInitInfo%Requestor(I),'StC control channel group '//trim(Num2LStr(I))//' -- Reserved for future')
+            call WrSumInfoRcvd(    J+23,StC_CtrlChanInitInfo%Requestor(I),'StC control channel group '//trim(Num2LStr(I))//' -- Reserved for future')
+            call WrSumInfoRcvd(    J+24,StC_CtrlChanInitInfo%Requestor(I),'StC control channel group '//trim(Num2LStr(I))//' -- Reserved for future')
+            call WrSumInfoRcvd(    J+25,StC_CtrlChanInitInfo%Requestor(I),'StC control channel group '//trim(Num2LStr(I))//' -- Reserved for future')
          enddo
       endif
    end subroutine InitStCCtrl
@@ -573,8 +581,8 @@ CONTAINS
             dll_data%avrswap(J+ 7:J+ 9) = dll_data%PrevStCCmdStiff(1:3,I)  ! StC initial stiffness -- StC_Stiff_X, StC_Stiff_Y, StC_Stiff_Z (N/m)
             dll_data%avrswap(J+10:J+12) = dll_data%PrevStCCmdDamp( 1:3,I)  ! StC initial damping   -- StC_Damp_X,  StC_Damp_Y,  StC_Damp_Z  (N/(m/s))
             dll_data%avrswap(J+13:J+15) = dll_data%PrevStCCmdBrake(1:3,I)  ! StC initial brake     -- StC_Brake_X, StC_Brake_Y, StC_Brake_Z (N)
-            dll_data%avrswap(J+16:J+18) = dll_data%PrevStCCmdForce(1:3,I)  ! StC initial brake     -- StC_Force_X, StC_Force_Y, StC_Force_Z (N)
-            ! NOTE: Moments not included in this interface
+            dll_data%avrswap(J+16:J+18) = dll_data%PrevStCCmdForce(1:3,I)  ! StC initial force     -- StC_Force_X, StC_Force_Y, StC_Force_Z (N)
+            dll_data%avrswap(J+19:J+21) = dll_data%PrevStCCmdMoment(1:3,I) ! StC initial moment    -- StC_Moment_X, StC_Moment_Y, StC_Moment_Z (N)
          enddo
       endif
    end subroutine SetEXavrStC_Sensors
@@ -651,7 +659,7 @@ CONTAINS
          dll_data%StCCmdDamp( 1:3,I) = dll_data%avrswap(J+10:J+12)  ! StC commanded damping   -- StC_Damp_X,  StC_Damp_Y,  StC_Damp_Z  (N/(m/s))
          dll_data%StCCmdBrake(1:3,I) = dll_data%avrswap(J+13:J+15)  ! StC commanded brake     -- StC_Brake_X, StC_Brake_Y, StC_Brake_Z (N)
          dll_data%StCCmdForce(1:3,I) = dll_data%avrswap(J+16:J+18)  ! StC commanded force     -- StC_Force_X, StC_Force_Y, StC_Force_Z (N)
-         dll_data%StCCmdMoment(1:3,I) =  0.0_ReKi                   ! StC does not allow moments, but placing this here in case a user adds this later
+         dll_data%StCCmdMoment(1:3,I)= dll_data%avrswap(J+19:J+21)  ! StC commanded moment    -- StC_Moment_X, StC_Moment_Y, StC_Moment_Z (N)
       enddo
 
    end subroutine Retrieve_EXavrSWAP_StControls

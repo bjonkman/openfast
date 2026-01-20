@@ -328,6 +328,8 @@ SUBROUTINE StC_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOu
          if (Failed())  return;
       call AllocAry( u%CmdForce, 3, maxval(p%StC_CChan), 'u%CmdForce', ErrStat2, ErrMsg2 )
          if (Failed())  return;
+      call AllocAry( u%CmdMoment,3, maxval(p%StC_CChan), 'u%CmdMoment', ErrStat2, ErrMsg2 )
+         if (Failed())  return;
       call AllocAry( y%MeasDisp, 3, maxval(p%StC_CChan), 'y%MeasDisp', ErrStat2, ErrMsg2 )
          if (Failed())  return;
       call AllocAry( y%MeasVel,  3, maxval(p%StC_CChan), 'y%MeasVel',  ErrStat2, ErrMsg2 )
@@ -337,6 +339,7 @@ SUBROUTINE StC_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOu
       u%CmdDamp   =  0.0_ReKi
       u%CmdBrake  =  0.0_ReKi
       u%CmdForce  =  0.0_ReKi
+      u%CmdMoment =  0.0_ReKi
       y%MeasDisp  =  0.0_ReKi
       y%MeasVel   =  0.0_ReKi
       ! Check that dimensions of x are what we expect
@@ -350,7 +353,7 @@ SUBROUTINE StC_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOu
          if (p%StC_CChan(i) > 0) then
             u%CmdStiff(1:3,p%StC_CChan(i))  = (/ p%K_X, p%K_Y, p%K_Z /)
             u%CmdDamp( 1:3,p%StC_CChan(i))  = (/ p%C_X, p%C_Y, p%C_Z /)
-            !u%CmdBrake and u%CmdForce--- leave these at zero for now (no input file method to set it)
+            !u%CmdBrake, u%CmdForce and u%CmdMoment -- leave these at zero for now (no input file method to set it)
             !  The states are sized by (6,NumMeshPts).  NumMeshPts is then used to set
             !  size of StC_CChan as well.  For safety, we will check it here.
             y%MeasDisp(1:3,p%StC_CChan(i))  = (/ x%StC_x(1,i), x%StC_x(3,i), x%StC_x(5,i) /)
@@ -1661,7 +1664,7 @@ SUBROUTINE StC_ActiveCtrl_StiffDamp(u,p,K_ctrl,C_ctrl,C_Brake,F_ctrl,M_ctrl)
          C_ctrl( 1:3,i_pt) = u%CmdDamp( 1:3,p%StC_CChan(i_pt))
          C_Brake(1:3,i_pt) = u%CmdBrake(1:3,p%StC_CChan(i_pt))
          F_ctrl(1:3,i_pt)  = u%CmdForce(1:3,p%StC_CChan(i_pt))
-         M_ctrl(1:3,i_pt)  = 0.0_ReKi  ! not supported.  Included for completeness in case someone hooks into the code here later
+         M_ctrl(1:3,i_pt)  = u%CmdMoment(1:3,p%StC_CChan(i_pt))
       else  ! Use parameters from file (as if no control) -- leave K value as that may be set by table prior
          C_ctrl(1,:) = p%C_X
          C_ctrl(2,:) = p%C_Y
