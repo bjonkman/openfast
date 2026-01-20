@@ -159,6 +159,7 @@ IMPLICIT NONE
   TYPE, PUBLIC :: StC_MiscVarType
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: F_stop      !< Stop forces [-]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: F_ext      !< External forces (user defined or from controller) [-]
+    REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: M_ext      !< External moments (user defined; no controller support yet) [-]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: F_fr      !< Friction forces [-]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: K      !< Stiffness -- might be changed if controller controls this [N/m]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: C_ctrl      !< Controlled Damping (On/Off) [-]
@@ -1095,6 +1096,18 @@ subroutine StC_CopyMisc(SrcMiscData, DstMiscData, CtrlCode, ErrStat, ErrMsg)
       end if
       DstMiscData%F_ext = SrcMiscData%F_ext
    end if
+   if (allocated(SrcMiscData%M_ext)) then
+      LB(1:2) = lbound(SrcMiscData%M_ext)
+      UB(1:2) = ubound(SrcMiscData%M_ext)
+      if (.not. allocated(DstMiscData%M_ext)) then
+         allocate(DstMiscData%M_ext(LB(1):UB(1),LB(2):UB(2)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstMiscData%M_ext.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstMiscData%M_ext = SrcMiscData%M_ext
+   end if
    if (allocated(SrcMiscData%F_fr)) then
       LB(1:2) = lbound(SrcMiscData%F_fr)
       UB(1:2) = ubound(SrcMiscData%F_fr)
@@ -1291,6 +1304,9 @@ subroutine StC_DestroyMisc(MiscData, ErrStat, ErrMsg)
    if (allocated(MiscData%F_ext)) then
       deallocate(MiscData%F_ext)
    end if
+   if (allocated(MiscData%M_ext)) then
+      deallocate(MiscData%M_ext)
+   end if
    if (allocated(MiscData%F_fr)) then
       deallocate(MiscData%F_fr)
    end if
@@ -1345,6 +1361,7 @@ subroutine StC_PackMisc(RF, Indata)
    if (RF%ErrStat >= AbortErrLev) return
    call RegPackAlloc(RF, InData%F_stop)
    call RegPackAlloc(RF, InData%F_ext)
+   call RegPackAlloc(RF, InData%M_ext)
    call RegPackAlloc(RF, InData%F_fr)
    call RegPackAlloc(RF, InData%K)
    call RegPackAlloc(RF, InData%C_ctrl)
@@ -1374,6 +1391,7 @@ subroutine StC_UnPackMisc(RF, OutData)
    if (RF%ErrStat /= ErrID_None) return
    call RegUnpackAlloc(RF, OutData%F_stop); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%F_ext); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%M_ext); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%F_fr); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%K); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%C_ctrl); if (RegCheckErr(RF, RoutineName)) return

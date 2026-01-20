@@ -388,6 +388,7 @@ CONTAINS
       !        they have been moved into MiscVars so that we don so we don't reallocate all the time.
       call AllocAry(m%F_stop , 3, p%NumMeshPts, 'F_stop' , ErrStat, ErrMsg);  if (ErrStat >= AbortErrLev) return;  m%F_stop  = 0.0_ReKi
       call AllocAry(m%F_ext  , 3, p%NumMeshPts, 'F_ext'  , ErrStat, ErrMsg);  if (ErrStat >= AbortErrLev) return;  m%F_ext   = 0.0_ReKi
+      call AllocAry(m%M_ext  , 3, p%NumMeshPts, 'M_ext'  , ErrStat, ErrMsg);  if (ErrStat >= AbortErrLev) return;  m%M_ext   = 0.0_ReKi
       call AllocAry(m%F_fr   , 3, p%NumMeshPts, 'F_fr'   , ErrStat, ErrMsg);  if (ErrStat >= AbortErrLev) return;  m%F_fr    = 0.0_ReKi
       call AllocAry(m%C_ctrl , 3, p%NumMeshPts, 'C_ctrl' , ErrStat, ErrMsg);  if (ErrStat >= AbortErrLev) return;  m%C_ctrl  = 0.0_ReKi
       call AllocAry(m%C_Brake, 3, p%NumMeshPts, 'C_Brake', ErrStat, ErrMsg);  if (ErrStat >= AbortErrLev) return;  m%C_Brake = 0.0_ReKi
@@ -978,7 +979,7 @@ SUBROUTINE StC_CalcOutput( Time, u, p, x, xd, z, OtherState, y, m, ErrStat, ErrM
          ! Global coords only
          do i_pt=1,p%NumMeshPts
             y%Mesh(i_pt)%Force(1:3,1)  =  m%F_ext(1:3,i_pt)
-            y%Mesh(i_pt)%Moment(1:3,1) =  0
+            y%Mesh(i_pt)%Moment(1:3,1) =  m%M_ext(1:3,i_pt)
          enddo
       END IF
 
@@ -1165,7 +1166,7 @@ SUBROUTINE StC_CalcContStateDeriv( Time, u, p, x, xd, z, OtherState, m, dxdt, Er
       ELSE IF (p%StC_CMODE == CMODE_Semi) THEN ! ground hook control
          CALL StC_GroundHookDamp(dxdt,x,u,p,m%rdisp_P,m%rdot_P,m%C_ctrl,m%C_Brake,m%F_fr)
       ELSE IF (p%StC_CMODE == CMODE_ActiveDLL) THEN   ! Active control from DLL
-         call StC_ActiveCtrl_StiffDamp(u,p,m%K,m%C_ctrl,m%C_Brake,m%F_ext)
+         call StC_ActiveCtrl_StiffDamp(u,p,m%K,m%C_ctrl,m%C_Brake,m%F_ext,m%M_ext)
          m%F_fr    = 0.0_ReKi
          if (.not. p%Use_F_TBL) then
             K(1:3,:) = m%K(1:3,:)
@@ -1645,13 +1646,14 @@ SUBROUTINE StC_GroundHookDamp(dxdt,x,u,p,rdisp_P,rdot_P,C_ctrl,C_Brake,F_fr)
    enddo
 END SUBROUTINE StC_GroundHookDamp
 !----------------------------------------------------------------------------------------------------------------------------------
-SUBROUTINE StC_ActiveCtrl_StiffDamp(u,p,K_ctrl,C_ctrl,C_Brake,F_ctrl)
+SUBROUTINE StC_ActiveCtrl_StiffDamp(u,p,K_ctrl,C_ctrl,C_Brake,F_ctrl,M_ctrl)
    TYPE(StC_InputType),                   INTENT(IN   )  :: u              !< Inputs at Time
    TYPE(StC_ParameterType),               INTENT(IN   )  :: p              !< The module's parameter data
    real(ReKi),                            intent(inout)  :: K_ctrl(:,:)    !< stiffness commanded by dll -- leave alone if no ctrl
    real(ReKi),                            intent(inout)  :: C_ctrl(:,:)    !< damping   commanded by dll
    real(ReKi),                            intent(inout)  :: C_Brake(:,:)   !< brake     commanded by dll
-   real(ReKi),                            intent(inout)  :: F_ctrl(:,:)    !< brake     commanded by dll
+   real(ReKi),                            intent(inout)  :: F_ctrl(:,:)    !< force     commanded by dll
+   real(ReKi),                            intent(inout)  :: M_ctrl(:,:)    !< moment    commanded by dll (not supported by DLL interface)
    integer(IntKi)                                        :: i_pt           ! counter for mesh points
    do i_pt=1,p%NumMeshPts
       if (p%StC_CChan(i_pt) > 0) then     ! This index should have been checked at init, so won't check bounds here
@@ -1659,12 +1661,14 @@ SUBROUTINE StC_ActiveCtrl_StiffDamp(u,p,K_ctrl,C_ctrl,C_Brake,F_ctrl)
          C_ctrl( 1:3,i_pt) = u%CmdDamp( 1:3,p%StC_CChan(i_pt))
          C_Brake(1:3,i_pt) = u%CmdBrake(1:3,p%StC_CChan(i_pt))
          F_ctrl(1:3,i_pt)  = u%CmdForce(1:3,p%StC_CChan(i_pt))
+         M_ctrl(1:3,i_pt)  = 0.0_ReKi  ! not supported.  Included for completeness in case someone hooks into the code here later
       else  ! Use parameters from file (as if no control) -- leave K value as that may be set by table prior
          C_ctrl(1,:) = p%C_X
          C_ctrl(2,:) = p%C_Y
          C_ctrl(3,:) = p%C_Z
          C_Brake     = 0.0_ReKi
          F_ctrl      = 0.0_ReKi
+         M_ctrl      = 0.0_ReKi
       endif
    enddo
 END SUBROUTINE StC_ActiveCtrl_StiffDamp

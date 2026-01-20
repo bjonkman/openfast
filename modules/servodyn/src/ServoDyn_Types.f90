@@ -274,6 +274,7 @@ IMPLICIT NONE
     REAL(SiKi) , DIMENSION(:,:), ALLOCATABLE  :: StCCmdDamp      !< StC damping from controller (3,NumStC_Control) [N/(m/s)]
     REAL(SiKi) , DIMENSION(:,:), ALLOCATABLE  :: StCCmdBrake      !< StC braking signal (3,NumStC_Control) [N]
     REAL(SiKi) , DIMENSION(:,:), ALLOCATABLE  :: StCCmdForce      !< StC commanded force signal (3,NumStC_Control) [N]
+    REAL(SiKi) , DIMENSION(:,:), ALLOCATABLE  :: StCCmdMoment      !< StC commanded moment signal (3,NumStC_Control) [NOTE: this is not currently used.  Placeholder for later] [N]
     REAL(SiKi) , DIMENSION(:,:), ALLOCATABLE  :: StCMeasDisp      !< StC measured local displacement signal from StC (3,NumStC_Control) [m]
     REAL(SiKi) , DIMENSION(:,:), ALLOCATABLE  :: StCMeasVel      !< StC measured local velocity     signal from StC (3,NumStC_Control) [m/s]
   END TYPE BladedDLLType
@@ -1772,6 +1773,18 @@ subroutine SrvD_CopyBladedDLLType(SrcBladedDLLTypeData, DstBladedDLLTypeData, Ct
       end if
       DstBladedDLLTypeData%StCCmdForce = SrcBladedDLLTypeData%StCCmdForce
    end if
+   if (allocated(SrcBladedDLLTypeData%StCCmdMoment)) then
+      LB(1:2) = lbound(SrcBladedDLLTypeData%StCCmdMoment)
+      UB(1:2) = ubound(SrcBladedDLLTypeData%StCCmdMoment)
+      if (.not. allocated(DstBladedDLLTypeData%StCCmdMoment)) then
+         allocate(DstBladedDLLTypeData%StCCmdMoment(LB(1):UB(1),LB(2):UB(2)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstBladedDLLTypeData%StCCmdMoment.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstBladedDLLTypeData%StCCmdMoment = SrcBladedDLLTypeData%StCCmdMoment
+   end if
    if (allocated(SrcBladedDLLTypeData%StCMeasDisp)) then
       LB(1:2) = lbound(SrcBladedDLLTypeData%StCMeasDisp)
       UB(1:2) = ubound(SrcBladedDLLTypeData%StCMeasDisp)
@@ -1880,6 +1893,9 @@ subroutine SrvD_DestroyBladedDLLType(BladedDLLTypeData, ErrStat, ErrMsg)
    end if
    if (allocated(BladedDLLTypeData%StCCmdForce)) then
       deallocate(BladedDLLTypeData%StCCmdForce)
+   end if
+   if (allocated(BladedDLLTypeData%StCCmdMoment)) then
+      deallocate(BladedDLLTypeData%StCCmdMoment)
    end if
    if (allocated(BladedDLLTypeData%StCMeasDisp)) then
       deallocate(BladedDLLTypeData%StCMeasDisp)
@@ -1994,6 +2010,7 @@ subroutine SrvD_PackBladedDLLType(RF, Indata)
    call RegPackAlloc(RF, InData%StCCmdDamp)
    call RegPackAlloc(RF, InData%StCCmdBrake)
    call RegPackAlloc(RF, InData%StCCmdForce)
+   call RegPackAlloc(RF, InData%StCCmdMoment)
    call RegPackAlloc(RF, InData%StCMeasDisp)
    call RegPackAlloc(RF, InData%StCMeasVel)
    if (RegCheckErr(RF, RoutineName)) return
@@ -2110,6 +2127,7 @@ subroutine SrvD_UnPackBladedDLLType(RF, OutData)
    call RegUnpackAlloc(RF, OutData%StCCmdDamp); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%StCCmdBrake); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%StCCmdForce); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%StCCmdMoment); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%StCMeasDisp); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%StCMeasVel); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
