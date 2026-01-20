@@ -975,20 +975,11 @@ SUBROUTINE StC_CalcOutput( Time, u, p, x, xd, z, OtherState, y, m, ErrStat, ErrM
       ELSEIF ( p%StC_DOF_MODE == DOFMode_ForceDLL ) THEN
          !  Note that the prescribed force is applied the same to all Mesh pts
          !  that are passed into this instance of the StC
-         if (p%PrescribedForcesCoordSys == PRESCRIBED_FORCE_GLOBAL) then
-            ! Global coords
-            do i_pt=1,p%NumMeshPts
-               y%Mesh(i_pt)%Force(1:3,1)  =  m%F_ext(1:3,i_pt)
-               y%Mesh(i_pt)%Moment(1:3,1) =  0
-            enddo
-         ! Leave in for now just in case we decide there is a use case for a follower force from the DLL
-         ! elseif (p%PrescribedForcesCoordSys == PRESCRIBED_FORCE_LOCAL) then
-         !    ! local coords
-         !    do i_pt=1,p%NumMeshPts
-         !       y%Mesh(i_pt)%Force(1:3,1)  =  matmul(transpose(u%Mesh(i_pt)%Orientation(:,:,1)), m%F_P(1:3,i_pt))
-         !       y%Mesh(i_pt)%Moment(1:3,1) =  matmul(transpose(u%Mesh(i_pt)%Orientation(:,:,1)), m%M_P(1:3,i_pt))
-         !    enddo
-         endif
+         ! Global coords only
+         do i_pt=1,p%NumMeshPts
+            y%Mesh(i_pt)%Force(1:3,1)  =  m%F_ext(1:3,i_pt)
+            y%Mesh(i_pt)%Moment(1:3,1) =  0
+         enddo
       END IF
 
       ! Set output values for the measured displacements for  
@@ -2191,6 +2182,9 @@ subroutine    StC_ValidatePrimaryData( InputFileData, InitInp, ErrStat, ErrMsg )
       do i=1,InitInp%NumMeshPts     ! Check we are in range of number of control channel groups
          if ( InputFileData%StC_CChan(i) < 0 .or. InputFileData%StC_CChan(i) > 10 ) then
             call SetErrStat( ErrID_Fatal, 'Control channel (StC_CChan) must be between 0 (off) and 10 when StC_CMode=5.', ErrStat, ErrMsg, RoutineName )
+         endif
+         if ( InputFileData%StC_CChan(i) == 0 ) then
+            call SetErrStat( ErrID_Warn, 'Control mode 5 (active with DLL control) requested, but no control channel specified.  No external force will be applied.', ErrStat, ErrMsg, RoutineName )
          endif
       enddo
    endif

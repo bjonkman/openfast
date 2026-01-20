@@ -277,15 +277,15 @@ contains
    subroutine InitStCCtrl()
       integer(IntKi)    :: I,J   ! Generic counters
 
-      ! Error check the Cable Ctrl
+      ! Error check the StC Ctrl
       if (.not. allocated(StC_CtrlChanInitInfo%Requestor)) then
          ErrStat2=ErrID_Fatal
-         ErrMsg2='StC control string array indicating which module requested cable controls is missing (StC_CtrlChanInitInfo%Requestor)'
+         ErrMsg2='StC control string array indicating which module requested StC controls is missing (StC_CtrlChanInitInfo%Requestor)'
          if (Failed())  return
       endif
       if (size(StC_CtrlChanInitInfo%Requestor) /= p%NumStC_Control) then
          ErrStat2=ErrID_Fatal
-         ErrMsg2='Size of StC control string array (StC_CtrlChanInitInfo%Requestor) does not match the number of requested cable control channels.'
+         ErrMsg2='Size of StC control string array (StC_CtrlChanInitInfo%Requestor) does not match the number of requested StC control channels.'
          if (Failed())  return
       endif
       if (  (size(StC_CtrlChanInitInfo%InitMeasDisp,2) /= p%NumStC_Control) .or. &
