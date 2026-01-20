@@ -275,7 +275,7 @@ IMPLICIT NONE
     REAL(SiKi) , DIMENSION(:,:), ALLOCATABLE  :: StCCmdDamp      !< StC damping from controller (3,NumStC_Control) [N/(m/s)]
     REAL(SiKi) , DIMENSION(:,:), ALLOCATABLE  :: StCCmdBrake      !< StC braking signal (3,NumStC_Control) [N]
     REAL(SiKi) , DIMENSION(:,:), ALLOCATABLE  :: StCCmdForce      !< StC commanded force signal (3,NumStC_Control) [N]
-    REAL(SiKi) , DIMENSION(:,:), ALLOCATABLE  :: StCCmdMoment      !< StC commanded moment signal (3,NumStC_Control)] [N-m]
+    REAL(SiKi) , DIMENSION(:,:), ALLOCATABLE  :: StCCmdMoment      !< StC commanded moment signal (3,NumStC_Control) [N-m]
     REAL(SiKi) , DIMENSION(:,:), ALLOCATABLE  :: StCMeasDisp      !< StC measured local displacement signal from StC (3,NumStC_Control) [m]
     REAL(SiKi) , DIMENSION(:,:), ALLOCATABLE  :: StCMeasVel      !< StC measured local velocity     signal from StC (3,NumStC_Control) [m/s]
   END TYPE BladedDLLType

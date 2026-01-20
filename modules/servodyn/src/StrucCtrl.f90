@@ -1656,7 +1656,7 @@ SUBROUTINE StC_ActiveCtrl_StiffDamp(u,p,K_ctrl,C_ctrl,C_Brake,F_ctrl,M_ctrl)
    real(ReKi),                            intent(inout)  :: C_ctrl(:,:)    !< damping   commanded by dll
    real(ReKi),                            intent(inout)  :: C_Brake(:,:)   !< brake     commanded by dll
    real(ReKi),                            intent(inout)  :: F_ctrl(:,:)    !< force     commanded by dll
-   real(ReKi),                            intent(inout)  :: M_ctrl(:,:)    !< moment    commanded by dll (not supported by DLL interface)
+   real(ReKi),                            intent(inout)  :: M_ctrl(:,:)    !< moment    commanded by dll
    integer(IntKi)                                        :: i_pt           ! counter for mesh points
    do i_pt=1,p%NumMeshPts
       if (p%StC_CChan(i_pt) > 0) then     ! This index should have been checked at init, so won't check bounds here

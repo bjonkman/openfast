@@ -1939,7 +1939,7 @@ SUBROUTINE SrvD_UpdateStates( t, n, Inputs, InputTimes, p, x, xd, z, OtherState,
       call AllocAry(StC_CmdDamp,  3, p%NumStC_Control, 'StC_CmdDamp' , ErrStat2, ErrMsg2 );  if (Failed()) return;
       call AllocAry(StC_CmdBrake, 3, p%NumStC_Control, 'StC_CmdBrake', ErrStat2, ErrMsg2 );  if (Failed()) return;
       call AllocAry(StC_CmdForce, 3, p%NumStC_Control, 'StC_CmdForce', ErrStat2, ErrMsg2 );  if (Failed()) return;
-      call AllocAry(StC_CmdMoment,3, p%NumStC_Control, 'StC_CmdMoment', ErrStat2, ErrMsg2 );  if (Failed()) return;
+      call AllocAry(StC_CmdMoment,3, p%NumStC_Control, 'StC_CmdMoment',ErrStat2, ErrMsg2 );  if (Failed()) return;
       call StCControl_CalcOutput( t_next, p, StC_CmdStiff, StC_CmdDamp, StC_CmdBrake, StC_CmdForce, StC_CmdMoment, m, ErrStat2, ErrMsg2 )
          if (Failed()) return;
    endif
@@ -2231,7 +2231,7 @@ SUBROUTINE SrvD_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, ErrStat, ErrMsg
       call AllocAry(StC_CmdDamp,  3, p%NumStC_Control, 'StC_CmdDamp' , ErrStat2, ErrMsg2 );  if (Failed()) return;
       call AllocAry(StC_CmdBrake, 3, p%NumStC_Control, 'StC_CmdBrake', ErrStat2, ErrMsg2 );  if (Failed()) return;
       call AllocAry(StC_CmdForce, 3, p%NumStC_Control, 'StC_CmdForce', ErrStat2, ErrMsg2 );  if (Failed()) return;
-      call AllocAry(StC_CmdMoment,3, p%NumStC_Control, 'StC_CmdMoment', ErrStat2, ErrMsg2 );  if (Failed()) return;
+      call AllocAry(StC_CmdMoment,3, p%NumStC_Control, 'StC_CmdMoment',ErrStat2, ErrMsg2 );  if (Failed()) return;
       call StCControl_CalcOutput( t, p, StC_CmdStiff, StC_CmdDamp, StC_CmdBrake, StC_CmdForce, StC_CmdMoment, m, ErrStat2, ErrMsg2 )
          if (Failed()) return;
    endif
@@ -6698,7 +6698,7 @@ contains
             InitDamp( 1:3,CChan(j)) = InitDamp( 1:3,CChan(j)) + real(u%CmdDamp( 1:3,CChan(j)),SiKi)
             InitBrake(1:3,CChan(j)) = InitBrake(1:3,CChan(j)) + real(u%CmdBrake(1:3,CChan(j)),SiKi)
             InitForce(1:3,CChan(j)) = InitForce(1:3,CChan(j)) + real(u%CmdForce(1:3,CChan(j)),SiKi)
-            InitMoment(1:3,CChan(j))= InitMoment(1:3,CChan(j)) + real(u%CmdMoment(1:3,CChan(j)),SiKi)
+            InitMoment(1:3,CChan(j))= InitMoment(1:3,CChan(j))+ real(u%CmdMoment(1:3,CChan(j)),SiKi)
          endif
       enddo
    end subroutine GetMeas

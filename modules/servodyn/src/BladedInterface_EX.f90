@@ -296,7 +296,7 @@ contains
             (size(StC_CtrlChanInitInfo%InitForce   ,2) /= p%NumStC_Control) .or. &
             (size(StC_CtrlChanInitInfo%InitMoment  ,2) /= p%NumStC_Control) ) then
          ErrStat2=ErrID_Fatal
-         ErrMsg2='Size of StC control initialization arrays  (StC_CtrlChanInitInfo%Init*) do not match the number of requested cable control channels.  Programming error somewhere.'
+         ErrMsg2='Size of StC control initialization arrays  (StC_CtrlChanInitInfo%Init*) do not match the number of requested StC control channels.  Programming error somewhere.'
          if (Failed())  return
       endif
       if ( p%NumStC_Control*StCCtrl_ChanPerSet > StCCtrl_MaxChan ) then
@@ -325,7 +325,7 @@ contains
          if (Failed())  return
       call AllocAry( dll_data%PrevStCCmdForce, 3, p%NumStC_Control, 'PrevStCCmdForce', ErrStat2, ErrMsg2 )
          if (Failed())  return
-      call AllocAry( dll_data%PrevStCCmdMoment,3, p%NumStC_Control, 'PrevStCCmdMoment', ErrStat2, ErrMsg2 )
+      call AllocAry( dll_data%PrevStCCmdMoment,3, p%NumStC_Control, 'PrevStCCmdMoment',ErrStat2, ErrMsg2 )
          if (Failed())  return
       call AllocAry( dll_data%StCCmdStiff,     3, p%NumStC_Control, 'StCCmdStiff',     ErrStat2, ErrMsg2 )
          if (Failed())  return
@@ -344,7 +344,7 @@ contains
       dll_data%PrevStCCmdDamp    =  real(StC_CtrlChanInitInfo%InitDamp    ,SiKi)
       dll_data%PrevStCCmdBrake   =  real(StC_CtrlChanInitInfo%InitBrake   ,SiKi)
       dll_data%PrevStCCmdForce   =  real(StC_CtrlChanInitInfo%InitForce   ,SiKi)
-      dll_data%PrevStCCmdMoment  =  real(StC_CtrlChanInitInfo%InitMoment   ,SiKi)
+      dll_data%PrevStCCmdMoment  =  real(StC_CtrlChanInitInfo%InitMoment  ,SiKi)
       dll_data%StCCmdStiff       =  real(StC_CtrlChanInitInfo%InitStiff   ,SiKi)
       dll_data%StCCmdDamp        =  real(StC_CtrlChanInitInfo%InitDamp    ,SiKi)
       dll_data%StCCmdBrake       =  real(StC_CtrlChanInitInfo%InitBrake   ,SiKi)
