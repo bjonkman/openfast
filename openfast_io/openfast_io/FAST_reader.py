@@ -1645,7 +1645,7 @@ class InputReader_OpenFAST(object):
         for i in range(self.fst_vt['ServoDyn']['DLL_NumTrq']):
             data = f.readline().split()
             self.fst_vt['ServoDyn']['GenSpd_TLU'][i]  = float_read(data[0])
-            self.fst_vt['ServoDyn']['GenTrq_TLU'][i]  = float_read(data[0])
+            self.fst_vt['ServoDyn']['GenTrq_TLU'][i]  = float_read(data[1])
 
         # ServoDyn Output Params (sd_out_params)
         f.readline()
