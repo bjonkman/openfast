@@ -338,6 +338,8 @@ of_regression("AWT_WSt_StartUpShutDown"                "openfast;elastodyn;aerod
 of_regression("AOC_WSt"                                "openfast;elastodyn;aerodyn;servodyn")
 of_regression("AOC_YFree_WTurb"                        "openfast;elastodyn;aerodyn;servodyn")
 of_regression("AOC_YFix_WSt"                           "openfast;elastodyn;aerodyn;servodyn")
+of_regression("AOC_YFriction_Loading"                  "openfast;elastodyn;aerodyn;servodyn")
+of_regression("AOC_YFriction_Stiffness"                "openfast;elastodyn;aerodyn;servodyn")
 of_regression("UAE_Dnwind_YRamp_WSt"                   "openfast;elastodyn;aerodyn;servodyn")
 of_regression("UAE_Upwind_Rigid_WRamp_PwrCurve"        "openfast;elastodyn;aerodyn;servodyn")
 of_regression("WP_VSP_WTurb_PitchFail"                 "openfast;elastodyn;aerodyn;servodyn")
@@ -371,6 +373,8 @@ of_regression("Tailfin_FreeYaw1DOF_Unsteady"           "openfast;elastodyn;aerod
 of_regression("5MW_Land_DLL_WTurb_ADsk"                "openfast;elastodyn;aerodisk")
 of_regression("5MW_Land_DLL_WTurb_ADsk_SED"            "openfast;simple-elastodyn;aerodisk")
 of_regression("5MW_Land_DLL_WTurb_SED"                 "openfast;simple-elastodyn;aerodyn")
+
+of_regression("MinimalExample"                         "openfast;elastodyn")
 
 of_aeromap_regression("5MW_Land_AeroMap"               "aeromap;elastodyn;aerodyn")
 
