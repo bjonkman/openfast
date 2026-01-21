@@ -39,6 +39,15 @@ add_library(basicaerolib STATIC
 )
 target_link_libraries(basicaerolib ifwlib nwtclibs)
 
+# AeroAcoustics library
+add_library(aeroacousticslib STATIC
+  src/AeroAcoustics_TNO.f90
+  src/AeroAcoustics.f90
+  src/AeroAcoustics_IO.f90
+  src/AeroAcoustics_Types.f90
+)
+target_link_libraries(aeroacousticslib nwtclibs)
+
 # AeroDyn Library
 add_library(aerodynlib STATIC
   src/AeroDyn.f90
@@ -53,12 +62,6 @@ add_library(aerodynlib STATIC
   src/BEMT_Types.f90
   src/DBEMT_Types.f90
 
-  # AeroAcoustics - Main
-  src/AeroAcoustics_TNO.f90
-  src/AeroAcoustics.f90
-  src/AeroAcoustics_IO.f90
-  src/AeroAcoustics_Types.f90
-
   # FVW lib
   src/FVW.f90
   src/FVW_IO.f90
@@ -69,7 +72,7 @@ add_library(aerodynlib STATIC
   src/FVW_Tests.f90
   src/FVW_Types.f90
 )
-target_link_libraries(aerodynlib basicaerolib nwtclibs)
+target_link_libraries(aerodynlib basicaerolib aeroacousticslib nwtclibs)
 
 # ADI lib
 add_library(adilib STATIC
@@ -90,6 +93,13 @@ add_executable(aerodyn_driver
   src/AeroDyn_Driver.f90
 )
 target_link_libraries(aerodyn_driver aerodyn_driver_subs)
+
+# AeroAcoustics driver
+add_executable(aeroacoustics_driver
+   src/AeroAcoustics_Driver_Subs.f90
+   src/AeroAcoustics_Driver.f90
+)
+target_link_libraries(aeroacoustics_driver aeroacousticslib basicaerolib versioninfolib)
 
 # UnsteadyAero Driver
 add_executable(unsteadyaero_driver 
@@ -127,7 +137,7 @@ if(APPLE OR UNIX)
 endif()
 
 
-install(TARGETS aerodynlib basicaerolib aerodyn_driver_subs aerodyn_driver unsteadyaero_driver aerodyn_inflow_c_binding adilib aerodyn_inflow_c_bind_static
+install(TARGETS aerodynlib aeroacousticslib basicaerolib aerodyn_driver_subs aerodyn_driver aeroacoustics_driver unsteadyaero_driver aerodyn_inflow_c_binding adilib aerodyn_inflow_c_bind_static
   EXPORT "${CMAKE_PROJECT_NAME}Libraries"
   RUNTIME DESTINATION bin
   LIBRARY DESTINATION lib
