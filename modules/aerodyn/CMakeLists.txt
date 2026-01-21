@@ -46,7 +46,7 @@ add_library(aeroacousticslib STATIC
   src/AeroAcoustics_IO.f90
   src/AeroAcoustics_Types.f90
 )
-target_link_libraries(aeroacousticslib nwtclibs)
+target_link_libraries(aeroacousticslib basicaerolib nwtclibs)
 
 # AeroDyn Library
 add_library(aerodynlib STATIC
@@ -99,7 +99,7 @@ add_executable(aeroacoustics_driver
    src/AeroAcoustics_Driver_Subs.f90
    src/AeroAcoustics_Driver.f90
 )
-target_link_libraries(aeroacoustics_driver aeroacousticslib basicaerolib versioninfolib)
+target_link_libraries(aeroacoustics_driver aeroacousticslib versioninfolib)
 
 # UnsteadyAero Driver
 add_executable(unsteadyaero_driver 
