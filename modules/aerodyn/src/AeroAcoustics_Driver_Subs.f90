@@ -41,7 +41,7 @@ module AeroAcoustics_Driver_Subs
       integer(IntKi)                                 :: NumSteps= 0               !< number of steps in output
       character(ChanLen) , dimension(:), allocatable :: WriteOutputHdr            !< channel headers [-]
       character(ChanLen) , dimension(:), allocatable :: WriteOutputUnt            !< channel units [-]
-      real(SiKi) , dimension(:,:), allocatable       :: storage                   !< nchannel x ntime [-]
+      real(ReKi) , dimension(:,:), allocatable       :: storage                   !< nchannel x ntime [-]
       real(ReKi) , dimension(:), allocatable         :: outline                   !< output line to be written to disk [-]
       integer(IntKi)                                 :: FmtWidth
 

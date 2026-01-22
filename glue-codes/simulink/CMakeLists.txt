@@ -19,6 +19,7 @@
 set(MEX_LIBS
   $<TARGET_FILE:openfast_prelib>
   $<TARGET_FILE:basicaerolib>
+  $<TARGET_FILE:aeroacousticslib>
   $<TARGET_FILE:aerodynlib>
   $<TARGET_FILE:beamdynlib>
   $<TARGET_FILE:elastodynlib>
