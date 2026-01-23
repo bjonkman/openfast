@@ -10,6 +10,15 @@ The line number corresponds to the resulting line number after all changes are i
 Thus, be sure to implement each in order so that subsequent line numbers are correct.
 
 
+OpenFAST v4.1.x to OpenFAST v4.2.0
+----------------------------------
+
+#FIXME: changes missing
+
+
+
+
+
 OpenFAST v4.1.1 to OpenFAST v4.1.2
 ----------------------------------
 
