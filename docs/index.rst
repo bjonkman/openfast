@@ -41,7 +41,11 @@ The following links provide more insight into OpenFAST as a software
 package:
 
 - `OpenFAST Github Organization <https://github.com/OpenFAST>`_
+
+Source code, releases, and example regression tests are available on Github at
 - `Github Repository <https://github.com/OpenFAST/OpenFAST>`_
+- `OpenFAST release notes and Windows executables <https://github.com/OpenFAST/openfast/releases>`_
+- `OpenFAST input files <https://github.com/OpenFAST/r-test/releases>`_
 
 **Documentation Directory**
 
