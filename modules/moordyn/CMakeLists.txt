@@ -44,7 +44,9 @@ target_link_libraries(moordyn_driver moordynlib versioninfolib)
 add_library(moordyn_c_binding_object OBJECT src/MoorDyn_C_Binding.f90)
 target_link_libraries(moordyn_c_binding_object moordynlib seastlib nwtclibs versioninfolib)
 set_property(TARGET moordyn_c_binding_object PROPERTY POSITION_INDEPENDENT_CODE 1) # required for shared libs
-
+if(APPLE OR UNIX)
+   target_compile_definitions(moordyn_c_binding_object PRIVATE IMPLICIT_DLLEXPORT)
+endif()
 #   shared
 add_library(moordyn_c_binding SHARED $<TARGET_OBJECTS:moordyn_c_binding_object>)
 target_link_libraries(moordyn_c_binding moordynlib seastlib nwtclibs versioninfolib)
