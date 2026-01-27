@@ -1,0 +1,35 @@
+###################################################################################################################################
+# Registry for AeroDyn 15 c-bindings interface
+# This Registry file is used to create AeroDyn_Inflow_C_Binding_Types.f90
+# It also contains copy, destroy, pack, and unpack routines associated with each defined data types.
+# See the NWTC Programmer's Handbook for further information on the format/contents of this file.
+#
+# Entries are of the form
+# <keyword>    <ModuleName/ModName>    <TypeName>    <FieldType>    <FieldName>    <Dims>    <IO>    <DNAME>    <DESCRIP>    <UNITS>
+#
+# Use ^ as a shortcut for the value in the same column from the previous line.
+###################################################################################################################################
+# ...... Include files (definitions from NWTC Library) ............................................................................
+include    Registry_NWTC_Library.txt
+# ADI c-bind types
+param    AeroDyn_Inflow_C_Binding/ADI_cbind  -                 IntKi                         NumPtsDiskAvg        -                    144   -  "Number of points for disk average velocity calculations" -
+typedef  ^                                   DiskAvgVelData    ReKi                          DiskWindPosRel       {3}{NumPtsDiskAvg}   -     -  "Position points for disk average sampling, relative to hub" -
+typedef  ^                                         ^           ReKi                          DiskWindPosAbs       {3}{NumPtsDiskAvg}   -     -  "Position points for disk average sampling, absolute/global/interial" -
+typedef  ^                                         ^           ReKi                          DiskWindVel          {3}{NumPtsDiskAvg}   -     -  "Velocity at disk average sampling points" -
+typedef  ^                                         ^           ReKi                          DiskAvgVel           {3}                  -     -  "Average velocity calculated from DiskWindVel" -
+                                                                                             
+typedef  ^                      BladeNodeToMeshPointMapType    IntKi                         BladeNodeToMeshPoint {:}                  =     =  "Blade node -> structural mesh point mapping (sized by the number of nodes on the blade)" -
+                                                                                             
+typedef  ^                           BladeStrMeshCoordsType    ReKi                          Position             {:}{:}               -     -  "Position of all blade points (sized by 3 x number of mesh points on the blade [x,y,z])" m
+typedef  ^                                         ^           ReKi                          Orient               {:}{:}{:}            -     -  "Orientation of all blade points (sized by 3 x 3 x number of mesh points on the blade [r11,r12,r13,r21,r22,r23,r31,r32,r33])" -
+typedef  ^                                         ^           ReKi                          Velocity             {:}{:}               -     -  "Velocity of all blade points (sized by 6 x number of mesh points on the blade [u,v,w,p,q,r])" m/s
+typedef  ^                                         ^           ReKi                          Accln                {:}{:}               -     -  "Acceleration of all blade points (sized by 6 x number of mesh points on the blade [udot,vdot,wdot,pdot,qdot,rdot])" m/s^2
+typedef  ^                                         ^           ReKi                          Force                {:}{:}               -     -  "Force of all blade points (sized by 6 x number of mesh points on the blade [Fx,Fy,Fz,Mx,My,Mz])" N,Nm
+
+typedef  ^                           StrucPtsToBladeMapType    IntKi                         NumBlades            -                    -     -  "Number of blades on this rotor" -
+typedef  ^                                         ^           IntKi                         NumMeshPtsPerBlade   {:}                  -     -  "Number of structural mesh points on each blade (sized by the number of blades)" -
+typedef  ^                                         ^           IntKi                         MeshPt_2_BladeNum    {:}                  -     -  "Structural mesh point -> which blade on the rotor it is on (sized by the number of mesh points on the rotor)" -
+typedef  ^                                         ^           BladeNodeToMeshPointMapType   BladeNode_2_MeshPt   {:}                  -     -  "Blade node on blade -> structural mesh point (sized by the number of mesh points on the blade)" -
+typedef  ^                                         ^           BladeStrMeshCoordsType        BladeStrMeshCoords   {:}                  -     -  "Mesh point coordinates for each blade (sized by the number of blades)" -
+
+typedef  ^                                 MeshByBladeType     MeshType                      BldMesh              {:}                  -     -  "Mesh for motions/loads of external nodes at each blade (sized by number of blades on the rotor)" -

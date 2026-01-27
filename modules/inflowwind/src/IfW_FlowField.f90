@@ -1628,7 +1628,7 @@ subroutine Grid4DField_GetVel(G4D, Time, Position, Velocity, ErrStat, ErrMsg)
    real(ReKi)                          :: P(3, 16)    ! Point values
    real(ReKi)                          :: tmp
    integer(IntKi)                      :: i
-   character(60)                       :: PtLoc
+   character(60)                       :: PtLoc, BoxLL, BoxUR
 
    ErrStat = ErrID_None
    ErrMsg = ""
@@ -1665,12 +1665,16 @@ subroutine Grid4DField_GetVel(G4D, Time, Position, Velocity, ErrStat, ErrMsg)
    do i = 1, 4
       if (Indx_Lo(i) <= 0) then
          Indx_Lo(i) = 1
-         write(PtLoc,'(A1,3(f8.2,A1))') '(',Position(1),',',Position(2),',',Position(3),')'
-         call SetErrStat(ErrID_Fatal, 'Outside the grid bounds: '//trim(PtLoc), ErrStat, ErrMsg, RoutineName)
+         write(PtLoc, '(A1,3(f8.2,A1))') '(',Position(1),',',Position(2),',',Position(3),')'
+         write(BoxLL, '(A1,3(f8.2,A1))') '(',G4D%pZero(1),',',G4D%pZero(2),',',G4D%pZero(3),')'
+         write(BoxUR, '(A1,3(f8.2,A1))') '(',G4D%pZero(1)+(G4D%n(1)-1)*G4D%delta(1),',',G4D%pZero(2)+(G4D%n(2)-1)*G4D%delta(2),',',G4D%pZero(3)+(G4D%n(3)-1)*G4D%delta(3),')'
+         call SetErrStat(ErrID_Fatal, 'Outside the grid bounds: '//trim(PtLoc)//'; box bounds: '//trim(BoxLL)//' to '//trim(BoxUR), ErrStat, ErrMsg, RoutineName)
          return
       elseif (Indx_Lo(i) >= G4D%n(i)) then
-         write(PtLoc,'(A1,3(f8.2,A1))') '(',Position(1),',',Position(2),',',Position(3),')'
-         call SetErrStat(ErrID_Fatal, 'Outside the grid bounds: '//trim(PtLoc), ErrStat, ErrMsg, RoutineName)
+         write(PtLoc, '(A1,3(f8.2,A1))') '(',Position(1),',',Position(2),',',Position(3),')'
+         write(BoxLL, '(A1,3(f8.2,A1))') '(',G4D%pZero(1),',',G4D%pZero(2),',',G4D%pZero(3),')'
+         write(BoxUR, '(A1,3(f8.2,A1))') '(',G4D%pZero(1)+(G4D%n(1)-1)*G4D%delta(1),',',G4D%pZero(2)+(G4D%n(2)-1)*G4D%delta(2),',',G4D%pZero(3)+(G4D%n(3)-1)*G4D%delta(3),')'
+         call SetErrStat(ErrID_Fatal, 'Outside the grid bounds: '//trim(PtLoc)//'; box bounds: '//trim(BoxLL)//' to '//trim(BoxUR), ErrStat, ErrMsg, RoutineName)
          return
       end if
       Indx_Hi(i) = min(Indx_Lo(i) + 1, G4D%n(i))     ! make sure it's a valid index

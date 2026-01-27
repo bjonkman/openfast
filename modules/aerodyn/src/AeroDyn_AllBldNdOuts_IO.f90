@@ -234,7 +234,7 @@ SUBROUTINE AllBldNdOuts_InitOut( InitOut, p, InputFileData, ErrStat, ErrMsg )
          ! Populate the header an unit lines for all blades and nodes
          ! First set a counter so we know where in the output array we are in
          ! NOTE: we populate invalid names as well (some names are not valid outputs for certain configurations).  That means we will have zeros in those values.
-      INDX = p%NumOuts + 1       ! p%NumOuts is the number of outputs from the normal AeroDyn output.  The WriteOutput array is sized to p%NumOuts + num(AllBldNdOuts)
+      INDX = p%NumOuts + p%AA%numOuts + 1       ! The WriteOutput array is sized to p%NumOuts + p%AA%numOuts + AllBldNdOuts
 
       DO IdxChan=1,p%BldNd_NumOuts
 
@@ -327,7 +327,7 @@ SUBROUTINE Calc_WriteAllBldNdOutput( p, p_AD, u, m, m_AD, x, y, OtherState, RotI
 
          ! Populate the header an unit lines for all blades and nodes
          ! First set a counter so we know where in the output array we are in
-      iOut = p%NumOuts + 1       ! p%NumOuts is the number of outputs from the normal AeroDyn output.  The WriteOutput array is sized to p%NumOuts + num(AllBldNdOuts)
+      iOut = p%NumOuts + p%AA%numOuts  + 1       ! p%NumOuts is the number of outputs from the normal AeroDyn output.  The WriteOutput array is sized to p%NumOuts + p%AA%numOuts  + num(AllBldNdOuts)
 
       
          ! Case to assign output to this channel and populate based on Indx value (this indicates what the channel is)

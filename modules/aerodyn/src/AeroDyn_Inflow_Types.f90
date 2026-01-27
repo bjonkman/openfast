@@ -45,7 +45,7 @@ IMPLICIT NONE
     TYPE(InflowWind_MiscVarType)  :: m      !< Misc/optimization variables [-]
     TYPE(InflowWind_InputType)  :: u      !< Array of inputs associated with InputTimes [-]
     TYPE(InflowWind_OutputType)  :: y      !< System outputs [-]
-    INTEGER(IntKi)  :: CompInflow = 0_IntKi      !< 0=Steady Wind, 1=InflowWind [-]
+    INTEGER(IntKi)  :: CompInflow = 0_IntKi      !< 0=Steady Wind, 1=InflowWind, 2=External IfW (ADI c-bind only) [-]
     REAL(ReKi)  :: HWindSpeed = 0.0_ReKi      !< RefHeight Wind speed [-]
     REAL(ReKi)  :: RefHt = 0.0_ReKi      !< RefHeight [-]
     REAL(ReKi)  :: PLExp = 0.0_ReKi      !< PLExp [-]
@@ -54,15 +54,18 @@ IMPLICIT NONE
 ! =========  ADI_IW_InputData  =======
   TYPE, PUBLIC :: ADI_IW_InputData
     Character(1024)  :: InputFile      !< Name of InfloWind input file [-]
-    INTEGER(IntKi)  :: CompInflow = 0_IntKi      !< 0=Steady Wind, 1=InflowWind [-]
+    INTEGER(IntKi)  :: CompInflow = 0_IntKi      !< 0=Steady Wind, 1=InflowWind, 2=External IfW (ADI c-bind only) [-]
     REAL(ReKi)  :: HWindSpeed = 0.0_ReKi      !< RefHeight Wind speed [-]
     REAL(ReKi)  :: RefHt = 0.0_ReKi      !< RefHeight [-]
     REAL(ReKi)  :: PLExp = 0.0_ReKi      !< PLExp [-]
     INTEGER(IntKi)  :: MHK = 0_IntKi      !< MHK turbine type switch [-]
+    REAL(ReKi)  :: WtrDpth = 0.0_ReKi      !< Water depth [m]
+    REAL(ReKi)  :: MSL2SWL = 0.0_ReKi      !< Offset between still-water level and mean sea level [m]
     INTEGER(IntKi)  :: FilePassingMethod = 0      !< Should we read everthing from an input file (0), passed in as a FileInfoType structure (1), or passed as the IfW_InputFile structure (2) [-]
     TYPE(FileInfoType)  :: PassedFileInfo      !< If we don't use the input file, pass everything through this as a FileInfo structure [-]
     TYPE(InflowWind_InputFile)  :: PassedFileData      !< If we don't use the input file, pass everything through this as an IfW InputFile structure [-]
     LOGICAL  :: Linearize = .FALSE.      !< Flag that tells this module if the glue code wants to linearize. [-]
+    LOGICAL  :: OutputAccel = .FALSE.      !< Flag to output wind acceleration [-]
   END TYPE ADI_IW_InputData
 ! =======================
 ! =========  ADI_InitInputType  =======
@@ -74,6 +77,7 @@ IMPLICIT NONE
     INTEGER(IntKi)  :: WrVTK = 0      !< 0= no vtk, 1=init only, 2=animation [-]
     INTEGER(IntKi)  :: WrVTK_Type = 1      !< Flag for VTK output type (1=surface, 2=line, 3=both) [-]
     REAL(ReKi)  :: WtrDpth = 0.0_ReKi      !< Water depth [m]
+    TYPE(FlowFieldType) , POINTER :: FlowField => NULL()      !< Pointer of InflowWinds flow field data type (from external IfW instance -- used with c-binding) [-]
   END TYPE ADI_InitInputType
 ! =======================
 ! =========  ADI_InitOutputType  =======
@@ -301,6 +305,8 @@ subroutine ADI_CopyIW_InputData(SrcIW_InputDataData, DstIW_InputDataData, CtrlCo
    DstIW_InputDataData%RefHt = SrcIW_InputDataData%RefHt
    DstIW_InputDataData%PLExp = SrcIW_InputDataData%PLExp
    DstIW_InputDataData%MHK = SrcIW_InputDataData%MHK
+   DstIW_InputDataData%WtrDpth = SrcIW_InputDataData%WtrDpth
+   DstIW_InputDataData%MSL2SWL = SrcIW_InputDataData%MSL2SWL
    DstIW_InputDataData%FilePassingMethod = SrcIW_InputDataData%FilePassingMethod
    call NWTC_Library_CopyFileInfoType(SrcIW_InputDataData%PassedFileInfo, DstIW_InputDataData%PassedFileInfo, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
@@ -309,6 +315,7 @@ subroutine ADI_CopyIW_InputData(SrcIW_InputDataData, DstIW_InputDataData, CtrlCo
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
    DstIW_InputDataData%Linearize = SrcIW_InputDataData%Linearize
+   DstIW_InputDataData%OutputAccel = SrcIW_InputDataData%OutputAccel
 end subroutine
 
 subroutine ADI_DestroyIW_InputData(IW_InputDataData, ErrStat, ErrMsg)
@@ -337,10 +344,13 @@ subroutine ADI_PackIW_InputData(RF, Indata)
    call RegPack(RF, InData%RefHt)
    call RegPack(RF, InData%PLExp)
    call RegPack(RF, InData%MHK)
+   call RegPack(RF, InData%WtrDpth)
+   call RegPack(RF, InData%MSL2SWL)
    call RegPack(RF, InData%FilePassingMethod)
    call NWTC_Library_PackFileInfoType(RF, InData%PassedFileInfo) 
    call InflowWind_PackInputFile(RF, InData%PassedFileData) 
    call RegPack(RF, InData%Linearize)
+   call RegPack(RF, InData%OutputAccel)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -355,10 +365,13 @@ subroutine ADI_UnPackIW_InputData(RF, OutData)
    call RegUnpack(RF, OutData%RefHt); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%PLExp); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%MHK); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%WtrDpth); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%MSL2SWL); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%FilePassingMethod); if (RegCheckErr(RF, RoutineName)) return
    call NWTC_Library_UnpackFileInfoType(RF, OutData%PassedFileInfo) ! PassedFileInfo 
    call InflowWind_UnpackInputFile(RF, OutData%PassedFileData) ! PassedFileData 
    call RegUnpack(RF, OutData%Linearize); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%OutputAccel); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
 subroutine ADI_CopyInitInput(SrcInitInputData, DstInitInputData, CtrlCode, ErrStat, ErrMsg)
@@ -367,6 +380,7 @@ subroutine ADI_CopyInitInput(SrcInitInputData, DstInitInputData, CtrlCode, ErrSt
    integer(IntKi),  intent(in   ) :: CtrlCode
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
+   integer(B4Ki)                  :: LB(0), UB(0)
    integer(IntKi)                 :: ErrStat2
    character(ErrMsgLen)           :: ErrMsg2
    character(*), parameter        :: RoutineName = 'ADI_CopyInitInput'
@@ -383,6 +397,7 @@ subroutine ADI_CopyInitInput(SrcInitInputData, DstInitInputData, CtrlCode, ErrSt
    DstInitInputData%WrVTK = SrcInitInputData%WrVTK
    DstInitInputData%WrVTK_Type = SrcInitInputData%WrVTK_Type
    DstInitInputData%WtrDpth = SrcInitInputData%WtrDpth
+   DstInitInputData%FlowField => SrcInitInputData%FlowField
 end subroutine
 
 subroutine ADI_DestroyInitInput(InitInputData, ErrStat, ErrMsg)
@@ -398,12 +413,14 @@ subroutine ADI_DestroyInitInput(InitInputData, ErrStat, ErrMsg)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    call ADI_DestroyIW_InputData(InitInputData%IW_InitInp, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   nullify(InitInputData%FlowField)
 end subroutine
 
 subroutine ADI_PackInitInput(RF, Indata)
    type(RegFile), intent(inout) :: RF
    type(ADI_InitInputType), intent(in) :: InData
    character(*), parameter         :: RoutineName = 'ADI_PackInitInput'
+   logical         :: PtrInIndex
    if (RF%ErrStat >= AbortErrLev) return
    call AD_PackInitInput(RF, InData%AD) 
    call ADI_PackIW_InputData(RF, InData%IW_InitInp) 
@@ -412,6 +429,13 @@ subroutine ADI_PackInitInput(RF, Indata)
    call RegPack(RF, InData%WrVTK)
    call RegPack(RF, InData%WrVTK_Type)
    call RegPack(RF, InData%WtrDpth)
+   call RegPack(RF, associated(InData%FlowField))
+   if (associated(InData%FlowField)) then
+      call RegPackPointer(RF, c_loc(InData%FlowField), PtrInIndex)
+      if (.not. PtrInIndex) then
+         call IfW_FlowField_PackFlowFieldType(RF, InData%FlowField) 
+      end if
+   end if
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -419,6 +443,11 @@ subroutine ADI_UnPackInitInput(RF, OutData)
    type(RegFile), intent(inout)    :: RF
    type(ADI_InitInputType), intent(inout) :: OutData
    character(*), parameter            :: RoutineName = 'ADI_UnPackInitInput'
+   integer(B4Ki)   :: LB(0), UB(0)
+   integer(IntKi)  :: stat
+   logical         :: IsAllocAssoc
+   integer(B8Ki)   :: PtrIdx
+   type(c_ptr)     :: Ptr
    if (RF%ErrStat /= ErrID_None) return
    call AD_UnpackInitInput(RF, OutData%AD) ! AD 
    call ADI_UnpackIW_InputData(RF, OutData%IW_InitInp) ! IW_InitInp 
@@ -427,6 +456,24 @@ subroutine ADI_UnPackInitInput(RF, OutData)
    call RegUnpack(RF, OutData%WrVTK); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%WrVTK_Type); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%WtrDpth); if (RegCheckErr(RF, RoutineName)) return
+   if (associated(OutData%FlowField)) deallocate(OutData%FlowField)
+   call RegUnpack(RF, IsAllocAssoc); if (RegCheckErr(RF, RoutineName)) return
+   if (IsAllocAssoc) then
+      call RegUnpackPointer(RF, Ptr, PtrIdx); if (RegCheckErr(RF, RoutineName)) return
+      if (c_associated(Ptr)) then
+         call c_f_pointer(Ptr, OutData%FlowField)
+      else
+         allocate(OutData%FlowField,stat=stat)
+         if (stat /= 0) then 
+            call SetErrStat(ErrID_Fatal, 'Error allocating OutData%FlowField.', RF%ErrStat, RF%ErrMsg, RoutineName)
+            return
+         end if
+         RF%Pointers(PtrIdx) = c_loc(OutData%FlowField)
+         call IfW_FlowField_UnpackFlowFieldType(RF, OutData%FlowField) ! FlowField 
+      end if
+   else
+      OutData%FlowField => null()
+   end if
 end subroutine
 
 subroutine ADI_CopyInitOutput(SrcInitOutputData, DstInitOutputData, CtrlCode, ErrStat, ErrMsg)

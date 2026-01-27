@@ -273,7 +273,6 @@ IMPLICIT NONE
 ! =========  RotContinuousStateType  =======
   TYPE, PUBLIC :: RotContinuousStateType
     TYPE(BEMT_ContinuousStateType)  :: BEMT      !< Continuous states from the BEMT module [-]
-    TYPE(AA_ContinuousStateType)  :: AA      !< Continuous states from the AA module [-]
   END TYPE RotContinuousStateType
 ! =======================
 ! =========  AD_ContinuousStateType  =======
@@ -297,7 +296,6 @@ IMPLICIT NONE
 ! =========  RotConstraintStateType  =======
   TYPE, PUBLIC :: RotConstraintStateType
     TYPE(BEMT_ConstraintStateType)  :: BEMT      !< Constraint states from the BEMT module [-]
-    TYPE(AA_ConstraintStateType)  :: AA      !< Constraint states from the AA module [-]
   END TYPE RotConstraintStateType
 ! =======================
 ! =========  AD_ConstraintStateType  =======
@@ -2446,9 +2444,6 @@ subroutine AD_CopyRotContinuousStateType(SrcRotContinuousStateTypeData, DstRotCo
    call BEMT_CopyContState(SrcRotContinuousStateTypeData%BEMT, DstRotContinuousStateTypeData%BEMT, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
-   call AA_CopyContState(SrcRotContinuousStateTypeData%AA, DstRotContinuousStateTypeData%AA, CtrlCode, ErrStat2, ErrMsg2)
-   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   if (ErrStat >= AbortErrLev) return
 end subroutine
 
 subroutine AD_DestroyRotContinuousStateType(RotContinuousStateTypeData, ErrStat, ErrMsg)
@@ -2462,8 +2457,6 @@ subroutine AD_DestroyRotContinuousStateType(RotContinuousStateTypeData, ErrStat,
    ErrMsg  = ''
    call BEMT_DestroyContState(RotContinuousStateTypeData%BEMT, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   call AA_DestroyContState(RotContinuousStateTypeData%AA, ErrStat2, ErrMsg2)
-   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
 end subroutine
 
 subroutine AD_PackRotContinuousStateType(RF, Indata)
@@ -2472,7 +2465,6 @@ subroutine AD_PackRotContinuousStateType(RF, Indata)
    character(*), parameter         :: RoutineName = 'AD_PackRotContinuousStateType'
    if (RF%ErrStat >= AbortErrLev) return
    call BEMT_PackContState(RF, InData%BEMT) 
-   call AA_PackContState(RF, InData%AA) 
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -2482,7 +2474,6 @@ subroutine AD_UnPackRotContinuousStateType(RF, OutData)
    character(*), parameter            :: RoutineName = 'AD_UnPackRotContinuousStateType'
    if (RF%ErrStat /= ErrID_None) return
    call BEMT_UnpackContState(RF, OutData%BEMT) ! BEMT 
-   call AA_UnpackContState(RF, OutData%AA) ! AA 
 end subroutine
 
 subroutine AD_CopyContState(SrcContStateData, DstContStateData, CtrlCode, ErrStat, ErrMsg)
@@ -2758,9 +2749,6 @@ subroutine AD_CopyRotConstraintStateType(SrcRotConstraintStateTypeData, DstRotCo
    call BEMT_CopyConstrState(SrcRotConstraintStateTypeData%BEMT, DstRotConstraintStateTypeData%BEMT, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
-   call AA_CopyConstrState(SrcRotConstraintStateTypeData%AA, DstRotConstraintStateTypeData%AA, CtrlCode, ErrStat2, ErrMsg2)
-   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   if (ErrStat >= AbortErrLev) return
 end subroutine
 
 subroutine AD_DestroyRotConstraintStateType(RotConstraintStateTypeData, ErrStat, ErrMsg)
@@ -2774,8 +2762,6 @@ subroutine AD_DestroyRotConstraintStateType(RotConstraintStateTypeData, ErrStat,
    ErrMsg  = ''
    call BEMT_DestroyConstrState(RotConstraintStateTypeData%BEMT, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   call AA_DestroyConstrState(RotConstraintStateTypeData%AA, ErrStat2, ErrMsg2)
-   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
 end subroutine
 
 subroutine AD_PackRotConstraintStateType(RF, Indata)
@@ -2784,7 +2770,6 @@ subroutine AD_PackRotConstraintStateType(RF, Indata)
    character(*), parameter         :: RoutineName = 'AD_PackRotConstraintStateType'
    if (RF%ErrStat >= AbortErrLev) return
    call BEMT_PackConstrState(RF, InData%BEMT) 
-   call AA_PackConstrState(RF, InData%AA) 
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -2794,7 +2779,6 @@ subroutine AD_UnPackRotConstraintStateType(RF, OutData)
    character(*), parameter            :: RoutineName = 'AD_UnPackRotConstraintStateType'
    if (RF%ErrStat /= ErrID_None) return
    call BEMT_UnpackConstrState(RF, OutData%BEMT) ! BEMT 
-   call AA_UnpackConstrState(RF, OutData%AA) ! AA 
 end subroutine
 
 subroutine AD_CopyConstrState(SrcConstrStateData, DstConstrStateData, CtrlCode, ErrStat, ErrMsg)

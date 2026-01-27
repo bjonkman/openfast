@@ -173,6 +173,7 @@ IMPLICIT NONE
     TYPE(InflowWind_OutputType)  :: y_IfW_Low      !< InflowWind module outputs for the low-resolution grid [-]
     TYPE(InflowWind_OutputType)  :: y_IfW_High      !< InflowWind module outputs for the high-resolution grid [-]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: V_amb_low_disk      !< Rotor averaged ambiend wind speed for each wind turbine (3 x nWT) [m/s]
+    INTEGER(IntKi) , DIMENSION(:,:), ALLOCATABLE  :: planeDomainExit      !< Value indicates edge number (0: still in domain, +/-1: +/-X, +/-2: +/-Y, +/-3: +/-Z) the plane crossed [-]
   END TYPE AWAE_MiscVarType
 ! =======================
 ! =========  AWAE_ParameterType  =======
@@ -222,10 +223,13 @@ IMPLICIT NONE
     LOGICAL  :: WrDisWind = .false.      !< Write disturbed wind data to <WindFilePath>/Low/Dis.t<n>.vtk etc.? [-]
     INTEGER(IntKi)  :: NOutDisWindXY = 0_IntKi      !< Number of XY planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXY.<n_out>.t<n>.vtk [0 to 9] [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: OutDisWindZ      !< Z coordinates of XY planes for output of disturbed wind data across the low-resolution domain [1 to NOutDisWindXY] [meters]
+    LOGICAL , DIMENSION(:), ALLOCATABLE  :: OutDisWindZvalid      !< Valid XY planes for output of disturbed wind data across the low-resolution domain [1 to NOutDisWindXY] [-]
     INTEGER(IntKi)  :: NOutDisWindYZ = 0_IntKi      !< Number of YZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisYZ.<n_out>.t<n>.vtk [0 to 9] [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: OutDisWindX      !< X coordinates of YZ planes for output of disturbed wind data across the low-resolution domain [1 to NOutDisWindYZ] [meters]
+    LOGICAL , DIMENSION(:), ALLOCATABLE  :: OutDisWindXvalid      !< Valid YZ planes for output of disturbed wind data across the low-resolution domain [1 to NOutDisWindYZ] [-]
     INTEGER(IntKi)  :: NOutDisWindXZ = 0_IntKi      !< Number of XZ planes for output of disturbed wind data across the low-resolution domain to <WindFilePath>/Low/DisXZ.<n_out>.t<n>.vtk [0 to 9] [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: OutDisWindY      !< Y coordinates of XZ planes for output of disturbed wind data across the low-resolution domain [1 to NOutDisWindXZ] [meters]
+    LOGICAL , DIMENSION(:), ALLOCATABLE  :: OutDisWindYvalid      !< Valid XZ planes for output of disturbed wind data across the low-resolution domain [1 to NOutDisWindXZ] [-]
     CHARACTER(1024)  :: OutFileRoot      !< The root name derived from the primary FAST.Farm input file [-]
     CHARACTER(1024)  :: OutFileVTKRoot      !< The root name for VTK outputs [-]
     INTEGER(IntKi)  :: VTK_tWidth = 0_IntKi      !< Number of characters for VTK timestamp outputs [-]
@@ -1622,6 +1626,18 @@ subroutine AWAE_CopyMisc(SrcMiscData, DstMiscData, CtrlCode, ErrStat, ErrMsg)
       end if
       DstMiscData%V_amb_low_disk = SrcMiscData%V_amb_low_disk
    end if
+   if (allocated(SrcMiscData%planeDomainExit)) then
+      LB(1:2) = lbound(SrcMiscData%planeDomainExit)
+      UB(1:2) = ubound(SrcMiscData%planeDomainExit)
+      if (.not. allocated(DstMiscData%planeDomainExit)) then
+         allocate(DstMiscData%planeDomainExit(LB(1):UB(1),LB(2):UB(2)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstMiscData%planeDomainExit.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstMiscData%planeDomainExit = SrcMiscData%planeDomainExit
+   end if
 end subroutine
 
 subroutine AWAE_DestroyMisc(MiscData, ErrStat, ErrMsg)
@@ -1706,6 +1722,9 @@ subroutine AWAE_DestroyMisc(MiscData, ErrStat, ErrMsg)
    if (allocated(MiscData%V_amb_low_disk)) then
       deallocate(MiscData%V_amb_low_disk)
    end if
+   if (allocated(MiscData%planeDomainExit)) then
+      deallocate(MiscData%planeDomainExit)
+   end if
 end subroutine
 
 subroutine AWAE_PackMisc(RF, Indata)
@@ -1752,6 +1771,7 @@ subroutine AWAE_PackMisc(RF, Indata)
    call InflowWind_PackOutput(RF, InData%y_IfW_Low) 
    call InflowWind_PackOutput(RF, InData%y_IfW_High) 
    call RegPackAlloc(RF, InData%V_amb_low_disk)
+   call RegPackAlloc(RF, InData%planeDomainExit)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -1809,6 +1829,7 @@ subroutine AWAE_UnPackMisc(RF, OutData)
    call InflowWind_UnpackOutput(RF, OutData%y_IfW_Low) ! y_IfW_Low 
    call InflowWind_UnpackOutput(RF, OutData%y_IfW_High) ! y_IfW_High 
    call RegUnpackAlloc(RF, OutData%V_amb_low_disk); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%planeDomainExit); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
 subroutine AWAE_CopyParam(SrcParamData, DstParamData, CtrlCode, ErrStat, ErrMsg)
@@ -2016,6 +2037,18 @@ subroutine AWAE_CopyParam(SrcParamData, DstParamData, CtrlCode, ErrStat, ErrMsg)
       end if
       DstParamData%OutDisWindZ = SrcParamData%OutDisWindZ
    end if
+   if (allocated(SrcParamData%OutDisWindZvalid)) then
+      LB(1:1) = lbound(SrcParamData%OutDisWindZvalid)
+      UB(1:1) = ubound(SrcParamData%OutDisWindZvalid)
+      if (.not. allocated(DstParamData%OutDisWindZvalid)) then
+         allocate(DstParamData%OutDisWindZvalid(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstParamData%OutDisWindZvalid.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstParamData%OutDisWindZvalid = SrcParamData%OutDisWindZvalid
+   end if
    DstParamData%NOutDisWindYZ = SrcParamData%NOutDisWindYZ
    if (allocated(SrcParamData%OutDisWindX)) then
       LB(1:1) = lbound(SrcParamData%OutDisWindX)
@@ -2029,6 +2062,18 @@ subroutine AWAE_CopyParam(SrcParamData, DstParamData, CtrlCode, ErrStat, ErrMsg)
       end if
       DstParamData%OutDisWindX = SrcParamData%OutDisWindX
    end if
+   if (allocated(SrcParamData%OutDisWindXvalid)) then
+      LB(1:1) = lbound(SrcParamData%OutDisWindXvalid)
+      UB(1:1) = ubound(SrcParamData%OutDisWindXvalid)
+      if (.not. allocated(DstParamData%OutDisWindXvalid)) then
+         allocate(DstParamData%OutDisWindXvalid(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstParamData%OutDisWindXvalid.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstParamData%OutDisWindXvalid = SrcParamData%OutDisWindXvalid
+   end if
    DstParamData%NOutDisWindXZ = SrcParamData%NOutDisWindXZ
    if (allocated(SrcParamData%OutDisWindY)) then
       LB(1:1) = lbound(SrcParamData%OutDisWindY)
@@ -2041,6 +2086,18 @@ subroutine AWAE_CopyParam(SrcParamData, DstParamData, CtrlCode, ErrStat, ErrMsg)
          end if
       end if
       DstParamData%OutDisWindY = SrcParamData%OutDisWindY
+   end if
+   if (allocated(SrcParamData%OutDisWindYvalid)) then
+      LB(1:1) = lbound(SrcParamData%OutDisWindYvalid)
+      UB(1:1) = ubound(SrcParamData%OutDisWindYvalid)
+      if (.not. allocated(DstParamData%OutDisWindYvalid)) then
+         allocate(DstParamData%OutDisWindYvalid(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstParamData%OutDisWindYvalid.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstParamData%OutDisWindYvalid = SrcParamData%OutDisWindYvalid
    end if
    DstParamData%OutFileRoot = SrcParamData%OutFileRoot
    DstParamData%OutFileVTKRoot = SrcParamData%OutFileVTKRoot
@@ -2105,11 +2162,20 @@ subroutine AWAE_DestroyParam(ParamData, ErrStat, ErrMsg)
    if (allocated(ParamData%OutDisWindZ)) then
       deallocate(ParamData%OutDisWindZ)
    end if
+   if (allocated(ParamData%OutDisWindZvalid)) then
+      deallocate(ParamData%OutDisWindZvalid)
+   end if
    if (allocated(ParamData%OutDisWindX)) then
       deallocate(ParamData%OutDisWindX)
    end if
+   if (allocated(ParamData%OutDisWindXvalid)) then
+      deallocate(ParamData%OutDisWindXvalid)
+   end if
    if (allocated(ParamData%OutDisWindY)) then
       deallocate(ParamData%OutDisWindY)
+   end if
+   if (allocated(ParamData%OutDisWindYvalid)) then
+      deallocate(ParamData%OutDisWindYvalid)
    end if
    nullify(ParamData%WAT_FlowField)
 end subroutine
@@ -2175,10 +2241,13 @@ subroutine AWAE_PackParam(RF, Indata)
    call RegPack(RF, InData%WrDisWind)
    call RegPack(RF, InData%NOutDisWindXY)
    call RegPackAlloc(RF, InData%OutDisWindZ)
+   call RegPackAlloc(RF, InData%OutDisWindZvalid)
    call RegPack(RF, InData%NOutDisWindYZ)
    call RegPackAlloc(RF, InData%OutDisWindX)
+   call RegPackAlloc(RF, InData%OutDisWindXvalid)
    call RegPack(RF, InData%NOutDisWindXZ)
    call RegPackAlloc(RF, InData%OutDisWindY)
+   call RegPackAlloc(RF, InData%OutDisWindYvalid)
    call RegPack(RF, InData%OutFileRoot)
    call RegPack(RF, InData%OutFileVTKRoot)
    call RegPack(RF, InData%VTK_tWidth)
@@ -2261,10 +2330,13 @@ subroutine AWAE_UnPackParam(RF, OutData)
    call RegUnpack(RF, OutData%WrDisWind); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%NOutDisWindXY); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%OutDisWindZ); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%OutDisWindZvalid); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%NOutDisWindYZ); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%OutDisWindX); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%OutDisWindXvalid); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%NOutDisWindXZ); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%OutDisWindY); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%OutDisWindYvalid); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%OutFileRoot); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%OutFileVTKRoot); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%VTK_tWidth); if (RegCheckErr(RF, RoutineName)) return

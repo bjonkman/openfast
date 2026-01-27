@@ -20,7 +20,7 @@ The following solution files are available for code development on Windows using
       - [SeaState driver](SeaState/SeaStateDriver.sln) Waves and currents
 - Other:
   - [Discon](Discon/Discon.sln) 
-    This solution file contains all 3 controllers used in the OpenFAST r-test (with the NREL 5MW model).
+    This solution file contains all 3 controllers used in the OpenFAST r-test (with the historical NREL 5MW model).
     It also contains the controller used with the FAST.Farm super-controller.
   - [SC_DLL](SC_DLL.sln) This solution file builds a template supercontroller to be used with FAST.Farm.
   - [OpenFAST Registry](Registry/Registry.sln)

@@ -126,6 +126,7 @@ IMPLICIT NONE
     REAL(SiKi) , DIMENSION(:,:), ALLOCATABLE  :: InitDamp      !< StC damping at initialization  (3,NumStC_Control) -- passed from StC to let controller know the value during init [N/(m/s)]
     REAL(SiKi) , DIMENSION(:,:), ALLOCATABLE  :: InitBrake      !< StC braking signal at initialization  (3,NumStC_Control) -- passed from StC to let controller know the value during init [N]
     REAL(SiKi) , DIMENSION(:,:), ALLOCATABLE  :: InitForce      !< StC external force signal at initialization  (3,NumStC_Control) -- passed from StC to let controller know the value during init (should be zero) [N]
+    REAL(SiKi) , DIMENSION(:,:), ALLOCATABLE  :: InitMoment      !< StC external moment signal at initialization  (3,NumStC_Control) -- passed from StC to let controller know the value during init (should be zero) [N-m]
     REAL(SiKi) , DIMENSION(:,:), ALLOCATABLE  :: InitMeasDisp      !< StC measured local displacement signal from StC at initialization  (3,NumStC_Control) [m]
     REAL(SiKi) , DIMENSION(:,:), ALLOCATABLE  :: InitMeasVel      !< StC measured local velocity     signal from StC at initialization (3,NumStC_Control) [m/s]
   END TYPE StC_CtrlChanInitInfoType
@@ -159,6 +160,7 @@ IMPLICIT NONE
   TYPE, PUBLIC :: StC_MiscVarType
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: F_stop      !< Stop forces [-]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: F_ext      !< External forces (user defined or from controller) [-]
+    REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: M_ext      !< External moments (user defined or from controller) [-]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: F_fr      !< Friction forces [-]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: K      !< Stiffness -- might be changed if controller controls this [N/m]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: C_ctrl      !< Controlled Damping (On/Off) [-]
@@ -239,6 +241,7 @@ IMPLICIT NONE
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: CmdDamp      !< StC damping   from controller [N/(m/s)]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: CmdBrake      !< StC braking   from controller [N/(m/s)]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: CmdForce      !< StC force     from controller [N]
+    REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: CmdMoment      !< StC moment     from controller [N-m]
   END TYPE StC_InputType
 ! =======================
 ! =========  StC_OutputType  =======
@@ -744,6 +747,18 @@ subroutine StC_CopyCtrlChanInitInfoType(SrcCtrlChanInitInfoTypeData, DstCtrlChan
       end if
       DstCtrlChanInitInfoTypeData%InitForce = SrcCtrlChanInitInfoTypeData%InitForce
    end if
+   if (allocated(SrcCtrlChanInitInfoTypeData%InitMoment)) then
+      LB(1:2) = lbound(SrcCtrlChanInitInfoTypeData%InitMoment)
+      UB(1:2) = ubound(SrcCtrlChanInitInfoTypeData%InitMoment)
+      if (.not. allocated(DstCtrlChanInitInfoTypeData%InitMoment)) then
+         allocate(DstCtrlChanInitInfoTypeData%InitMoment(LB(1):UB(1),LB(2):UB(2)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstCtrlChanInitInfoTypeData%InitMoment.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstCtrlChanInitInfoTypeData%InitMoment = SrcCtrlChanInitInfoTypeData%InitMoment
+   end if
    if (allocated(SrcCtrlChanInitInfoTypeData%InitMeasDisp)) then
       LB(1:2) = lbound(SrcCtrlChanInitInfoTypeData%InitMeasDisp)
       UB(1:2) = ubound(SrcCtrlChanInitInfoTypeData%InitMeasDisp)
@@ -792,6 +807,9 @@ subroutine StC_DestroyCtrlChanInitInfoType(CtrlChanInitInfoTypeData, ErrStat, Er
    if (allocated(CtrlChanInitInfoTypeData%InitForce)) then
       deallocate(CtrlChanInitInfoTypeData%InitForce)
    end if
+   if (allocated(CtrlChanInitInfoTypeData%InitMoment)) then
+      deallocate(CtrlChanInitInfoTypeData%InitMoment)
+   end if
    if (allocated(CtrlChanInitInfoTypeData%InitMeasDisp)) then
       deallocate(CtrlChanInitInfoTypeData%InitMeasDisp)
    end if
@@ -810,6 +828,7 @@ subroutine StC_PackCtrlChanInitInfoType(RF, Indata)
    call RegPackAlloc(RF, InData%InitDamp)
    call RegPackAlloc(RF, InData%InitBrake)
    call RegPackAlloc(RF, InData%InitForce)
+   call RegPackAlloc(RF, InData%InitMoment)
    call RegPackAlloc(RF, InData%InitMeasDisp)
    call RegPackAlloc(RF, InData%InitMeasVel)
    if (RegCheckErr(RF, RoutineName)) return
@@ -828,6 +847,7 @@ subroutine StC_UnPackCtrlChanInitInfoType(RF, OutData)
    call RegUnpackAlloc(RF, OutData%InitDamp); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%InitBrake); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%InitForce); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%InitMoment); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%InitMeasDisp); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%InitMeasVel); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
@@ -1095,6 +1115,18 @@ subroutine StC_CopyMisc(SrcMiscData, DstMiscData, CtrlCode, ErrStat, ErrMsg)
       end if
       DstMiscData%F_ext = SrcMiscData%F_ext
    end if
+   if (allocated(SrcMiscData%M_ext)) then
+      LB(1:2) = lbound(SrcMiscData%M_ext)
+      UB(1:2) = ubound(SrcMiscData%M_ext)
+      if (.not. allocated(DstMiscData%M_ext)) then
+         allocate(DstMiscData%M_ext(LB(1):UB(1),LB(2):UB(2)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstMiscData%M_ext.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstMiscData%M_ext = SrcMiscData%M_ext
+   end if
    if (allocated(SrcMiscData%F_fr)) then
       LB(1:2) = lbound(SrcMiscData%F_fr)
       UB(1:2) = ubound(SrcMiscData%F_fr)
@@ -1291,6 +1323,9 @@ subroutine StC_DestroyMisc(MiscData, ErrStat, ErrMsg)
    if (allocated(MiscData%F_ext)) then
       deallocate(MiscData%F_ext)
    end if
+   if (allocated(MiscData%M_ext)) then
+      deallocate(MiscData%M_ext)
+   end if
    if (allocated(MiscData%F_fr)) then
       deallocate(MiscData%F_fr)
    end if
@@ -1345,6 +1380,7 @@ subroutine StC_PackMisc(RF, Indata)
    if (RF%ErrStat >= AbortErrLev) return
    call RegPackAlloc(RF, InData%F_stop)
    call RegPackAlloc(RF, InData%F_ext)
+   call RegPackAlloc(RF, InData%M_ext)
    call RegPackAlloc(RF, InData%F_fr)
    call RegPackAlloc(RF, InData%K)
    call RegPackAlloc(RF, InData%C_ctrl)
@@ -1374,6 +1410,7 @@ subroutine StC_UnPackMisc(RF, OutData)
    if (RF%ErrStat /= ErrID_None) return
    call RegUnpackAlloc(RF, OutData%F_stop); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%F_ext); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%M_ext); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%F_fr); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%K); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%C_ctrl); if (RegCheckErr(RF, RoutineName)) return
@@ -1704,6 +1741,18 @@ subroutine StC_CopyInput(SrcInputData, DstInputData, CtrlCode, ErrStat, ErrMsg)
       end if
       DstInputData%CmdForce = SrcInputData%CmdForce
    end if
+   if (allocated(SrcInputData%CmdMoment)) then
+      LB(1:2) = lbound(SrcInputData%CmdMoment)
+      UB(1:2) = ubound(SrcInputData%CmdMoment)
+      if (.not. allocated(DstInputData%CmdMoment)) then
+         allocate(DstInputData%CmdMoment(LB(1):UB(1),LB(2):UB(2)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstInputData%CmdMoment.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstInputData%CmdMoment = SrcInputData%CmdMoment
+   end if
 end subroutine
 
 subroutine StC_DestroyInput(InputData, ErrStat, ErrMsg)
@@ -1738,6 +1787,9 @@ subroutine StC_DestroyInput(InputData, ErrStat, ErrMsg)
    if (allocated(InputData%CmdForce)) then
       deallocate(InputData%CmdForce)
    end if
+   if (allocated(InputData%CmdMoment)) then
+      deallocate(InputData%CmdMoment)
+   end if
 end subroutine
 
 subroutine StC_PackInput(RF, Indata)
@@ -1760,6 +1812,7 @@ subroutine StC_PackInput(RF, Indata)
    call RegPackAlloc(RF, InData%CmdDamp)
    call RegPackAlloc(RF, InData%CmdBrake)
    call RegPackAlloc(RF, InData%CmdForce)
+   call RegPackAlloc(RF, InData%CmdMoment)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -1789,6 +1842,7 @@ subroutine StC_UnPackInput(RF, OutData)
    call RegUnpackAlloc(RF, OutData%CmdDamp); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%CmdBrake); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%CmdForce); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%CmdMoment); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
 subroutine StC_CopyOutput(SrcOutputData, DstOutputData, CtrlCode, ErrStat, ErrMsg)
@@ -2038,6 +2092,9 @@ SUBROUTINE StC_Input_ExtrapInterp1(u1, u2, tin, u_out, tin_out, ErrStat, ErrMsg 
    IF (ALLOCATED(u_out%CmdForce) .AND. ALLOCATED(u1%CmdForce)) THEN
       u_out%CmdForce = a1*u1%CmdForce + a2*u2%CmdForce
    END IF ! check if allocated
+   IF (ALLOCATED(u_out%CmdMoment) .AND. ALLOCATED(u1%CmdMoment)) THEN
+      u_out%CmdMoment = a1*u1%CmdMoment + a2*u2%CmdMoment
+   END IF ! check if allocated
 END SUBROUTINE
 
 SUBROUTINE StC_Input_ExtrapInterp2(u1, u2, u3, tin, u_out, tin_out, ErrStat, ErrMsg )
@@ -2114,6 +2171,9 @@ SUBROUTINE StC_Input_ExtrapInterp2(u1, u2, u3, tin, u_out, tin_out, ErrStat, Err
    END IF ! check if allocated
    IF (ALLOCATED(u_out%CmdForce) .AND. ALLOCATED(u1%CmdForce)) THEN
       u_out%CmdForce = a1*u1%CmdForce + a2*u2%CmdForce + a3*u3%CmdForce
+   END IF ! check if allocated
+   IF (ALLOCATED(u_out%CmdMoment) .AND. ALLOCATED(u1%CmdMoment)) THEN
+      u_out%CmdMoment = a1*u1%CmdMoment + a2*u2%CmdMoment + a3*u3%CmdMoment
    END IF ! check if allocated
 END SUBROUTINE
 

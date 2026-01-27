@@ -73,14 +73,25 @@ subroutine ADI_Init(InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOut
    p%MHK        = InitInp%AD%MHK
    p%WtrDpth    = InitInp%AD%WtrDpth
 
-   ! --- Initialize Inflow Wind 
+   ! --- Initialize Inflow Wind
    call ADI_InitInflowWind(InitInp%RootName, InitInp%IW_InitInp, u%AD, OtherState%AD, m%IW, Interval, InitOut_IW, errStat2, errMsg2); if (Failed()) return
    ! Concatenate AD outputs to IW outputs
    call concatOutputHeaders(InitOut%WriteOutputHdr, InitOut%WriteOutputUnt, InitOut_IW%WriteOutputHdr, InitOut_IW%WriteOutputUnt, errStat2, errMsg2); if(Failed()) return
 
    ! --- Initialize AeroDyn
    ! Link InflowWind's FlowField to AeroDyn's FlowField
-   InitInp%AD%FlowField => InitOut_IW%FlowField
+   select case (m%IW%CompInflow) 
+   case (0)   ! steady wind - data stored as a flowfield dataset
+      InitInp%AD%FlowField => InitOut_IW%FlowField
+   case (1)   ! IfW is used directly in ADI
+      InitInp%AD%FlowField => InitOut_IW%FlowField
+   case (2)   ! FlowField pointer is passed in
+      InitInp%AD%FlowField => InitInp%FlowField
+   case default
+      ErrStat2 = ErrID_Fatal
+      ErrMsg2  = 'Invalid value for CompInflow'
+      if (Failed()) return
+   end select 
 
    call AD_Init(InitInp%AD, u%AD, p%AD, x%AD, xd%AD, z%AD, OtherState%AD, y%AD, m%AD, Interval, InitOut_AD, errStat2, errMsg2); if (Failed()) return
    InitOut%Ver = InitOut_AD%ver
@@ -251,7 +262,6 @@ end subroutine ADI_UpdateStates
 !----------------------------------------------------------------------------------------------------------------------------------
 !> Routine for computing outputs, used in both loose and tight coupling.
 subroutine ADI_CalcOutput(t, u, p, x, xd, z, OtherState, y, m, errStat, errMsg)
-   use IfW_FlowField, only: IfW_FlowField_GetVelAcc
    real(DbKi),                      intent(in   )  :: t           !< Current simulation time in seconds
    type(ADI_InputType),             intent(inout)  :: u           !< Inputs at Time t  ! NOTE: set as in-out since "Inflow" needs to be set
    type(ADI_ParameterType),         intent(in   )  :: p           !< Parameters
@@ -267,14 +277,15 @@ subroutine ADI_CalcOutput(t, u, p, x, xd, z, OtherState, y, m, errStat, errMsg)
 
    integer(IntKi)                :: errStat2
    character(errMsgLen)          :: errMsg2
-   integer(IntKi)                :: node
    character(*), parameter       :: RoutineName = 'ADI_CalcOutput'
    integer :: iWT
    errStat = ErrID_None
    errMsg  = ""
 
    !----------------------------------------------------------------------------
-   ! Calculate InflowWind outputs if module was initialized
+   ! Calculate InflowWind outputs if module is directly used within ADI.
+   ! NOTE:  if IfW is external and only the FlowField pointer is used, we don't do
+   !        any IfW calcoutput here
    !----------------------------------------------------------------------------
 
    if (m%IW%CompInflow == 1) then
@@ -375,7 +386,7 @@ subroutine ADI_InitInflowWind(Root, i_IW, u_AD, o_AD, IW, dt, InitOutData, errSt
          if(Failed()) return
          IW%p%FlowField%AccFieldValid = .true.
       end if
-   else
+   elseif (i_IW%CompInflow == 1) then     ! InflowWind loaded here
       ! Initialze InflowWind module
       InitInData%InputFileName    = i_IW%InputFile
       InitInData%Linearize        = i_IW%Linearize
@@ -388,12 +399,15 @@ subroutine ADI_InitInflowWind(Root, i_IW, u_AD, o_AD, IW, dt, InitOutData, errSt
       endif
       InitInData%RootName         = trim(Root)//'.IfW'
       InitInData%MHK              = i_IW%MHK
+      InitInData%WtrDpth          = i_IW%WtrDpth
+      InitInData%MSL2SWL          = i_IW%MSL2SWL
       ! OLAF might be used in AD, in which case we need to allow out of bounds for some calcs. To do that
       ! the average values for the entire wind profile must be calculated and stored (we don't know if OLAF
       ! is used until after AD_Init below).
       InitInData%BoxExceedAllow = .true.
-      
-      !bjj: what about these initialization inputs?
+      InitInData%OutputAccel = i_IW%OutputAccel
+
+      !FIXME: bjj: what about these initialization inputs?
       !   InitInData%HubPosition
       !   InitInData%RadAvg 
       
@@ -401,6 +415,7 @@ subroutine ADI_InitInflowWind(Root, i_IW, u_AD, o_AD, IW, dt, InitOutData, errSt
                      IW%x, IW%xd, IW%z, IW%OtherSt, &
                      IW%y, IW%m, dt,  InitOutData, errStat2, errMsg2 )
       if(Failed()) return
+   !elseif (i_IW%CompInflow == 2) then     ! InflowWind is external, using FlowField pointer, no init call required
    endif
 
    ! --- Store main init input data (data that don't use InfloWind directly)

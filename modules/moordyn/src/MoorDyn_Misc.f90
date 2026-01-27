@@ -1071,7 +1071,6 @@ CONTAINS
       REAL(SiKi)                       :: WaveDOmega   ! frequency step
       REAL(SiKi), ALLOCATABLE          :: SinWaveDir(:)                                      ! SIN( WaveDirArr(I) ) -- Each wave frequency has a unique wave direction.
       REAL(SiKi), ALLOCATABLE          :: CosWaveDir(:)                                      ! COS( WaveDirArr(I) ) -- Each wave frequency has a unique wave direction.
-      LOGICAL                          :: WaveMultiDir = .FALSE. ! Indicates the waves are multidirectional -- set by WaveField pointer if enabled
 
       REAL(SiKi),  ALLOCATABLE         :: TmpFFTWaveElev(:)     ! Data for the FFT calculation
       TYPE(FFT_DataType)               :: FFT_Data              ! the instance of the FFT module we're using
@@ -1083,7 +1082,6 @@ CONTAINS
       COMPLEX(SiKi), PARAMETER         :: ImagNmbr = (0.0,1.0)  ! The imaginary number, SQRT(-1.0)
       COMPLEX(SiKi)                    :: ImagOmega             ! = ImagNmbr*Omega (rad/s)
       REAL(DbKi), ALLOCATABLE          :: WaveNmbr(:)           ! wave number for frequency array
-      REAL(SiKi),  ALLOCATABLE         :: WaveDirArr(:)         ! Wave direction array. Each frequency has a unique direction of WaveNDir > 1 (degrees). 0's for WaveKin = 1 or if disabled in SeaState.
       REAL(SiKi), ALLOCATABLE          :: WaveElevC0(:,:)       ! Discrete Fourier transform of the instantaneous elevation of incident waves at the ref point (meters)
       COMPLEX(SiKi), ALLOCATABLE       :: WaveElevC( :)         ! Discrete Fourier transform of the instantaneous elevation of incident waves at the ref point (meters)
       COMPLEX(SiKi), ALLOCATABLE       :: WaveAccCHx(:)         ! Discrete Fourier transform of the instantaneous horizontal acceleration in x-direction of incident waves before applying stretching at the zi-coordinates for points (m/s^2)
@@ -1160,7 +1158,7 @@ CONTAINS
          END IF
 
          ! Check for if SeaState grid does not match water depth
-         IF (p%WaveField%GridParams%Z_Depth /= p%WtrDpth) THEN
+         IF (p%WaveField%GridDepth /= p%WtrDpth) THEN
             IF (p%writeLog > 0) THEN
                WRITE(p%UnLog, '(A)'        ) "   INFO SeaState grid depth does not match MoorDyn water depth."
             ENDIF
@@ -1412,7 +1410,7 @@ CONTAINS
                END IF
 
                ! Warning check to make sure SeaState and MoorDyn have the same wave dir. For now, no wave spreading. This can be updated
-               IF (p%WaveField%WaveDir /= WaveDir) THEN
+               IF (p%WaveField%WaveDir /= WaveDir) THEN !bjj: the local WaveDir doesn't appear to be used when WaveKin = 2 and p%WaveField%WaveDirArr is true, so I don't think this error message is completely valid.
                   IF (p%writeLog > 0) THEN
                      WRITE(p%UnLog, '(A)'        ) "   WARNING SeaState WaveDir does not match MoorDyn WaveDir. Using MoorDyn values for interpolating SeaState data to MoorDyn grid."
                   ENDIF
@@ -1422,7 +1420,7 @@ CONTAINS
                ! Info check for if MoorDyn dtWave is non-zero. Users may set this accidentially, or could be left over in an input file
                IF (p%dtWave > 0) THEN
                   IF (p%writeLog > 0) THEN
-                     WRITE(p%UnLog, '(A)'        ) "   MoorDyn dtWave is ignored when using WaveKinMod = 2 becasue wave frequency information is supplied by SeaState"
+                     WRITE(p%UnLog, '(A)'        ) "   MoorDyn dtWave is ignored when using WaveKinMod = 2 because wave frequency information is supplied by SeaState"
                   ENDIF
                END IF
 
@@ -1445,14 +1443,7 @@ CONTAINS
                NStepWave  = p%WaveField%NStepWave
 
                ! Pull some other things out of the WaveField pointer
-               WaveMultiDir = p%WaveField%WaveMultiDir
                p%ntWave = NStepWave ! set ntWave to NStepWave
-
-               ! Set wave spreading array if enabled in SeaState, otherwise set to zero
-               If (WaveMultiDir) THEN
-                  ! Note: allocations not needed here because they are already allocated in SeaState
-                  WaveDirArr = p%WaveField%WaveDirArr
-               ENDIF
 
             ELSEIF (p%WaveKin == 1) THEN ! must be a filepath therefore read wave elevations from timeseries
 
@@ -1659,9 +1650,9 @@ CONTAINS
             ALLOCATE ( SinWaveDir(0:NStepWave2), STAT=ErrStat2); ErrMsg2 = 'Cannot allocate SinWaveDir.'; IF (Failed0()) RETURN       
 
             ! Set the CosWaveDir and SinWaveDir values. 
-            IF (WaveMultiDir) THEN ! This is only possible with WaveKinMod = 2
-               CosWaveDir=COS(D2R*WaveDirArr)
-               SinWaveDir=SIN(D2R*WaveDirArr)
+            IF (p%WaveKin == 2 .and. p%WaveField%WaveMultiDir) THEN ! This is only possible with WaveKinMod = 2
+               CosWaveDir=COS(D2R*p%WaveField%WaveDirArr)
+               SinWaveDir=SIN(D2R*p%WaveField%WaveDirArr)
             ELSE
                CosWaveDir=COS(D2R*WaveDir)
                SinWaveDir=SIN(D2R*WaveDir)

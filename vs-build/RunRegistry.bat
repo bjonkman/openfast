@@ -71,6 +71,12 @@ SET Output_Loc=%CURR_LOC%
 %REGISTRY% "%CURR_LOC%\Registry_NWTC_Library_base.txt"  -I "%NWTC_Lib_Loc%"  -I "%CURR_LOC%" -O "%Output_Loc%" -noextrap
 GOTO checkError
 
+:GridInterp
+SET CURR_LOC=%NWTC_Lib_Loc%
+SET Output_Loc=%CURR_LOC%
+%REGISTRY% "%CURR_LOC%\GridInterp.txt "  -I "%NWTC_Lib_Loc%"  -I "%CURR_LOC%" -O "%Output_Loc%" -noextrap
+GOTO checkError
+
 :MAP
 SET CURR_LOC=%MAP_Loc%
 SET Output_Loc=%CURR_LOC%
@@ -184,6 +190,12 @@ GOTO checkError
 SET CURR_LOC=%AD_Loc%
 SET Output_Loc=%CURR_LOC%
 %REGISTRY% "%CURR_LOC%\AeroDyn_Inflow_Registry.txt" -I "%NWTC_Lib_Loc%" -I %IfW_Loc% -I "%CURR_LOC%" -O "%Output_Loc%" -noextrap
+GOTO checkError
+
+:ADI_cbind
+SET CURR_LOC=%AD_Loc%
+SET Output_Loc=%CURR_LOC%
+%REGISTRY% "%CURR_LOC%\AeroDyn_Inflow_C_Binding_Registry.txt" -I "%NWTC_Lib_Loc%" -I %IfW_Loc% -I "%CURR_LOC%" -O "%Output_Loc%" -noextrap
 GOTO checkError
 
 

@@ -380,6 +380,7 @@ subroutine LowResGridCalcOutput(n, u, p, xd, y, m, errStat, errMsg)
    integer(IntKi)      :: maxN_wake
    integer(IntKi)      :: WAT_iT,WAT_iY,WAT_iZ  !< indexes for WAT point (Time interchangeable with X)
    integer(IntKi)      :: errStat2
+   character(ErrMsgLen):: errMsg2
    character(*), parameter   :: RoutineName = 'LowResGridCalcOutput'
    logical             :: within
    real(ReKi)     :: yHat_plane(3), zHat_plane(3)
@@ -507,15 +508,6 @@ subroutine LowResGridCalcOutput(n, u, p, xd, y, m, errStat, errMsg)
          ELSE                                           ! All subsequent calls to AWAE_CalcOutput
 
 
-      ! Warn our kind users if wake planes leave the low-resolution domain:
-            if ( u%p_plane(1,np,nt) < p%Grid_Low(1,            1) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the lowest-most X boundary of the low-resolution domain.', errStat, errMsg, RoutineName)
-            if ( u%p_plane(1,np,nt) > p%Grid_Low(1,p%NumGrid_low) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the upper-most X boundary of the low-resolution domain.' , errStat, errMsg, RoutineName)
-            if ( u%p_plane(2,np,nt) < p%Grid_Low(2,            1) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the lowest-most Y boundary of the low-resolution domain.', errStat, errMsg, RoutineName)
-            if ( u%p_plane(2,np,nt) > p%Grid_Low(2,p%NumGrid_low) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the upper-most Y boundary of the low-resolution domain.' , errStat, errMsg, RoutineName)
-            if ( u%p_plane(3,np,nt) < p%Grid_Low(3,            1) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the lowest-most Z boundary of the low-resolution domain.', errStat, errMsg, RoutineName)
-            if ( u%p_plane(3,np,nt) > p%Grid_Low(3,p%NumGrid_low) ) call SetErrStat(ErrID_Warn, 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the upper-most Z boundary of the low-resolution domain.' , errStat, errMsg, RoutineName)
-         
-         
              xplane_sq = u%xhat_plane(1,np,nt)**2.0_ReKi
              yplane_sq = u%xhat_plane(2,np,nt)**2.0_ReKi
              xysq_Z = (/0.0_ReKi, 0.0_ReKi, xplane_sq+yplane_sq/)
@@ -587,6 +579,14 @@ subroutine LowResGridCalcOutput(n, u, p, xd, y, m, errStat, errMsg)
              wsum_tmp = 0.0_ReKi
              n_r_polar = FLOOR((p%C_ScaleDiam*u%D_wake(np,nt))/p%dpol)
 
+             ! if a wake plane exits domain, velocity is set differently, so skip remaining velocity logic after this
+             ! -  no messages if inside bounds, so put error handling inside if
+             call PlaneOutOfDomain(u%D_wake(np,nt),u%p_plane(:,np,nt),y%V_plane(:,np,nt),m%planeDomainExit(np,nt),ErrStat2,ErrMsg2)
+             if (m%planeDomainExit(np,nt) /= 0_IntKi) then
+                call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+                cycle
+             endif
+
              do nr = 0, n_r_polar
 
                 r_polar = REAL(nr,ReKi)*p%dpol
@@ -631,6 +631,103 @@ subroutine LowResGridCalcOutput(n, u, p, xd, y, m, errStat, errMsg)
    if (allocated(wk_V))     deallocate(wk_V)
    if (allocated(wk_WAT_k)) deallocate(wk_WAT_k)
 
+contains
+   
+   !> Check if the center of this wwake plane has left the domain.
+   !! If a plane exits the domain, or previously exited the domain:
+   !!    -  Set warning about first time this plane leaves.
+   !!    -  Set component perpendicular to plane exit direction to kick it outside the domain entirely
+   !!       -  Target distance outside boundary = D.  Use a quadratic asymptotic distance per step to approach target distance.
+   !!    -  Add background flow in X or Y to keep the plane moving with others parallel to boundary it crossed (only using X and Y velocity)
+   !! NOTE: using m%planeDomainExit to track which boundary a plane crossed.
+   !!          0: Still in domain
+   !!       +/-1: +/-X
+   !!       +/-2: +/-Y
+   !!       +/-3: +/-Z
+   !! To understand intent, consider 2 cases for mean velocity in +X direction:
+   !!    plane exits +Y boundary:
+   !!       1. plane with get a kick towards one wake diameter outside +Y boundary
+   !!       2. overall farm velocity added to keep plane drifting in +X following the target Y location (some jitter due to farm level Y velocity term)
+   !!    plane exits +X boundary (travels beyond domain end in direction of overall flow)
+   !!       1. plane will get a kick outside the end of the domain towards +X boundary plus wake diameter
+   !!       2. farm velocity added will keep trying to push this plane further downstream, but step 1. will try to force it back.
+   !!       --> effectively 1. and 2. will constant be working against each other to hold the plane somewhere near the target location beyond +X boundary,
+   !!           but this shouldn't really matter as the plane will get dropped at some point.  Even if multiple planes end up there, it shouldn't affect
+   !!           any planes still in bounds -- so we really don't care if it jitters around at all
+   subroutine PlaneOutOfDomain(D_Wake,p_plane,V_plane,planeDomainExit,ErrStat3,ErrMsg3)
+      real(ReKi),                intent(in   )  :: D_wake            !< u%D_wake(np,nt)
+      real(ReKi),                intent(in   )  :: p_plane(3)        !< u%p_plane(:,np,nt)
+      real(ReKi),                intent(inout)  :: V_plane(3)        !< y%V_plane(:,np,nt)
+      integer(IntKi),            intent(inout)  :: planeDomainExit   !< m%planeDomainExit(np,nt)
+      integer(IntKi),            intent(  out)  :: ErrStat3          !< Error status of the operation
+      character(ErrMsgLen),      intent(  out)  :: ErrMsg3           !< Error message if errStat /= ErrID_None
+      character(12)                             :: tmpStr12          !< for constructing error message
+      real(ReKi)                                :: D_tgt             !< target distance outside bounds
+      ! Step 1: did a plane that was in the low res domain just cross out?
+      !        If plane crossed boundary, set message and tracking of it
+      if (planeDomainExit == 0_IntKi) then
+         if (p_plane(1) < p%Grid_Low(1,1) ) then   ! lower x boundary
+            ErrStat3  = ErrID_Warn
+            tmpStr12 = 'lower-most X'
+            planeDomainExit = -1
+         elseif ( p_plane(1) > p%Grid_Low(1,p%NumGrid_low) ) then   ! upper x boundary
+            ErrStat3  = ErrID_Warn
+            tmpStr12 = 'upper-most X'
+            planeDomainExit =  1
+         elseif ( p_plane(2) < p%Grid_Low(2,1) ) then   ! lower y boundary
+            ErrStat3  = ErrID_Warn
+            tmpStr12 = 'lower-most Y'
+            planeDomainExit = -2
+         elseif ( p_plane(2) > p%Grid_Low(2,p%NumGrid_low) ) then   ! upper y boundary
+            ErrStat3  = ErrID_Warn
+            tmpStr12 = 'upper-most Y'
+            planeDomainExit =  2
+         elseif ( p_plane(3) < p%Grid_Low(3,1) ) then   ! lower z boundary
+            ErrStat3  = ErrID_Warn
+            tmpStr12 = 'lower-most Z'
+            planeDomainExit = -3
+         elseif ( p_plane(3) > p%Grid_Low(3,p%NumGrid_low) ) then   ! upper z boundary
+            ErrStat3  = ErrID_Warn
+            tmpStr12 = 'upper-most Z'
+            planeDomainExit =  3
+         endif
+         if (errStat3 == ErrID_Warn) then
+            ErrMsg3 = 'The center of wake plane #'//trim(num2lstr(np))//' for turbine #'//trim(num2lstr(nt))//' has passed the ' &
+                //tmpStr12//' boundary of the low-resolution domain. Further warnings are suppressed.'
+         endif
+      endif
+   
+      ! Step 2: for planes outside boundary (including one that just crossed outside) set velocity component to approach target offset.
+      !        asymptotically approach a distance D_wake away from the boundary (quadratic approach)
+      !          example: V at -Y boundary:
+      !                      Vy = (Y_target - Y_pos) / (2 * DT)
+      select case (planeDomainExit)
+         case (0_IntKi)
+            return
+         case (-1_IntKi)         ! Crossed -X
+            D_tgt = p%Grid_Low(1,1) - D_wake
+            V_plane(1) = (D_tgt - p_plane(1)) / (2.0_ReKi * real(p%dt_low,ReKi))    ! push towards (-X_bound - D_wake)
+         case ( 1_IntKi)         ! Crossed +X
+            D_tgt = p%Grid_Low(1,p%NumGrid_low) + D_wake
+            V_plane(1) = (D_tgt - p_plane(1)) / (2.0_ReKi * real(p%dt_low,ReKi))    ! push towards (+X_bound + D_wake)
+         case (-2_IntKi)         ! Crossed -Y
+            D_tgt = p%Grid_Low(2,1) - D_wake
+            V_plane(2) = (D_tgt - p_plane(2)) / (2.0_ReKi * real(p%dt_low,ReKi))    ! push towards (-Y_bound - D_wake)
+         case ( 2_IntKi)         ! Crossed +Y
+            D_tgt = p%Grid_Low(2,p%NumGrid_low) + D_wake
+            V_plane(2) = (D_tgt - p_plane(2)) / (2.0_ReKi * real(p%dt_low,ReKi))    ! push towards (-Y_bound - D_wake)
+         case (-3_IntKi)         ! Crossed -Z
+            D_tgt = p%Grid_Low(3,1) - D_wake
+            V_plane(3) = (D_tgt - p_plane(3)) / (2.0_ReKi * real(p%dt_low,ReKi))    ! push towards (-Z_bound - D_wake)
+         case ( 3_IntKi)         ! Crossed +Z
+            D_tgt = p%Grid_Low(3,p%NumGrid_low) + D_wake
+            V_plane(3) = (D_tgt - p_plane(3)) / (2.0_ReKi * real(p%dt_low,ReKi))    ! push towards (+Z_bound + D_wake)
+      end select
+
+      ! Step 3: add background XYZ flow to keep plane drifting (will have already returned on any planes still in bounds)
+      V_plane(1:3) = V_plane(1:3) + xd%Ufarm(1:3)
+
+   end subroutine PlaneOutOfDomain
 end subroutine LowResGridCalcOutput
 
 !----------------------------------------------------------------------------------------------------------------------------------
@@ -1004,26 +1101,35 @@ subroutine AWAE_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitO
 
    ! Test the request output wind locations against grid information
       ! XY plane slices
+   call AllocAry(p%OutDisWindZvalid,p%NOutDisWindXY,'p%OutDisWindZvalid', ErrStat2, ErrMsg2); if(Failed()) return;
+   p%OutDisWindZvalid = .true.
    do i = 1,p%NOutDisWindXY
       gridLoc = (p%OutDisWindZ(i) - p%Z0_low) / p%dZ_low
       if ( ( gridLoc < 0.0_ReKi ) .or. ( gridLoc > real(p%nZ_low-1, ReKi) ) ) then
-         call SetErrStat(ErrID_Fatal, "The requested low-resolution XY output slice location, Z="//TRIM(Num2LStr(p%OutDisWindZ(i)))//", is outside of the low-resolution grid.", errStat, errMsg, RoutineName )
+         call SetErrStat(ErrID_Warn, "The requested low-resolution XY output slice location, Z="//TRIM(Num2LStr(p%OutDisWindZ(i)))//", is outside of the low-resolution grid. Ignoring this slice.", errStat, errMsg, RoutineName )
+         p%OutDisWindZvalid(i) = .false.
       end if
    end do
 
       ! XZ plane slices
+   call AllocAry(p%OutDisWindYvalid,p%NOutDisWindXZ,'p%OutDisWindYvalid', ErrStat2, ErrMsg2); if(Failed()) return;
+   p%OutDisWindYvalid = .true.
    do i = 1,p%NOutDisWindXZ
       gridLoc = (p%OutDisWindY(i) - p%Y0_low) / p%dY_low
       if ( ( gridLoc < 0.0_ReKi ) .or. ( gridLoc > real(p%nY_low-1, ReKi) ) ) then
-         call SetErrStat(ErrID_Fatal, "The requested low-resolution XZ output slice location, Y="//TRIM(Num2LStr(p%OutDisWindY(i)))//", is outside of the low-resolution grid.", errStat, errMsg, RoutineName )
+         call SetErrStat(ErrID_Warn, "The requested low-resolution XZ output slice location, Y="//TRIM(Num2LStr(p%OutDisWindY(i)))//", is outside of the low-resolution grid. Ignoring this slice.", errStat, errMsg, RoutineName )
+         p%OutDisWindYvalid(i) = .false.
       end if
    end do
 
-      ! XZ plane slices
+      ! YZ plane slices
+   call AllocAry(p%OutDisWindXvalid,p%NOutDisWindYZ,'p%OutDisWindXvalid', ErrStat2, ErrMsg2); if(Failed()) return;
+   p%OutDisWindXvalid = .true.
    do i = 1,p%NOutDisWindYZ
       gridLoc = (p%OutDisWindX(i) - p%X0_low) / p%dX_low
       if ( ( gridLoc < 0.0_ReKi ) .or. ( gridLoc > real(p%nX_low-1, ReKi) ) ) then
-         call SetErrStat(ErrID_Fatal, "The requested low-resolution YZ output slice location, X="//TRIM(Num2LStr(p%OutDisWindX(i)))//", is outside of the low-resolution grid.", errStat, errMsg, RoutineName )
+         call SetErrStat(ErrID_Warn, "The requested low-resolution YZ output slice location, X="//TRIM(Num2LStr(p%OutDisWindX(i)))//", is outside of the low-resolution grid. Ignoring this slice.", errStat, errMsg, RoutineName )
+         p%OutDisWindXvalid(i) = .false.
       end if
    end do
    if (errStat >= AbortErrLev) return
@@ -1107,6 +1213,11 @@ subroutine AWAE_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitO
    ! WAT - store array of disk average velocities for all turbines
    call AllocAry(m%V_amb_low_disk,3,p%NumTurbines,'m%V_amb_low_disk', ErrStat2, ErrMsg2); if(Failed()) return;
    m%V_amb_low_disk=0.0_ReKi ! IMPORTANT ALLOCATION. This misc var is not set before a low res calcoutput
+
+   ! track if a plan has left the domain (all planes start in domain).
+   ! Value indicates edge number (+/-1: +/-X, +/-2: +/-Y, +/-3: +/-Z) the plane crossed
+   allocate(m%planeDomainExit(0:p%NumPlanes-1,1:p%NumTurbines), STAT=ErrStat2);   if (Failed0('m%planeDomainExit.')) return;
+   m%planeDomainExit = 0_IntKi
 
    ! Read-in the ambient wind data for the initial calculate output
    call AWAE_UpdateStates( 0.0_DbKi, -1, u, p, x, xd, z, OtherState, m, errStat2, errMsg2 ); if(Failed()) return;
@@ -1464,6 +1575,7 @@ subroutine AWAE_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, errStat, errMsg
 
          ! XY plane slices
       do k = 1,p%NOutDisWindXY
+         if (.not. p%OutDisWindZvalid(k)) cycle    ! skip if invalid
          write(PlaneNumStr, '(i3.3)') k
          call ExtractSlice( XYSlice, p%OutDisWindZ(k), p%Z0_low, p%nZ_low, p%nX_low, p%nY_low, p%dZ_low, m%Vdist_low_full, m%outVizXYPlane(:,:,:,1))
             ! Create the output vtk file with naming <WindFilePath>/Low/DisXY<k>.t<n/p%WrDisSkp1>.vtk
@@ -1474,6 +1586,7 @@ subroutine AWAE_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, errStat, errMsg
 
          ! YZ plane slices
       do k = 1,p%NOutDisWindYZ
+         if (.not. p%OutDisWindXvalid(k)) cycle    ! skip if invalid
          write(PlaneNumStr, '(i3.3)') k
          call ExtractSlice( YZSlice, p%OutDisWindX(k), p%X0_low, p%nX_low, p%nY_low, p%nZ_low, p%dX_low, m%Vdist_low_full, m%outVizYZPlane(:,:,:,1))
             ! Create the output vtk file with naming <WindFilePath>/Low/DisYZ<k>.t<n/p%WrDisSkp1>.vtk
@@ -1484,6 +1597,7 @@ subroutine AWAE_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, errStat, errMsg
 
          ! XZ plane slices
       do k = 1,p%NOutDisWindXZ
+         if (.not. p%OutDisWindYvalid(k)) cycle    ! skip if invalid
          write(PlaneNumStr, '(i3.3)') k
          call ExtractSlice( XZSlice, p%OutDisWindY(k), p%Y0_low, p%nY_low, p%nX_low, p%nZ_low, p%dY_low, m%Vdist_low_full, m%outVizXZPlane(:,:,:,1))
             ! Create the output vtk file with naming <WindFilePath>/Low/DisXZ<k>.t<n/p%WrDisSkp1>.vtk

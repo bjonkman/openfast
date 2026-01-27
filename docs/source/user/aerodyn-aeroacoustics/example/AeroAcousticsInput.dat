@@ -24,6 +24,6 @@ True         RoundedTip   - Logical indicating rounded tip (flag) [Only used if 
 ======  Outputs  ====================================================================================
 False              AWeighting  - A-weighting Flag (flag)  
 3                 NrOutFile  - Number of Output files. 1 for Time Dependent Overall SPL, 2 for both 1 and Frequency and Time Dependent SPL as well, or 3 for both 1 and 2 and Acoustics mechanism dependent, 4 for 1-3 and the overall sound pressure levels per blade per node per observer 
-"IEA_LB_RWT-AeroAcoustics_"    AAOutFile   - No Extension needed the resulting file will have .out Name of file containing
+"IEA_LB_RWT-AeroAcoustics_"    AAOutFile   - No Extension needed; the resulting file(s) will end in #.out. Use "Default" to use the default output file name from OpenFAST.
 END of input file (the word "END" must appear in the first 3 columns of this last OutList line)
 ---------------------------------------------------------------------------------------

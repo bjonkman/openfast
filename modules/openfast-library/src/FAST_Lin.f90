@@ -3925,7 +3925,7 @@ SUBROUTINE Linear_MAP_InputSolve_dy( p_FAST, y_FAST, u_MAP, p_ED, y_ED, y_SD, Me
       call Linearize_Point_to_Point( SubstructureMotion, u_MAP%PtFairDisplacement, MeshMapData%Structure_2_Mooring, ErrStat2, ErrMsg2 )
       FieldMask = .false.
       FieldMask(MASKID_TRANSLATIONDISP) = .true.
-      call Assemble_dUdy_Motions(y_ED%PlatformPtMesh, u_MAP%PtFairDisplacement, MeshMapData%Structure_2_Mooring, MAP_Start, SubStructure_Out_Start, dUdy, FieldMask)
+      call Assemble_dUdy_Motions(SubstructureMotion, u_MAP%PtFairDisplacement, MeshMapData%Structure_2_Mooring, MAP_Start, SubStructure_Out_Start, dUdy, FieldMask)
 
    END IF
 END SUBROUTINE Linear_MAP_InputSolve_dy
@@ -6928,10 +6928,16 @@ SUBROUTINE ComputeOutputRanges(p_FAST, y_FAST, m_FAST, y_SrvD)
    
    ! note that op_y may be larger than SizeLin if there are orientations; also, we are NOT including the WriteOutputs
 
-   do indx = 1,y_FAST%Lin%Glue%SizeLin(LIN_OUTPUT_COL)
-      m_FAST%Lin%y_ref(indx) = maxval( m_FAST%Lin%Y_prevRot( indx, : ) ) - minval( m_FAST%Lin%Y_prevRot( indx, : ) )
-      m_FAST%Lin%y_ref(indx) = max( m_FAST%Lin%y_ref(indx), 0.01_ReKi )
-   end do
+   if (p_FAST%NLinTimes == 1) then ! NOTE: maxval( m_FAST%Lin%Y_prevRot( indx, : ) ) - minval( m_FAST%Lin%Y_prevRot( indx, : ) ) = 0 in this case
+      do indx = 1,y_FAST%Lin%Glue%SizeLin(LIN_OUTPUT_COL)
+         m_FAST%Lin%y_ref(indx) = max( abs(m_FAST%Lin%Y_prevRot( indx, p_FAST%NLinTimes )), 0.01_ReKi )
+      end do
+   else
+      do indx = 1,y_FAST%Lin%Glue%SizeLin(LIN_OUTPUT_COL)
+         m_FAST%Lin%y_ref(indx) = maxval( m_FAST%Lin%Y_prevRot( indx, : ) ) - minval( m_FAST%Lin%Y_prevRot( indx, : ) )
+         m_FAST%Lin%y_ref(indx) = max( m_FAST%Lin%y_ref(indx), 0.01_ReKi )
+      end do
+   end if
    
    ! special case for angles:
       indx = Indx_y_Yaw_Start(y_FAST, Module_ED)  ! start of ED where Yaw, YawRate, HSS_Spd occur (right before WriteOutputs)

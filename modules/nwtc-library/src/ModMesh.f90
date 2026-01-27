@@ -2928,7 +2928,7 @@ SUBROUTINE MeshWrVTK_PointSurface ( RefPoint, M, FileRootName, VTKcount, OutputF
          
          if (PackForTrimSolution) then
             do i=1,M%NNodes
-               call DCM_logMap(M%Orientation(:,:,i), logmap, ErrStat2, ErrMsg2) !NOTE: we cannot use GetSmllRotAngs because we CANNOT assume that all DCMs in the code are small.
+               logmap = EulerExtract(M%Orientation(:,:,i)) !NOTE: we cannot use GetSmllRotAngs because we CANNOT assume that all DCMs in the code are small.
                do k=1,3
                   Ary(indx_first) = logmap(k)
                   indx_first = indx_first + 1

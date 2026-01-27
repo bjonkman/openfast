@@ -2354,6 +2354,70 @@ SUBROUTINE ReadTowerFile( TwrFile, InputFileData, UnEc, ErrStat, ErrMsg )
       END IF
 
 
+   !   -------------- TOWER CONCENTRATED MASSES (Optional) -------------------------------------
+   InputFileData%NTwCMass = 0_IntKi  ! Default to no concentrated mass
+
+   CALL ReadCom ( UnIn, TwrFile, 'heading for tower concentrated masses', ErrStat2, ErrMsg2, UnEc )
+      ! Don't set error since this section is optional
+      IF ( ErrStat2 /= ErrID_None ) THEN
+         CALL Cleanup()
+         RETURN
+      END IF
+
+      ! NTwCMass - Number of tower concentrated masses.
+
+   CALL ReadVar ( UnIn, TwrFile, InputFileData%NTwCMass, 'NTwCMass', 'Number of tower concentrated masses', ErrStat2, ErrMsg2, UnEc )
+      ! Don't set error since this section is optional
+      IF ( ErrStat2 /= ErrID_None ) THEN
+         CALL Cleanup()
+         RETURN
+      END IF
+
+   IF ( InputFileData%NTwCMass > 0_IntKi ) THEN ! Tower CMass section present. Must have the correct format going forward.
+
+         ! Allocate the input arrays based on this NTwCMass input
+      CALL Alloc_TowerCMassList( InputFileData, ErrStat, ErrMsg )
+         CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+         IF ( ErrStat >= AbortErrLev ) THEN
+            CALL Cleanup()
+            RETURN
+         END IF
+
+      CALL ReadCom ( UnIn, TwrFile, 'Tower concentrated mass parameter names', ErrStat2, ErrMsg2, UnEc  )
+         CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+         IF ( ErrStat >= AbortErrLev ) THEN
+            CALL Cleanup()
+            RETURN
+         END IF
+
+      CALL ReadCom ( UnIn, TwrFile, 'Tower concentrated mass parameter units', ErrStat2, ErrMsg2, UnEc  )
+         CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+         IF ( ErrStat >= AbortErrLev ) THEN
+            CALL Cleanup()
+            RETURN
+         END IF
+
+         ! Read the table.
+
+      NInputCols = 2
+
+      DO I=1,InputFileData%NTwCMass
+
+         CALL ReadAry( UnIn, TwrFile, TmpRAry, NInputCols, 'Line'//TRIM(Num2LStr(I)), 'Tower concentrated mass table', &
+                       ErrStat2, ErrMsg2, UnEc )
+            CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+            IF ( ErrStat >= AbortErrLev ) THEN
+               CALL Cleanup()
+               RETURN
+            END IF
+
+         InputFileData%TwCMassHtFract( I) = TmpRAry(1)
+         InputFileData%TwCMass(I)         = TmpRAry(2)
+
+      END DO ! I
+
+   END IF
+
       ! Close the tower file.
    CALL Cleanup()
 
@@ -3060,8 +3124,16 @@ SUBROUTINE ReadPrimaryFile( InputFile, InputFileData, BldFile, FurlFile, TwrFile
          RETURN
       END IF
 
-      ! HubIner - Hub inertia about teeter axis (2-blader) or rotor axis (3-blader) (kg m^2):
-   CALL ReadVar( UnIn, InputFile, InputFileData%HubIner, "HubIner", "Hub inertia about teeter axis (2-blader) or rotor axis (3-blader) (kg m^2)", ErrStat2, ErrMsg2, UnEc)
+      ! HubIner - Hub inertia about rotor axis (2 or 3-blader) (kg m^2):
+   CALL ReadVar( UnIn, InputFile, InputFileData%HubIner, "HubIner", "Hub inertia about rotor axis (2 or 3-blader) (kg m^2)", ErrStat2, ErrMsg2, UnEc)
+      CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+      IF ( ErrStat >= AbortErrLev ) THEN
+         CALL Cleanup()
+         RETURN
+      END IF
+      
+      ! HubIner_teeter - Hub inertia about teeter axis (2-blader) (kg m^2):
+   CALL ReadVar( UnIn, InputFile, InputFileData%HubIner_Teeter, "HubIner_Teeter", "Hub inertia about teeter axis (2-blader) (kg m^2)", ErrStat2, ErrMsg2, UnEc)
       CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
       IF ( ErrStat >= AbortErrLev ) THEN
          CALL Cleanup()
@@ -3750,6 +3822,30 @@ SUBROUTINE Alloc_TowerInputProperties( InputFileData, ErrStat, ErrMsg )
 
 END SUBROUTINE Alloc_TowerInputProperties
 !----------------------------------------------------------------------------------------------------------------------------------
+!> This routine allocates arrays for the tower concentrated masses from the input file.
+SUBROUTINE Alloc_TowerCMassList( InputFileData, ErrStat, ErrMsg )
+!..................................................................................................................................
+
+   TYPE(ED_InputFile),       INTENT(INOUT)  :: InputFileData      !< All the data in the ElastoDyn input file
+   INTEGER(IntKi),           INTENT(OUT)    :: ErrStat            !< Error status
+   CHARACTER(*),             INTENT(OUT)    :: ErrMsg             !< Error message
+
+
+   IF ( InputFileData%NTwCMass < 1 )  THEN
+      ErrStat = ErrID_Fatal
+      ErrMsg = ' Error allocating arrays for tower concentrated masses: NTwCMass must be at least 1.'
+      RETURN
+   END IF
+
+      ! Allocate the arrays.
+
+   CALL AllocAry  ( InputFileData%TwCMassHtFract,   InputFileData%NTwCMass, 'TwCMassHtFract'   , ErrStat, ErrMsg )
+   IF ( ErrStat /= ErrID_None ) RETURN
+   CALL AllocAry  ( InputFileData%TwCMass,          InputFileData%NTwCMass, 'TwCMass'          , ErrStat, ErrMsg )
+   IF ( ErrStat /= ErrID_None ) RETURN
+
+END SUBROUTINE Alloc_TowerCMassList
+!----------------------------------------------------------------------------------------------------------------------------------
 !> This routine checks the blade file input data for errors.
 SUBROUTINE ValidateBladeData ( BladeKInputFileData, ErrStat, ErrMsg )
 !..................................................................................................................................
@@ -3957,6 +4053,24 @@ SUBROUTINE ValidateTowerData ( InputFileData, ErrStat, ErrMsg )
 
    CALL ValidateModeShapeCoeffs( InputFileData%TwSSM2Sh, 'tower side-to-side mode 2', ErrStat2, ErrMsg2 )
       CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+
+
+      ! Validate list of concentrated masses
+   IF ( InputFileData%NTwCMass < 0_IntKi ) CALL SetErrStat( ErrID_Fatal, 'NTwCMass must be equal to or greater than zero.', ErrStat, ErrMsg, RoutineName)
+
+      ! Check the input arrays:
+
+   DO I = 1,InputFileData%NTwCMass
+      IF ( InputFileData%TwCMassHtFract(I) < 0.0_ReKi ) THEN
+         CALL SetErrStat( ErrID_Fatal, 'Tower concentrated mass HtFract must be equal to or greater than zero.', ErrStat, ErrMsg, RoutineName)
+      END IF
+      IF ( InputFileData%TwCMassHtFract(I) > 1.0_ReKi ) THEN
+         CALL SetErrStat( ErrID_Fatal, 'Tower concentrated mass HtFract must be equal to or less than one.', ErrStat, ErrMsg, RoutineName)
+      END IF
+      IF ( InputFileData%TwCMass(I) < 0.0_ReKi ) THEN
+         CALL SetErrStat( ErrID_Fatal, 'TwCMass must be equal to or greater than zero.', ErrStat, ErrMsg, RoutineName)
+      END IF
+   END DO
 
 END SUBROUTINE ValidateTowerData
 !----------------------------------------------------------------------------------------------------------------------------------
@@ -4191,6 +4305,9 @@ SUBROUTINE ValidatePrimaryData( InputFileData, BD4Blades, Linearize, MHK, ErrSta
    IF ( InputFileData%NacYIner < 0.0_ReKi) call SetErrStat(ErrID_Fatal,'NacYIner must not be negative.',ErrStat,ErrMsg,RoutineName)
    IF ( InputFileData%GenIner  < 0.0_ReKi) call SetErrStat(ErrID_Fatal,'GenIner must not be negative.',ErrStat,ErrMsg,RoutineName)
    IF ( InputFileData%HubIner  < 0.0_ReKi) call SetErrStat(ErrID_Fatal,'HubIner must not be negative.',ErrStat,ErrMsg,RoutineName)
+   IF ( InputFileData%NumBl == 2 ) THEN
+     IF ( InputFileData%HubIner_Teeter  < 0.0_ReKi) call SetErrStat(ErrID_Fatal,'HubIner_Teeter must not be negative.',ErrStat,ErrMsg,RoutineName)
+   ENDIF
 
       ! Check that TowerHt is in the range [0,inf):
    IF ( MHK /= MHK_Floating ) THEN

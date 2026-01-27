@@ -162,8 +162,8 @@ contains
       END IF
       
       !$OMP critical(fileopenNWTCio_critical)
-      CALL GetNewUnit( Un, ErrStat2, ErrMsg2 )
-      CALL OpenFInpFile ( Un, TRIM(FileName), ErrStat, ErrMsg )
+      CALL GetNewUnit( Un, ErrStat, ErrMsg )
+      CALL OpenFInpFile ( Un, TRIM(FileName), ErrStat2, ErrMsg2 )
       !$OMP end critical(fileopenNWTCio_critical)
       call SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
          if (ErrStat >= AbortErrLev) return

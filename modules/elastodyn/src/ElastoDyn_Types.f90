@@ -166,7 +166,8 @@ IMPLICIT NONE
     REAL(ReKi)  :: PtfmRefzt = 0.0_ReKi      !< Vertical distance from the ground level [onshore], MSL [offshore wind or floating MHK], or seabed [fixed MHK] to the platform reference point [meters]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: TipMass      !< Tip-brake masses [kg]
     REAL(ReKi)  :: HubMass = 0.0_ReKi      !< Hub mass [kg]
-    REAL(ReKi)  :: HubIner = 0.0_ReKi      !< Hub inertia about teeter axis (2-blader) or rotor axis (3-blader) [kg m^2]
+    REAL(ReKi)  :: HubIner = 0.0_ReKi      !< Hub inertia about rotor axis (2 or 3-blader) [kg m^2]
+    REAL(ReKi)  :: HubIner_Teeter = 0.0_ReKi      !< Hub inertia about teeter axis (2-blader) [kg m^2]
     REAL(ReKi)  :: GenIner = 0.0_ReKi      !< Generator inertia about HSS [kg m^2]
     REAL(ReKi)  :: NacMass = 0.0_ReKi      !< Nacelle mass [kg]
     REAL(ReKi)  :: NacYIner = 0.0_ReKi      !< Nacelle yaw inertia [kg m^2]
@@ -230,6 +231,9 @@ IMPLICIT NONE
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: TwFAM2Sh      !< Tower fore-aft mode-2 shape coefficients [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: TwSSM1Sh      !< Tower side-to-side mode-1 shape coefficients [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: TwSSM2Sh      !< Tower side-to-side mode-2 shape coefficients [-]
+    INTEGER(IntKi)  :: NTwCMass = 0_IntKi      !< Number of tower concentrated masses [-]
+    REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: TwCMassHtFract      !< Fractional heights of tower concentrated masses [-]
+    REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: TwCMass      !< List of concentrated masses on the tower [kg]
     LOGICAL  :: RFrlDOF = .false.      !< Rotor-furl DOF [-]
     LOGICAL  :: TFrlDOF = .false.      !< Tail-furl DOF [-]
     REAL(ReKi)  :: RotFurl = 0.0_ReKi      !< Initial or fixed rotor-furl angle [radians]
@@ -695,8 +699,8 @@ IMPLICIT NONE
     REAL(ReKi)  :: BoomMass = 0.0_ReKi      !< Tail boom mass [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: FirstMom      !< First mass moment of inertia of blades wrt the root [-]
     REAL(ReKi)  :: GenIner = 0.0_ReKi      !< Generator inertia about HSS [-]
-    REAL(ReKi)  :: Hubg1Iner = 0.0_ReKi      !< Inertia of hub about g1-axis (rotor centerline) [-]
-    REAL(ReKi)  :: Hubg2Iner = 0.0_ReKi      !< Inertia of hub about g2-axis (transverse to the cyclinder and passing through its c.g.) [-]
+    REAL(ReKi)  :: Hubf1Iner = 0.0_ReKi      !< Inertia of hub about f1-axis (rotor centerline) [-]
+    REAL(ReKi)  :: Hubf2Iner = 0.0_ReKi      !< Inertia of hub about f2-axis (teeter axis) [-]
     REAL(ReKi)  :: HubMass = 0.0_ReKi      !< Hub mass [-]
     REAL(ReKi)  :: Nacd2Iner = 0.0_ReKi      !< Inertia of nacelle about the d2-axis whose origin is the nacelle center of mass [-]
     REAL(ReKi)  :: NacMass = 0.0_ReKi      !< Nacelle mass [-]
@@ -1668,6 +1672,7 @@ subroutine ED_CopyInputFile(SrcInputFileData, DstInputFileData, CtrlCode, ErrSta
    end if
    DstInputFileData%HubMass = SrcInputFileData%HubMass
    DstInputFileData%HubIner = SrcInputFileData%HubIner
+   DstInputFileData%HubIner_Teeter = SrcInputFileData%HubIner_Teeter
    DstInputFileData%GenIner = SrcInputFileData%GenIner
    DstInputFileData%NacMass = SrcInputFileData%NacMass
    DstInputFileData%NacYIner = SrcInputFileData%NacYIner
@@ -1860,6 +1865,31 @@ subroutine ED_CopyInputFile(SrcInputFileData, DstInputFileData, CtrlCode, ErrSta
       end if
       DstInputFileData%TwSSM2Sh = SrcInputFileData%TwSSM2Sh
    end if
+   DstInputFileData%NTwCMass = SrcInputFileData%NTwCMass
+   if (allocated(SrcInputFileData%TwCMassHtFract)) then
+      LB(1:1) = lbound(SrcInputFileData%TwCMassHtFract)
+      UB(1:1) = ubound(SrcInputFileData%TwCMassHtFract)
+      if (.not. allocated(DstInputFileData%TwCMassHtFract)) then
+         allocate(DstInputFileData%TwCMassHtFract(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstInputFileData%TwCMassHtFract.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstInputFileData%TwCMassHtFract = SrcInputFileData%TwCMassHtFract
+   end if
+   if (allocated(SrcInputFileData%TwCMass)) then
+      LB(1:1) = lbound(SrcInputFileData%TwCMass)
+      UB(1:1) = ubound(SrcInputFileData%TwCMass)
+      if (.not. allocated(DstInputFileData%TwCMass)) then
+         allocate(DstInputFileData%TwCMass(LB(1):UB(1)), stat=ErrStat2)
+         if (ErrStat2 /= 0) then
+            call SetErrStat(ErrID_Fatal, 'Error allocating DstInputFileData%TwCMass.', ErrStat, ErrMsg, RoutineName)
+            return
+         end if
+      end if
+      DstInputFileData%TwCMass = SrcInputFileData%TwCMass
+   end if
    DstInputFileData%RFrlDOF = SrcInputFileData%RFrlDOF
    DstInputFileData%TFrlDOF = SrcInputFileData%TFrlDOF
    DstInputFileData%RotFurl = SrcInputFileData%RotFurl
@@ -1985,6 +2015,12 @@ subroutine ED_DestroyInputFile(InputFileData, ErrStat, ErrMsg)
    if (allocated(InputFileData%TwSSM2Sh)) then
       deallocate(InputFileData%TwSSM2Sh)
    end if
+   if (allocated(InputFileData%TwCMassHtFract)) then
+      deallocate(InputFileData%TwCMassHtFract)
+   end if
+   if (allocated(InputFileData%TwCMass)) then
+      deallocate(InputFileData%TwCMass)
+   end if
    if (allocated(InputFileData%BldNd_OutList)) then
       deallocate(InputFileData%BldNd_OutList)
    end if
@@ -2057,6 +2093,7 @@ subroutine ED_PackInputFile(RF, Indata)
    call RegPackAlloc(RF, InData%TipMass)
    call RegPack(RF, InData%HubMass)
    call RegPack(RF, InData%HubIner)
+   call RegPack(RF, InData%HubIner_Teeter)
    call RegPack(RF, InData%GenIner)
    call RegPack(RF, InData%NacMass)
    call RegPack(RF, InData%NacYIner)
@@ -2136,6 +2173,9 @@ subroutine ED_PackInputFile(RF, Indata)
    call RegPackAlloc(RF, InData%TwFAM2Sh)
    call RegPackAlloc(RF, InData%TwSSM1Sh)
    call RegPackAlloc(RF, InData%TwSSM2Sh)
+   call RegPack(RF, InData%NTwCMass)
+   call RegPackAlloc(RF, InData%TwCMassHtFract)
+   call RegPackAlloc(RF, InData%TwCMass)
    call RegPack(RF, InData%RFrlDOF)
    call RegPack(RF, InData%TFrlDOF)
    call RegPack(RF, InData%RotFurl)
@@ -2255,6 +2295,7 @@ subroutine ED_UnPackInputFile(RF, OutData)
    call RegUnpackAlloc(RF, OutData%TipMass); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%HubMass); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%HubIner); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%HubIner_Teeter); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%GenIner); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%NacMass); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%NacYIner); if (RegCheckErr(RF, RoutineName)) return
@@ -2342,6 +2383,9 @@ subroutine ED_UnPackInputFile(RF, OutData)
    call RegUnpackAlloc(RF, OutData%TwFAM2Sh); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%TwSSM1Sh); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%TwSSM2Sh); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%NTwCMass); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%TwCMassHtFract); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpackAlloc(RF, OutData%TwCMass); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%RFrlDOF); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%TFrlDOF); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%RotFurl); if (RegCheckErr(RF, RoutineName)) return
@@ -5538,8 +5582,8 @@ subroutine ED_CopyParam(SrcParamData, DstParamData, CtrlCode, ErrStat, ErrMsg)
       DstParamData%FirstMom = SrcParamData%FirstMom
    end if
    DstParamData%GenIner = SrcParamData%GenIner
-   DstParamData%Hubg1Iner = SrcParamData%Hubg1Iner
-   DstParamData%Hubg2Iner = SrcParamData%Hubg2Iner
+   DstParamData%Hubf1Iner = SrcParamData%Hubf1Iner
+   DstParamData%Hubf2Iner = SrcParamData%Hubf2Iner
    DstParamData%HubMass = SrcParamData%HubMass
    DstParamData%Nacd2Iner = SrcParamData%Nacd2Iner
    DstParamData%NacMass = SrcParamData%NacMass
@@ -6425,8 +6469,8 @@ subroutine ED_PackParam(RF, Indata)
    call RegPack(RF, InData%BoomMass)
    call RegPackAlloc(RF, InData%FirstMom)
    call RegPack(RF, InData%GenIner)
-   call RegPack(RF, InData%Hubg1Iner)
-   call RegPack(RF, InData%Hubg2Iner)
+   call RegPack(RF, InData%Hubf1Iner)
+   call RegPack(RF, InData%Hubf2Iner)
    call RegPack(RF, InData%HubMass)
    call RegPack(RF, InData%Nacd2Iner)
    call RegPack(RF, InData%NacMass)
@@ -6696,8 +6740,8 @@ subroutine ED_UnPackParam(RF, OutData)
    call RegUnpack(RF, OutData%BoomMass); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%FirstMom); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%GenIner); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpack(RF, OutData%Hubg1Iner); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpack(RF, OutData%Hubg2Iner); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%Hubf1Iner); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%Hubf2Iner); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%HubMass); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%Nacd2Iner); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%NacMass); if (RegCheckErr(RF, RoutineName)) return

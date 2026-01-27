@@ -253,7 +253,6 @@ typedef  ^  AD_InputFile   RotInputFile  rotors {:} - - "Rotor (blades and tower
 # ..... States ....................................................................................................................
 # Define continuous (differentiable) states here:
 typedef	^	RotContinuousStateType	BEMT_ContinuousStateType	BEMT	-	-	-	"Continuous states from the BEMT module"	-
-typedef	^	RotContinuousStateType	AA_ContinuousStateType	AA	-	-	-	"Continuous states from the AA module"	-
 
 typedef	^	ContinuousStateType	RotContinuousStateType	rotors	{:}	-	-	"Continuous states for each rotor"	-
 typedef	^	ContinuousStateType	FVW_ContinuousStateType	FVW	-	-	-	"Continuous states from the FVW module"	-
@@ -268,7 +267,6 @@ typedef	^	DiscreteStateType	FVW_DiscreteStateType	FVW	-	-	-	"Discrete states fro
 
 # Define constraint states here:
 typedef	^	RotConstraintStateType	BEMT_ConstraintStateType	BEMT	-	-	-	"Constraint states from the BEMT module"	-
-typedef	^	RotConstraintStateType	AA_ConstraintStateType	AA	-	-	-	"Constraint states from the AA module"	-
 
 typedef	^	ConstraintStateType	RotConstraintStateType	rotors	{:}	-	-	"Constraint states for each rotor"	-
 typedef	^	ConstraintStateType	FVW_ConstraintStateType	FVW	-	-	-	"Constraint states from the FVW module"	-

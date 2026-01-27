@@ -109,7 +109,7 @@ IMPLICIT NONE
     TYPE(Conv_Rdtn_MiscVarType)  :: Conv_Rdtn      !<  [-]
     TYPE(Conv_Rdtn_InputType)  :: Conv_Rdtn_u      !<  [-]
     TYPE(Conv_Rdtn_OutputType)  :: Conv_Rdtn_y      !<  [-]
-    TYPE(SeaSt_WaveField_MiscVarType)  :: WaveField_m      !< misc var information from the SeaState Interpolation module [-]
+    TYPE(GridInterp_MiscVarType)  :: WaveField_m      !< misc var information from the Grid Interpolation module [-]
   END TYPE WAMIT_MiscVarType
 ! =======================
 ! =========  WAMIT_ParameterType  =======
@@ -133,7 +133,7 @@ IMPLICIT NONE
     REAL(DbKi)  :: DT = 0.0_R8Ki      !<  [-]
     TYPE(SeaSt_WaveFieldType) , POINTER :: WaveField => NULL()      !< Pointer to wave field [-]
     INTEGER(IntKi)  :: PtfmYMod = 0_IntKi      !< Large yaw model [-]
-    TYPE(SeaSt_WaveField_ParameterType)  :: ExctnGridParams      !< Parameters of WaveExctnGrid [-]
+    TYPE(GridInterp_ParameterType)  :: ExctnGridParams      !< Parameters of WaveExctnGrid [-]
   END TYPE WAMIT_ParameterType
 ! =======================
 ! =========  WAMIT_InputType  =======
@@ -742,7 +742,7 @@ subroutine WAMIT_CopyMisc(SrcMiscData, DstMiscData, CtrlCode, ErrStat, ErrMsg)
    call Conv_Rdtn_CopyOutput(SrcMiscData%Conv_Rdtn_y, DstMiscData%Conv_Rdtn_y, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
-   call SeaSt_WaveField_CopyMisc(SrcMiscData%WaveField_m, DstMiscData%WaveField_m, CtrlCode, ErrStat2, ErrMsg2)
+   call GridInterp_CopyMisc(SrcMiscData%WaveField_m, DstMiscData%WaveField_m, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
 end subroutine
@@ -786,7 +786,7 @@ subroutine WAMIT_DestroyMisc(MiscData, ErrStat, ErrMsg)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    call Conv_Rdtn_DestroyOutput(MiscData%Conv_Rdtn_y, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   call SeaSt_WaveField_DestroyMisc(MiscData%WaveField_m, ErrStat2, ErrMsg2)
+   call GridInterp_DestroyMisc(MiscData%WaveField_m, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
 end subroutine
 
@@ -809,7 +809,7 @@ subroutine WAMIT_PackMisc(RF, Indata)
    call Conv_Rdtn_PackMisc(RF, InData%Conv_Rdtn) 
    call Conv_Rdtn_PackInput(RF, InData%Conv_Rdtn_u) 
    call Conv_Rdtn_PackOutput(RF, InData%Conv_Rdtn_y) 
-   call SeaSt_WaveField_PackMisc(RF, InData%WaveField_m) 
+   call GridInterp_PackMisc(RF, InData%WaveField_m) 
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -835,7 +835,7 @@ subroutine WAMIT_UnPackMisc(RF, OutData)
    call Conv_Rdtn_UnpackMisc(RF, OutData%Conv_Rdtn) ! Conv_Rdtn 
    call Conv_Rdtn_UnpackInput(RF, OutData%Conv_Rdtn_u) ! Conv_Rdtn_u 
    call Conv_Rdtn_UnpackOutput(RF, OutData%Conv_Rdtn_y) ! Conv_Rdtn_y 
-   call SeaSt_WaveField_UnpackMisc(RF, OutData%WaveField_m) ! WaveField_m 
+   call GridInterp_UnpackMisc(RF, OutData%WaveField_m) ! WaveField_m 
 end subroutine
 
 subroutine WAMIT_CopyParam(SrcParamData, DstParamData, CtrlCode, ErrStat, ErrMsg)
@@ -930,7 +930,7 @@ subroutine WAMIT_CopyParam(SrcParamData, DstParamData, CtrlCode, ErrStat, ErrMsg
    DstParamData%DT = SrcParamData%DT
    DstParamData%WaveField => SrcParamData%WaveField
    DstParamData%PtfmYMod = SrcParamData%PtfmYMod
-   call SeaSt_WaveField_CopyParam(SrcParamData%ExctnGridParams, DstParamData%ExctnGridParams, CtrlCode, ErrStat2, ErrMsg2)
+   call GridInterp_CopyParam(SrcParamData%ExctnGridParams, DstParamData%ExctnGridParams, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
 end subroutine
@@ -966,7 +966,7 @@ subroutine WAMIT_DestroyParam(ParamData, ErrStat, ErrMsg)
    call SS_Exc_DestroyParam(ParamData%SS_Exctn, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    nullify(ParamData%WaveField)
-   call SeaSt_WaveField_DestroyParam(ParamData%ExctnGridParams, ErrStat2, ErrMsg2)
+   call GridInterp_DestroyParam(ParamData%ExctnGridParams, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
 end subroutine
 
@@ -1001,7 +1001,7 @@ subroutine WAMIT_PackParam(RF, Indata)
       end if
    end if
    call RegPack(RF, InData%PtfmYMod)
-   call SeaSt_WaveField_PackParam(RF, InData%ExctnGridParams) 
+   call GridInterp_PackParam(RF, InData%ExctnGridParams) 
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -1051,7 +1051,7 @@ subroutine WAMIT_UnPackParam(RF, OutData)
       OutData%WaveField => null()
    end if
    call RegUnpack(RF, OutData%PtfmYMod); if (RegCheckErr(RF, RoutineName)) return
-   call SeaSt_WaveField_UnpackParam(RF, OutData%ExctnGridParams) ! ExctnGridParams 
+   call GridInterp_UnpackParam(RF, OutData%ExctnGridParams) ! ExctnGridParams 
 end subroutine
 
 subroutine WAMIT_CopyInput(SrcInputData, DstInputData, CtrlCode, ErrStat, ErrMsg)

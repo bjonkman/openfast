@@ -86,6 +86,26 @@
 		<File RelativePath="..\..\modules\nwtc-library\src\NetLib\lapack\NWTC_LAPACK.f90"/></Filter>
 		<Filter Name="NWTC_Library">
 		<Filter Name="RegistryFiles">
+		<File RelativePath="..\..\modules\nwtc-library\src\GridInterp_Types.f90">
+			<FileConfiguration Name="Debug_Double|Win32">
+				<Tool Name="VFFortranCompilerTool" WarnUnusedVariables="false"/></FileConfiguration>
+			<FileConfiguration Name="Debug|Win32">
+				<Tool Name="VFFortranCompilerTool" WarnUnusedVariables="false"/></FileConfiguration>
+			<FileConfiguration Name="Release|x64">
+				<Tool Name="VFFortranCompilerTool" WarnUnusedVariables="false"/></FileConfiguration>
+			<FileConfiguration Name="Debug|x64">
+				<Tool Name="VFFortranCompilerTool" WarnUnusedVariables="false"/></FileConfiguration>
+			<FileConfiguration Name="Debug_Double|x64">
+				<Tool Name="VFFortranCompilerTool" WarnUnusedVariables="false"/></FileConfiguration>
+			<FileConfiguration Name="Release|Win32">
+				<Tool Name="VFFortranCompilerTool" WarnUnusedVariables="false"/></FileConfiguration></File>
+		<File RelativePath="..\..\modules\nwtc-library\src\GridInterp.txt">
+			<FileConfiguration Name="Release|x64">
+				<Tool Name="VFCustomBuildTool" CommandLine="call ..\RunRegistry GridInterp" Description="Running Registry for GridInterp" Outputs="..\..\modules\nwtc-library\src\GridInterp_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Debug|x64">
+				<Tool Name="VFCustomBuildTool" CommandLine="call ..\RunRegistry GridInterp" Description="Running Registry for GridInterp" Outputs="..\..\modules\nwtc-library\src\GridInterp_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Debug_Double|x64">
+				<Tool Name="VFCustomBuildTool" CommandLine="call ..\RunRegistry GridInterp" Description="Running Registry for GridInterp" Outputs="..\..\modules\nwtc-library\src\GridInterp_Types.f90"/></FileConfiguration></File>
 		<File RelativePath="..\..\modules\nwtc-library\src\NWTC_Library_Types.f90">
 			<FileConfiguration Name="Debug_Double|Win32">
 				<Tool Name="VFFortranCompilerTool" WarnUnusedVariables="false"/></FileConfiguration>
@@ -107,6 +127,7 @@
 				<Tool Name="VFCustomBuildTool" CommandLine="call ..\RunRegistry.bat NWTC_Lib" Description="Running Registry for NWTC_Lib" Outputs="..\..\modules\nwtc-library\src\NWTC_Library_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Debug_Double|x64">
 				<Tool Name="VFCustomBuildTool" CommandLine="call ..\RunRegistry.bat NWTC_Lib" Description="Running Registry for NWTC_Lib" Outputs="..\..\modules\nwtc-library\src\NWTC_Library_Types.f90"/></FileConfiguration></File></Filter>
+		<File RelativePath="..\..\modules\nwtc-library\src\GridInterp.f90"/>
 		<File RelativePath="..\..\modules\nwtc-library\src\ModMesh.f90">
 			<FileConfiguration Name="Debug_Double|Win32">
 				<Tool Name="VFFortranCompilerTool" WarnUnusedVariables="false"/></FileConfiguration>

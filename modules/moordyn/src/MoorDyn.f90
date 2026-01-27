@@ -157,7 +157,7 @@ CONTAINS
       CHARACTER(*), PARAMETER       :: RoutineName = 'MD_Init'
 
       
-
+      ! Initialize Err stat
       ErrStat = ErrID_None
       ErrMsg  = ""
       m%zeros6 = 0.0_DbKi
@@ -241,13 +241,9 @@ CONTAINS
       !            read input file and create cross-referenced mooring system objects
       !---------------------------------------------------------------------------------------------
       
-      
-      ! Initialize ErrStat
-      ErrStat = ErrID_None
-      ErrMsg  = ""
 
 
-      CALL WrScr( '   Parsing MoorDyn input file: '//trim(InitInp%FileName) )
+      CALL WrScr( '  Parsing MoorDyn input file: '//trim(InitInp%FileName) )
 
 
       ! -----------------------------------------------------------------
@@ -290,6 +286,13 @@ CONTAINS
       Line = NextLine(i);     ! Get the line and increment counter.  See description of routine. 
       
       do while ( i <= FileInfo_In%NumLines )
+
+         if (INDEX(Line, "ECHO") > 0) then
+            ! check for Echo flag and if so, throw message suggesting write log
+            ErrStat2 = ErrID_Info
+            ErrMsg2 = 'MoorDyn does not support ECHO. Instead, enable the log file by setting WriteLog > 0.'
+            CALL CheckError( ErrStat2, ErrMsg2 )
+         end if
 
          if (INDEX(Line, "---") > 0) then ! look for a header line
 
@@ -438,10 +441,10 @@ CONTAINS
                      read (OptValue,*) p%writeLog
                      if (p%writeLog > 0) then   ! if not zero, open a log file for output
                         CALL GetNewUnit( p%UnLog )
-                        CALL OpenFOutFile ( p%UnLog, TRIM(p%RootName)//'.log', ErrStat, ErrMsg )
-                        IF ( ErrStat > AbortErrLev ) THEN
-                           ErrMsg = ' Failed to open MoorDyn log file: '//TRIM(ErrMsg)
-                           RETURN
+                        CALL OpenFOutFile ( p%UnLog, TRIM(p%RootName)//'.log', ErrStat2, ErrMsg2 )
+                        IF ( ErrStat2 > AbortErrLev ) THEN
+                           ErrMsg2 = ' Failed to open MoorDyn log file: '//TRIM(ErrMsg2)
+                           CALL CheckError( ErrStat2, ErrMsg2 ); IF (ErrStat >= AbortErrLev) RETURN
                         END IF
                         write(p%UnLog,'(A)', IOSTAT=ErrStat2) "MoorDyn v2 log file with output level "//TRIM(Num2LStr(p%writeLog))
                         write(p%UnLog,'(A)', IOSTAT=ErrStat2) "Note: options above the writeLog line in the input file will not be recorded."
@@ -490,7 +493,9 @@ CONTAINS
                   else if ( OptString == 'DISABLEOUTTIME') then
                      read (OptValue,*) p%disableOutTime
                   else
-                     CALL SetErrStat( ErrID_Warn, 'Unable to interpret input '//trim(OptString)//' in OPTIONS section.', ErrStat, ErrMsg, RoutineName )
+                     ErrStat2 = ErrID_Warn
+                     ErrMsg2 = 'Unable to interpret input '//trim(OptString)//' in OPTIONS section.'
+                     CALL CheckError( ErrStat2, ErrMsg2 )
                   end if
 
                   nOpts = nOpts + 1
@@ -548,7 +553,8 @@ CONTAINS
 
 
       ! set up seabed bathymetry
-      CALL setupBathymetry(DepthValue, InitInp%WtrDepth, m%BathymetryGrid, m%BathGrid_Xs, m%BathGrid_Ys, ErrStat2, ErrMsg2)
+      CALL setupBathymetry(p, DepthValue, InitInp%WtrDepth, m%BathymetryGrid, m%BathGrid_Xs, m%BathGrid_Ys, ErrStat2, ErrMsg2)
+      CALL CheckError( ErrStat2, ErrMsg2 ); IF (ErrStat >= AbortErrLev) RETURN
       CALL getDepthFromBathymetry(m%BathymetryGrid, m%BathGrid_Xs, m%BathGrid_Ys, 0.0_DbKi, 0.0_DbKi, p%WtrDpth, nvec)  ! set depth at 0,0 as nominal for waves etc
       
       
@@ -1111,12 +1117,13 @@ CONTAINS
                   if ((let1 == "ANCHOR") .or. (let1 == "FIXED") .or. (let1 == "FIX")) then
                      
                      m%RodList(l)%typeNum = 2
-                     CALL Body_AddRod(m%GroundBody, l, tempArray)   ! add rod l to Ground body
-                           
+                     CALL Body_AddRod(m%GroundBody, l, tempArray, ErrStat2, ErrMsg2)   ! add rod l to Ground body
+                     if (Failed()) return
 
                   else if ((let1 == "PINNED") .or. (let1 == "PIN")) then
                      m%RodList(l)%typeNum = 1
-                     CALL Body_AddRod(m%GroundBody, l, tempArray)   ! add rod l to Ground body
+                     CALL Body_AddRod(m%GroundBody, l, tempArray, ErrStat2, ErrMsg2)   ! add rod l to Ground body
+                     if (Failed()) return
                      
                      p%nFreeRods=p%nFreeRods+1  ! add this pinned rod to the free list because it is half free
                      
@@ -1134,7 +1141,8 @@ CONTAINS
                         
                         if ((J <= p%nBodies) .and. (J > 0)) then 
                         
-                           CALL Body_AddRod(m%BodyList(J), l, tempArray)   ! add rod l to the body
+                           CALL Body_AddRod(m%BodyList(J), l, tempArray, ErrStat2, ErrMsg2)   ! add rod l to the body
+                           if (Failed()) return
                            
                            if ( (let2 == "PINNED") .or. (let2 == "PIN") ) then
                               m%RodList(l)%typeNum = 1
@@ -1235,29 +1243,24 @@ CONTAINS
                   ! process output flag characters (LineOutString) and set line output flag array (OutFlagList)
                   m%RodList(l)%OutFlagList = 0  ! first set array all to zero
                   ! per node, 3 component
-                  IF ( scan( LineOutString, 'p') > 0 )  m%RodList(l)%OutFlagList(2 ) = 1   ! node position
-                  IF ( scan( LineOutString, 'v') > 0 )  m%RodList(l)%OutFlagList(3 ) = 1   ! node velocity
-                  IF ( scan( LineOutString, 'U') > 0 )  m%RodList(l)%OutFlagList(4 ) = 1   ! water velocity
-                  IF ( scan( LineOutString, 'B') > 0 )  m%RodList(l)%OutFlagList(5 ) = 1   ! node buoyancy force
-                  IF ( scan( LineOutString, 'D') > 0 )  m%RodList(l)%OutFlagList(6 ) = 1   ! drag force
-                  IF ( scan( LineOutString, 'I') > 0 )  m%RodList(l)%OutFlagList(7 ) = 1   ! inertia force
-                  IF ( scan( LineOutString, 'P') > 0 )  m%RodList(l)%OutFlagList(8 ) = 1   ! dynamic pressure force
-                  IF ( scan( LineOutString, 'b') > 0 )  m%RodList(l)%OutFlagList(9 ) = 1   ! seabed contact forces
+                  IF ( scan( LineOutString, 'p') > 0 )  m%RodList(l)%OutFlagList(2 ) = 1   ! node position (p)
+                  IF ( scan( LineOutString, 'v') > 0 )  m%RodList(l)%OutFlagList(3 ) = 1   ! node velocity (v)
+                  IF ( scan( LineOutString, 'U') > 0 )  m%RodList(l)%OutFlagList(4 ) = 1   ! water velocity (U)
+                  IF ( scan( LineOutString, 'B') > 0 )  m%RodList(l)%OutFlagList(5 ) = 1   ! node buoyancy force (Bo)
+                  IF ( scan( LineOutString, 'D') > 0 )  m%RodList(l)%OutFlagList(6 ) = 1   ! drag force (D)
+                  IF ( scan( LineOutString, 'I') > 0 )  m%RodList(l)%OutFlagList(7 ) = 1   ! inertia force (I)
+                  IF ( scan( LineOutString, 'P') > 0 )  m%RodList(l)%OutFlagList(8 ) = 1   ! dynamic pressure force (Pd)
+                  IF ( scan( LineOutString, 'b') > 0 )  m%RodList(l)%OutFlagList(9 ) = 1   ! seabed contact forces (B)
                   ! per node, 1 component
                   IF ( scan( LineOutString, 'W') > 0 )  m%RodList(l)%OutFlagList(10) = 1   ! node weight/buoyancy (positive up)
-                  IF ( scan( LineOutString, 'K') > 0 )  m%RodList(l)%OutFlagList(11) = 1   ! curvature at node
-                  ! per element, 1 component >>> these don't apply to a rod!! <<<
-                  IF ( scan( LineOutString, 't') > 0 )  m%RodList(l)%OutFlagList(12) = 1  ! segment tension force (just EA)
-                  IF ( scan( LineOutString, 'c') > 0 )  m%RodList(l)%OutFlagList(13) = 1  ! segment internal damping force
-                  IF ( scan( LineOutString, 's') > 0 )  m%RodList(l)%OutFlagList(14) = 1  ! Segment strain
-                  IF ( scan( LineOutString, 'd') > 0 )  m%RodList(l)%OutFlagList(15) = 1  ! Segment strain rate
+                  ! Extended flags outputs
+                  IF ( scan( LineOutString, 'A') > 0 )  m%RodList(l)%OutFlagList(16) = 1   ! Transverse fluid inertia force (Ap)
+                  IF ( scan( LineOutString, 'a') > 0 )  m%RodList(l)%OutFlagList(17) = 1   ! Axial fluid inertia force (Aq)
+                  IF ( scan( LineOutString, 'X') > 0 )  m%RodList(l)%OutFlagList(18) = 1   ! Transverse drag forces (Dp)
+                  IF ( scan( LineOutString, 'Y') > 0 )  m%RodList(l)%OutFlagList(19) = 1   ! Tangential drag forces (Dq)
 
                   IF (SUM(m%RodList(l)%OutFlagList) > 0)   m%RodList(l)%OutFlagList(1) = 1  ! this first entry signals whether to create any output file at all
                   ! the above letter-index combinations define which OutFlagList entry corresponds to which output type
-
-
-                  ! specify IdNum of line for error checking
-                  m%RodList(l)%IdNum = l  
 
                   if (p%writeLog > 1) then
                      write(p%UnLog, '(A)'        ) "  - Rod"//trim(num2lstr(m%RodList(l)%IdNum))//":"
@@ -1269,7 +1272,7 @@ CONTAINS
 
                   ! check for sequential IdNums
                   IF ( m%RodList(l)%IdNum .NE. l ) THEN
-                     CALL SetErrStat( ErrID_Fatal, 'Line numbers must be sequential starting from 1.', ErrStat, ErrMsg, RoutineName )
+                     CALL SetErrStat( ErrID_Fatal, 'Rod numbers must be sequential starting from 1.', ErrStat, ErrMsg, RoutineName )
                      CALL CleanUp()
                      RETURN
                   END IF
@@ -1363,7 +1366,8 @@ CONTAINS
                      
                      !m%PointList(l)%r = tempArray(1:3)   ! set initial node position
                      
-                     CALL Body_AddPoint(m%GroundBody, l, tempArray(1:3))   ! add point l to Ground body                     
+                     CALL Body_AddPoint(m%GroundBody, l, tempArray(1:3), ErrStat2, ErrMsg2)   ! add point l to Ground body                     
+                     if (Failed()) return
 
                      else if (let1 == "BODY") then ! attached to a body
                      if (len_trim(num1) > 0) then                     
@@ -1372,7 +1376,8 @@ CONTAINS
                         if ((J <= p%nBodies) .and. (J > 0)) then
                            m%PointList(l)%typeNum = 1    
 
-                           CALL Body_AddPoint(m%BodyList(J), l, tempArray(1:3))   ! add point l to Ground body
+                           CALL Body_AddPoint(m%BodyList(J), l, tempArray(1:3), ErrStat2, ErrMsg2)   ! add point l to Ground body
+                           if (Failed()) return
                            
                         else
                            CALL SetErrStat( ErrID_Fatal,  "Body ID out of bounds for Point "//trim(Num2LStr(l))//".", ErrStat, ErrMsg, RoutineName )  
@@ -1549,9 +1554,11 @@ CONTAINS
                   
                      if ((J <= p%nRods) .and. (J > 0)) then                  
                         if (let2 == "A") then
-                           CALL Rod_AddLine(m%RodList(J), l, 0, 0)   ! add line l (end A, denoted by 0) to rod J (end A, denoted by 0)
+                           CALL Rod_AddLine(m%RodList(J), l, 0, 0, ErrStat2, ErrMsg2)   ! add line l (end A, denoted by 0) to rod J (end A, denoted by 0)
+                           if (Failed()) return
                         else if (let2 == "B") then 
-                           CALL Rod_AddLine(m%RodList(J), l, 0, 1)   ! add line l (end A, denoted by 0) to rod J (end B, denoted by 1)
+                           CALL Rod_AddLine(m%RodList(J), l, 0, 1, ErrStat2, ErrMsg2)   ! add line l (end A, denoted by 0) to rod J (end B, denoted by 1)
+                           if (Failed()) return
                         else
                            CALL SetErrStat( ErrID_Fatal,  "Error: rod end (A or B) must be specified for line "//trim(Num2LStr(l))//" end A attachment. Instead seeing "//let2, ErrStat, ErrMsg, RoutineName )  
                            CALL CleanUp()  
@@ -1567,7 +1574,8 @@ CONTAINS
                   else if ((len_trim(let1)==0) .or. (let1 == "P") .or. (let1 == "POINT")) then 
 
                      if ((J <= p%nPoints) .and. (J > 0)) then                  
-                        CALL Point_AddLine(m%PointList(J), l, 0)   ! add line l (end A, denoted by 0) to point J
+                        CALL Point_AddLine(m%PointList(J), l, 0, ErrStat2, ErrMsg2)   ! add line l (end A, denoted by 0) to point J
+                        if (Failed()) return
                      else
                         CALL SetErrStat( ErrID_Fatal,  "Error: point out of bounds for line "//trim(Num2LStr(l))//" end A attachment.", ErrStat, ErrMsg, RoutineName )  
                         CALL CleanUp() 
@@ -1594,9 +1602,11 @@ CONTAINS
 
                      if ((J <= p%nRods) .and. (J > 0)) then                  
                         if (let2 == "A") then
-                           CALL Rod_AddLine(m%RodList(J), l, 1, 0)   ! add line l (end B, denoted by 1) to rod J (end A, denoted by 0)
+                           CALL Rod_AddLine(m%RodList(J), l, 1, 0, ErrStat2, ErrMsg2)   ! add line l (end B, denoted by 1) to rod J (end A, denoted by 0)
+                           if (Failed()) return
                         else if (let2 == "B") then 
-                           CALL Rod_AddLine(m%RodList(J), l, 1, 1)   ! add line l (end B, denoted by 1) to rod J (end B, denoted by 1)
+                           CALL Rod_AddLine(m%RodList(J), l, 1, 1, ErrStat2, ErrMsg2)   ! add line l (end B, denoted by 1) to rod J (end B, denoted by 1)
+                           if (Failed()) return
                         else
                            CALL SetErrStat( ErrID_Fatal,  "Error: rod end (A or B) must be specified for line "//trim(Num2LStr(l))//" end B attachment. Instead seeing "//let2, ErrStat, ErrMsg, RoutineName )  
                            CALL CleanUp()
@@ -1612,7 +1622,8 @@ CONTAINS
                   else if ((len_trim(let1)==0) .or. (let1 == "P") .or. (let1 == "POINT")) then 
 
                      if ((J <= p%nPoints) .and. (J > 0)) then                  
-                        CALL Point_AddLine(m%PointList(J), l, 1)   ! add line l (end B, denoted by 1) to point J
+                        CALL Point_AddLine(m%PointList(J), l, 1, ErrStat2, ErrMsg2)   ! add line l (end B, denoted by 1) to point J
+                        if (Failed()) return
                      else
                         CALL SetErrStat( ErrID_Fatal,  "Error: point out of bounds for line "//trim(Num2LStr(l))//" end B attachment.", ErrStat, ErrMsg, RoutineName )  
                         CALL CleanUp()
@@ -1625,11 +1636,11 @@ CONTAINS
                   ! process output flag characters (LineOutString) and set line output flag array (OutFlagList)
                   m%LineList(l)%OutFlagList = 0  ! first set array all to zero
                   ! per node 3 component
-                  IF ( scan( LineOutString, 'p') > 0 )  m%LineList(l)%OutFlagList(2) = 1 
-                  IF ( scan( LineOutString, 'v') > 0 )  m%LineList(l)%OutFlagList(3) = 1
-                  IF ( scan( LineOutString, 'U') > 0 )  m%LineList(l)%OutFlagList(4) = 1
-                  IF ( scan( LineOutString, 'D') > 0 )  m%LineList(l)%OutFlagList(5) = 1
-                  IF ( scan( LineOutString, 'b') > 0 )  m%LineList(l)%OutFlagList(6) = 1   ! seabed contact forces
+                  IF ( scan( LineOutString, 'p') > 0 )  m%LineList(l)%OutFlagList(2) = 1  ! node position (p)
+                  IF ( scan( LineOutString, 'v') > 0 )  m%LineList(l)%OutFlagList(3) = 1  ! node velocity (v)
+                  IF ( scan( LineOutString, 'U') > 0 )  m%LineList(l)%OutFlagList(4) = 1  ! node displacement (U)
+                  IF ( scan( LineOutString, 'D') > 0 )  m%LineList(l)%OutFlagList(5) = 1  ! node rotation (D)
+                  IF ( scan( LineOutString, 'b') > 0 )  m%LineList(l)%OutFlagList(6) = 1  ! seabed contact forces (B)
                   IF ( scan( LineOutString, 'V') > 0 )  m%LineList(l)%OutFlagList(7) = 1   ! VIV forces
                   ! per node 1 component
                   IF ( scan( LineOutString, 'W') > 0 )  m%LineList(l)%OutFlagList(8) = 1  ! node weight/buoyancy (positive up)
@@ -1644,9 +1655,6 @@ CONTAINS
                   IF (SUM(m%LineList(l)%OutFlagList) > 0)   m%LineList(l)%OutFlagList(1) = 1  ! this first entry signals whether to create any output file at all
                   ! the above letter-index combinations define which OutFlagList entry corresponds to which output type
 
-
-                  ! specify IdNum of line for error checking
-                  m%LineList(l)%IdNum = l  
 
                   if (p%writeLog > 1) then
                      write(p%UnLog, '(A)'        ) "  - Line"//trim(num2lstr(m%LineList(l)%IdNum))//":"
@@ -2021,6 +2029,13 @@ CONTAINS
 
                      ! get lines 
                      m%FailList(l)%nLinesToDetach = N 
+
+                     ! Check that N is less than MD_MaxFailLines -- this would result in an out bounds array access
+                     if (m%FailList(l)%nLinesToDetach > MD_MaxFailLines) then
+                        call SetErrStat( ErrID_Fatal, ' More than hard coded limit of '//trim(Num2LStr(MD_MaxFailLines))//' lines to detach specified for line failure '//trim(Num2LStr(l))//'.', ErrStat, ErrMsg, RoutineName )
+                        call CleanUp()
+                        return
+                     endif
                      
                      DO il = 1, m%FailList(l)%nLinesToDetach
                         if (TempIDnums(il) <= p%nLines) then      ! ensure line ID is in range
@@ -2935,7 +2950,7 @@ CONTAINS
          ENDIF
       endif
       
-      CALL WrScr('   MoorDyn initialization completed.')
+      CALL WrScr('  MoorDyn initialization completed.')
       if (p%writeLog > 0) then
          write(p%UnLog, '(A)') NewLine//"MoorDyn initialization completed."//NewLine
          if (ErrStat /= ErrID_None) then
@@ -2998,7 +3013,7 @@ CONTAINS
 
             IF (ErrStat /= ErrID_None) ErrMsg = TRIM(ErrMsg)//NewLine   ! if there's a pre-existing warning/error, retain the message and start a new line
 
-            ErrMsg = TRIM(ErrMsg)//' MD_Init:'//TRIM(Msg)
+            ErrMsg = TRIM(ErrMsg)//RoutineName//":"//TRIM(Msg)
             ErrStat = MAX(ErrStat, ErrID)
 
             Msg = "" ! Reset the error message now that it has been logged into ErrMsg
@@ -3255,6 +3270,8 @@ CONTAINS
          REAL(DbKi), INTENT(IN   ) :: time
          INTEGER(IntKi) :: k        ! index
          REAL(DbKi) :: dummyPointState(6) = 0.0_DbKi  ! dummy state array to hold kinematics of old attachment point (format in terms of part of point state vector: r[J]  = X[3 + J]; rd[J] = X[J]; )
+         integer(IntKi)       :: ErrStat3
+         character(ErrMsgLen) :: ErrMsg3
 
          ! add point to list of free ones and add states for it
          p%nPoints = p%nPoints + 1  ! add 1 to the number of points (this is now the number of the new point)
@@ -3307,7 +3324,9 @@ CONTAINS
          
          ! attach lines to new point
          DO k=1,nLinesToDetach ! for each relevant line 
-            CALL Point_AddLine(m%PointList(p%nPoints), lineIDs(k), lineTops(k))
+            CALL Point_AddLine(m%PointList(p%nPoints), lineIDs(k), lineTops(k), ErrStat3, ErrMsg3)
+            call CheckError(ErrStat3, ErrMsg3)
+            if (ErrStat >= AbortErrLev) return
          ENDDO
          
          ! update point kinematics to match old line attachment point kinematics and set positions of attached line ends
@@ -3903,15 +3922,10 @@ CONTAINS
       CALL MD_DestroyMisc(m, ErrStat2, ErrMsg2)
          CALL CheckError( ErrStat2, ErrMsg2 )
          
-      IF (p%UnLog > 0_IntKi) CLOSE( p%UnLog )  ! close log file if it's open
-         !TODO: any need to specifically deallocate things like m%xTemp%states in the above? <<<<
-
- !     IF ( ErrStat==ErrID_None) THEN
- !        CALL WrScr('MoorDyn closed without errors')
- !     ELSE
- !        CALL WrScr('MoorDyn closed with errors')
- !     END IF
-
+      IF (p%UnLog > 0_IntKi) then
+         CLOSE( p%UnLog )  ! close log file if it's open
+         p%UnLog = -1      ! in case we call end a second time for whatever reason
+      endif
 
    CONTAINS
 

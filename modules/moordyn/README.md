@@ -1,7 +1,7 @@
 # MoorDyn Module
 This is an externally developed module with further information
-available on the developer's documentation site:
-[Matt Hall](http://www.matt-hall.ca/moordyn.html).
+available on the documentation site:
+[MoorDyn Docs](https://moordyn.readthedocs.io/en/latest/).
 
 ## Overview
 MoorDyn is a lumped-mass mooring line model for simulating the dynamics of

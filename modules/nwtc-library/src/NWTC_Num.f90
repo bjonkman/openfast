@@ -301,18 +301,24 @@ CONTAINS
       ! Local declarations:
 
    REAL(SiKi)                   :: DelAngle                                     ! The difference between OldAngle and NewAngle, rad.
-
+   integer :: n, i
 
 
       ! Add or subtract 2*Pi in order to convert NewAngle two within Pi of OldAngle:
 
-   
    DelAngle = OldAngle - NewAngle
+   
+   n = int(DelAngle / TwoPi_R4)
+   NewAngle = NewAngle + n * TwoPi_R4
+   DelAngle = OldAngle - NewAngle
+   
 
-   DO WHILE ( ABS( DelAngle ) > Pi_R4 )
+   i = 0
+   DO WHILE ( ABS( DelAngle ) > Pi_R4 .and. .not. EqualRealNos(OldAngle, NewAngle) .and. i < 10)
 
       NewAngle = NewAngle + SIGN( TwoPi_R4, DelAngle )
       DelAngle = OldAngle - NewAngle
+      i = i + 1
 
    END DO
 
@@ -331,6 +337,7 @@ CONTAINS
       ! Local declarations:
 
    REAL(R8Ki)                   :: DelAngle                                     ! The difference between OldAngle and NewAngle, rad.
+   integer :: n, i
 
 
 
@@ -339,17 +346,23 @@ CONTAINS
    
    DelAngle = OldAngle - NewAngle
 
-   DO WHILE ( ABS( DelAngle ) > Pi_R8 )
+   n = int(DelAngle / TwoPi_R8)
+   NewAngle = NewAngle + n * TwoPi_R8
+   DelAngle = OldAngle - NewAngle
+   
+   i = 0
+   DO WHILE ( ABS( DelAngle ) > Pi_R8 .and. .not. EqualRealNos(OldAngle, NewAngle) .and. i < 10)
 
       NewAngle = NewAngle + SIGN( TwoPi_R8, DelAngle )
       DelAngle = OldAngle - NewAngle
+      i = i + 1
 
    END DO
 
    RETURN
    END SUBROUTINE AddOrSub2Pi_R8
 !=======================================================================
-   FUNCTION BlendCosine( x, LowerBound, UpperBound ) RESULT(S)
+   PURE FUNCTION BlendCosine( x, LowerBound, UpperBound ) RESULT(S)
    
       REAL(ReKi), INTENT(IN) :: x            !
       REAL(ReKi), INTENT(IN) :: LowerBound   !< if x <= LowerBound, S=0 
@@ -1006,12 +1019,7 @@ CONTAINS
 !! One must call cubicsplineinit first to compute the coefficients of the cubics.
 !! This routine does not require that the XAry be regularly spaced.
 !! This version of the routine works with multiple curves that share the same X values.
-   FUNCTION CubicSplineInterpM ( X, XAry, YAry, Coef, ErrStat, ErrMsg ) RESULT( Res )
-
-      ! Function declaration.
-
-   REAL(ReKi), ALLOCATABLE      :: Res(:)                                     ! The result of this function
-
+   SUBROUTINE CubicSplineInterpM ( X, XAry, YAry, Coef, Res )
 
       ! Argument declarations:
 
@@ -1019,46 +1027,31 @@ CONTAINS
    REAL(ReKi), INTENT(IN)       :: X                                          !< The value we are trying to interpolate for
    REAL(ReKi), INTENT(IN)       :: XAry (:)                                   !< Input array of regularly spaced x values
    REAL(ReKi), INTENT(IN)       :: YAry (:,:)                                 !< Input array of y values with multiple curves
-
-   INTEGER(IntKi), INTENT(OUT)  :: ErrStat                                    !< Error status
-
-   CHARACTER(*),    INTENT(OUT) :: ErrMsg                                     !< Error message
+   REAL(ReKi), INTENT(OUT)      :: Res(:)                                     !< The result of this function
 
 
       ! Local declarations.
 
    REAL(ReKi)                   :: XOff                                       ! The distance from X to XAry(ILo).
+   REAL(ReKi)                   :: XOff2                                      ! The distance from X to XAry(ILo).
+   REAL(ReKi)                   :: XOff3                                      ! The distance from X to XAry(ILo).
 
-   INTEGER(IntKi)               :: ErrStatLcL                                 ! Local error status.
    INTEGER                      :: ILo                                        ! The index into the array for which X is just above or equal to XAry(ILo).
-   INTEGER                      :: NumCrvs                                    ! Number of curves to be interpolated.
    INTEGER                      :: NumPts                                     ! Number of points in each curve.
 
-   CHARACTER(*), PARAMETER      :: RoutineName = 'RegCubicSplineInterpM'
 
       ! How big are the arrays?
 
    NumPts  = SIZE( XAry )
-   NumCrvs = SIZE( YAry, 2 )
-
-   ALLOCATE ( Res( NumCrvs ) , STAT=ErrStatLcl )
-   IF ( ErrStatLcl /= 0 )  THEN
-      ErrStat = ErrID_Fatal
-      ErrMsg = RoutineName//':Error allocating memory for the function result array.'
-      RETURN
-   ELSE
-      ErrStat = ErrID_None
-      ErrMsg  = ""
-   ENDIF
 
 
       ! See if X is within the range of XAry.  Return the end point if it is not.
 
    IF ( X <= XAry(1) )  THEN
-      Res(:) = YAry(1,:)
+      Res = YAry(1,:)
       RETURN
    ELSEIF ( X >= XAry(NumPts) )  THEN
-      Res(:) = YAry(NumPts,:)
+      Res = YAry(NumPts,:)
       RETURN
    ENDIF ! ( X <= XAry(1) )
 
@@ -1068,12 +1061,14 @@ CONTAINS
    CALL LocateBin( X, XAry, ILo, NumPts )
 
    XOff = X - XAry(ILo)
+   XOff2 = XOff * XOff
+   XOff3 = XOff2 * XOff
 
-   Res(:) = Coef(ILo,:,0) + XOff*( Coef(ILo,:,1) + XOff*( Coef(ILo,:,2) + XOff*Coef(ILo,:,3) ) )
+   Res = Coef(ILo,:,0) + Coef(ILo,:,1)*XOff + Coef(ILo,:,2) * XOff2  + Coef(ILo,:,3)*XOff3
 
    RETURN
 
-   END FUNCTION CubicSplineInterpM ! ( X, XAry, YAry, Coef, ErrStat, ErrMsg )
+   END SUBROUTINE CubicSplineInterpM
 !=======================================================================         
 !> This function returns the matrix exponential, \f$\Lambda = \exp(\lambda)\f$, of an input skew-symmetric matrix, \f$\lambda\f$.
 !!
@@ -1265,18 +1260,18 @@ CONTAINS
 !! Use DCM_logMap (nwtc_num::dcm_logmap) instead of directly calling a specific routine in the generic interface. 
    SUBROUTINE DCM_logMapD(DCM, logMap, ErrStat, ErrMsg, thetaOut)
    
-   REAL(DbKi),         INTENT(IN)    :: DCM(3,3)                  !< the direction cosine matrix, \f$\Lambda\f$             
-   REAL(DbKi),         INTENT(  OUT) :: logMap(3)                 !< vector containing \f$\lambda_1\f$, \f$\lambda_2\f$, and \f$\lambda_3\f$, the unique components of skew-symmetric matrix \f$\lambda\f$ 
-   REAL(DbKi),OPTIONAL,INTENT(  OUT) :: thetaOut                  !< the angle of rotation, \f$\theta\f$; output only for debugging
+   REAL(R8Ki),         INTENT(IN)    :: DCM(3,3)                  !< the direction cosine matrix, \f$\Lambda\f$             
+   REAL(R8Ki),         INTENT(  OUT) :: logMap(3)                 !< vector containing \f$\lambda_1\f$, \f$\lambda_2\f$, and \f$\lambda_3\f$, the unique components of skew-symmetric matrix \f$\lambda\f$ 
+   REAL(R8Ki),OPTIONAL,INTENT(  OUT) :: thetaOut                  !< the angle of rotation, \f$\theta\f$; output only for debugging
    INTEGER(IntKi),     INTENT(  OUT) :: ErrStat                   !< Error status of the operation
    CHARACTER(*),       INTENT(  OUT) :: ErrMsg                    !< Error message if ErrStat /= ErrID_None
    
       ! local variables
-   REAL(DbKi)                        :: theta
-   REAL(DbKi)                        :: cosTheta
-   REAL(DbKi)                        :: TwoSinTheta
-   REAL(DbKi)                        :: v(3)
-   REAL(DbKi)                        :: divisor
+   REAL(R8Ki)                        :: theta
+   REAL(R8Ki)                        :: cosTheta
+   REAL(R8Ki)                        :: TwoSinTheta
+   REAL(R8Ki)                        :: v(3)
+   REAL(R8Ki)                        :: divisor
    INTEGER(IntKi)                    :: indx_max
       
          ! initialization
@@ -1284,8 +1279,8 @@ CONTAINS
       ErrMsg  = ""   
    
    
-      cosTheta = 0.5_DbKi*( trace(DCM) - 1.0_DbKi )
-      cosTheta = min( max(cosTheta,-1.0_DbKi), 1.0_DbKi ) !make sure it's in a valid range (to avoid cases where this is slightly outside the +/-1 range)
+      cosTheta = 0.5_DbKi*( trace(DCM) - 1.0_R8Ki )
+      cosTheta = min( max(cosTheta,-1.0_R8Ki), 1.0_R8Ki ) !make sure it's in a valid range (to avoid cases where this is slightly outside the +/-1 range)
       theta    = ACOS( cosTheta )                                                   ! Eq. 25 ( 0<=theta<=pi )
 
       IF ( PRESENT( thetaOut ) ) THEN
@@ -1341,13 +1336,13 @@ CONTAINS
          v(3) = -DCM(2,1) + DCM(1,2) !-skewSym(2,1) = 2*sin(theta)/theta * lambda(3) = (small positive value with theta near pi) * lambda(3)
          
          indx_max = maxloc( abs(v), 1 )  ! find component with largest magnitude
-         if ( .not. EqualRealNos( sign(1.0_DbKi,v(indx_max)), sign(1.0_DbKi,logMap(indx_max)) )) logMap = -logMap
+         if ( .not. EqualRealNos( sign(1.0_R8Ki,v(indx_max)), sign(1.0_R8Ki,logMap(indx_max)) )) logMap = -logMap
          
       ELSE
          
-         TwoSinTheta = 2.0_DbKi*sin(theta)
+         TwoSinTheta = 2.0_R8Ki*sin(theta)
          
-         IF ( EqualRealNos(0.0_DbKi, theta) .or. EqualRealNos( 0.0_DbKi, TwoSinTheta ) ) THEN
+         IF ( EqualRealNos(0.0_R8Ki, theta) .or. EqualRealNos( 0.0_DbKi, TwoSinTheta ) ) THEN
          
             !skewSym = DCM - TRANSPOSE(DCM)
             !
@@ -1490,13 +1485,13 @@ CONTAINS
 !! Use DCM_SetLogMapForInterp (nwtc_num::dcm_setlogmapforinterp) instead of directly calling a specific routine in the generic interface. 
    SUBROUTINE DCM_SetLogMapForInterpD( tensor )
          
-   REAL(DbKi),     INTENT(INOUT) :: tensor(:,:)       !< a 3xn matrix, whose columns represent individual skew-symmetric matrices. On exit,
+   REAL(R8Ki),     INTENT(INOUT) :: tensor(:,:)       !< a 3xn matrix, whose columns represent individual skew-symmetric matrices. On exit,
                                                       !! each column will be within \f$2\pi\f$ of the previous column, allowing for interpolation 
                                                       !! of the quantities.
 
-   REAL(DbKi)                    :: diff1, diff2      ! magnitude-squared of difference between two adjacent values
-   REAL(DbKi)                    :: temp(3), temp1(3) ! difference between two tensors
-   REAL(DbKi)                    :: period(3)         ! the period to add to the rotational parameters
+   REAL(R8Ki)                    :: diff1, diff2      ! magnitude-squared of difference between two adjacent values
+   REAL(R8Ki)                    :: temp(3), temp1(3) ! difference between two tensors
+   REAL(R8Ki)                    :: period(3)         ! the period to add to the rotational parameters
    INTEGER(IntKi)                :: nc                ! size of the tensors matrix
    INTEGER(IntKi)                :: ic                ! loop counters for each array dimension
    
@@ -1765,7 +1760,7 @@ CONTAINS
    FUNCTION EulerConstructR8(theta) result(M)
    
       ! this function creates a rotation matrix, M, from a 3-2-1 intrinsic rotation
-!! sequence of the 3 Tait-Bryan angles (1-2-3 extrinsic rotation), theta_x, theta_y, and theta_z, in radians.
+      ! sequence of the 3 Tait-Bryan angles (1-2-3 extrinsic rotation), theta_x, theta_y, and theta_z, in radians.
       ! M represents a change of basis (from global to local coordinates; 
       ! not a physical rotation of the body). it is the inverse of EulerExtract (nwtc_num::eulerextract).
       !
@@ -4159,17 +4154,18 @@ subroutine kernelSmoothing(x, f, kernelType, radius, fNew)
    REAL(ReKi)                            :: k
    REAL(ReKi)                            :: k_sum
    REAL(ReKi)                            :: w
+   REAL(ReKi)                            :: RadiusFix
    INTEGER(IntKi)                        :: Exp1
    INTEGER(IntKi)                        :: Exp2
    REAL(ReKi)                            :: u(size(x))
    INTEGER                               :: i, j
    INTEGER                               :: n
    
-   ! check that radius > 0
    ! check that size(x) = size(f)=size(fNew)
    ! check that kernelType is a valid number
    
    n = size(x)
+   RadiusFix = max(abs(radius),epsilon(radius)) ! ensure radius is a positive number
    
    
    ! make sure that the value of u is in [-1 and 1] for these kernels:
@@ -4197,7 +4193,7 @@ subroutine kernelSmoothing(x, f, kernelType, radius, fNew)
       fNew = 0.0_ReKi ! whole array operation
       do j=1,n ! for each value in f:
       
-         u = (x - x(j)) / radius ! whole array operation
+         u = (x - x(j)) / RadiusFix ! whole array operation
          do i=1,n
             u(i) = min( 1.0_ReKi, max( -1.0_ReKi, u(i) ) )
          end do
@@ -4220,7 +4216,7 @@ subroutine kernelSmoothing(x, f, kernelType, radius, fNew)
       fNew = 0.0_ReKi ! whole array operation
       do j=1,n ! for each value in f:
       
-         u = (x - x(j)) / radius ! whole array operation
+         u = (x - x(j)) / RadiusFix ! whole array operation
       
          k_sum   = 0.0_ReKi
          do i=1,n
@@ -5411,7 +5407,7 @@ end function Rad2M180to180Deg
 !=======================================================================
 !> This routine displays a message that gives that status of the simulation and the predicted end time of day.
 !! It is intended to be used with SimStatus (nwtc_num::simstatus) and SimStatus_FirstTime (nwtc_num::simstatus_firsttime).
-   SUBROUTINE RunTimes( StrtTime, UsrTime1, SimStrtTime, UsrTime2, ZTime, UnSum, UsrTime_out, DescStrIn )
+   SUBROUTINE RunTimes( StrtTime, UsrTime1, SimStrtTime, UsrTime2, ZTime, UnSum, UsrTime_out, DescStrIn, useCases )
 
       IMPLICIT                        NONE
 
@@ -5423,6 +5419,7 @@ end function Rad2M180to180Deg
       REAL(ReKi),     INTENT(IN)          :: UsrTime2                                  !< User CPU time for simulation (without initialization)
       REAL(DbKi),     INTENT(IN)          :: ZTime                                     !< The final simulation time (not necessarially TMax)
       INTEGER(IntKi), INTENT(IN), OPTIONAL:: UnSum                                     !< optional unit number of file. If present and > 0,
+      LOGICAL,        INTENT(IN), OPTIONAL:: useCases                                  !< optional number of cases. If present and > 0, ZTime represents number of cases, not time (for steady-state outputs)
       REAL(ReKi),     INTENT(OUT),OPTIONAL:: UsrTime_out                               !< User CPU time for entire run - optional value returned to calling routine
 
       CHARACTER(*), INTENT(IN), OPTIONAL :: DescStrIn                                 !< optional additional string to print for SimStatus
@@ -5441,7 +5438,8 @@ end function Rad2M180to180Deg
                                       
       CHARACTER( 8)                   :: TimePer
       CHARACTER(MaxWrScrLen)          :: BlankLine
-      CHARACTER(10)                   :: DescStr                                        !< optional additional string to print for SimStatus
+      CHARACTER(10)                   :: DescStr                                         !< optional additional string to print for SimStatus
+      LOGICAL                         :: UseCaseStr                                      !< use cases
 
 
       if (present(DescStrIn)) then
@@ -5450,6 +5448,13 @@ end function Rad2M180to180Deg
          DescStr = ""
       end if
 
+      if (present(useCases)) then
+         UseCaseStr = useCases
+      else
+         UseCaseStr = .false.
+      end if
+      
+      
          ! Get the end times to compare with start times.
 
       CALL DATE_AND_TIME ( VALUES=EndTimes )
@@ -5494,9 +5499,14 @@ end function Rad2M180to180Deg
          CALL WrScr ( ' Total CPU Time:        '//TRIM( Num2LStr( Factor*UsrTime       ) )//TRIM( TimePer ) )
    !     CALL WrScr ( ' ')
    !     CALL WrScr ( ' Simulation Real Time:  '//TRIM( Num2LStr( Factor*ClckTimeSim   ) )//TRIM( TimePer ) )
-         CALL WrScr ( ' Simulation CPU Time:   '//TRIM( Num2LStr( Factor*UsrTimeSim    ) )//TRIM( TimePer ) )      
-         CALL WrScr ( ' Simulated Time:        '//TRIM( Num2LStr( Factor*REAL( ZTime ) ) )//TRIM( TimePer ) )
-         CALL WrScr ( ' Time Ratio (Sim/CPU):  '//TRIM( Num2LStr( TRatio ) ) )
+         CALL WrScr ( ' Simulation CPU Time:   '//TRIM( Num2LStr( Factor*UsrTimeSim    ) )//TRIM( TimePer ) )
+         if (UseCaseStr) then
+            CALL WrScr ( ' Simulated Cases:       '//TRIM( Num2LStr( REAL( ZTime ) ) ) )
+            CALL WrScr ( ' Time Ratio (CPU/case):  '//TRIM( Num2LStr( Factor/TRatio ) )//TRIM(TimePer)//' per case' )
+         else
+            CALL WrScr ( ' Simulated Time:        '//TRIM( Num2LStr( Factor*REAL( ZTime ) ) )//TRIM( TimePer ) )
+            CALL WrScr ( ' Time Ratio (Sim/CPU):  '//TRIM( Num2LStr( TRatio ) ) )
+         end if
 
          IF (PRESENT(UnSum)) THEN
             IF (UnSum>0) THEN
@@ -5504,8 +5514,13 @@ end function Rad2M180to180Deg
                WRITE( UnSum, '(A)') ' Total Real Time:       '//TRIM( Num2LStr( Factor*ClckTime      ) )//TRIM( TimePer )
                WRITE( UnSum, '(A)') ' Total CPU Time:        '//TRIM( Num2LStr( Factor*UsrTime       ) )//TRIM( TimePer )
                WRITE( UnSum, '(A)') ' Simulation CPU Time:   '//TRIM( Num2LStr( Factor*UsrTimeSim    ) )//TRIM( TimePer )
-               WRITE( UnSum, '(A)') ' Simulated Time:        '//TRIM( Num2LStr( Factor*REAL( ZTime ) ) )//TRIM( TimePer )
-               WRITE( UnSum, '(A)') ' Time Ratio (Sim/CPU):  '//TRIM( Num2LStr( TRatio ) )
+               if (UseCaseStr) then
+                  WRITE( UnSum, '(A)') ' Simulated Cases:        '//TRIM( Num2LStr( REAL( ZTime ) ) )
+                  WRITE( UnSum, '(A)') ' Time Ratio (CPU/case):  '//TRIM( Num2LStr( Factor/TRatio ) )//TRIM(TimePer)//' per case'
+               else
+                  WRITE( UnSum, '(A)') ' Simulated Time:        '//TRIM( Num2LStr( Factor*REAL( ZTime ) ) )//TRIM( TimePer )
+                  WRITE( UnSum, '(A)') ' Time Ratio (Sim/CPU):  '//TRIM( Num2LStr( TRatio ) )
+               end if
             END IF
          END IF
             
@@ -5624,7 +5639,7 @@ end function Rad2M180to180Deg
 !=======================================================================   
 !> This routine displays a message that gives that status of the simulation.
 !! It is intended to be used with RunTimes (nwtc_num::runtimes) and SimStatus (nwtc_num::simstatus).
-   SUBROUTINE SimStatus_FirstTime( PrevSimTime, PrevClockTime, SimStrtTime, UsrTimeSim, ZTime, TMax, DescStrIn )
+   SUBROUTINE SimStatus_FirstTime( PrevSimTime, PrevClockTime, SimStrtTime, UsrTimeSim, ZTime, TMax, DescStrIn, useCases)
 
       IMPLICIT                        NONE
 
@@ -5637,12 +5652,12 @@ end function Rad2M180to180Deg
       REAL(ReKi), INTENT(  OUT)    :: UsrTimeSim                                      !< User CPU time for simulation (without initialization)
 
       CHARACTER(*), INTENT(IN), OPTIONAL :: DescStrIn                                 !< optional additional string to print for SimStatus
-      
-         ! Local variables.
+      LOGICAL, INTENT(IN), OPTIONAL :: useCases                                       !< optional number of cases. If present and > 0, ZTime represents number of cases, not time (for steady-state outputs)
 
+         ! Local variables
       REAL(ReKi)                   :: CurrClockTime                                   ! Current time in seconds past midnight.
-      CHARACTER(10)                :: DescStr                                        !< optional additional string to print for SimStatus
-
+      CHARACTER(10)                :: DescStr                                         !< optional additional string to print for SimStatus
+      LOGICAL                      :: UseCaseStr                                      !< use cases
 
       if (present(DescStrIn)) then
          DescStr = DescStrIn
@@ -5650,6 +5665,11 @@ end function Rad2M180to180Deg
          DescStr = ""
       end if
 
+      if (present(useCases)) then
+         UseCaseStr = useCases
+      else
+         UseCaseStr = .false.
+      end if
 
          ! How many seconds past midnight?
 
@@ -5659,7 +5679,7 @@ end function Rad2M180to180Deg
 
       CurrClockTime = TimeValues2Seconds( SimStrtTime )
 
-
+      if (.NOT. UseCaseStr) &
       CALL WrScr ( trim(DescStr)//' Time: '//TRIM( Num2LStr( NINT( ZTime ) ) )//' of '//TRIM( Num2LStr( TMax ) )//' seconds.')
 
 

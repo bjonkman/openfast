@@ -102,8 +102,20 @@ SUBROUTINE FAST_InitializeSteadyState_T( Turbine, ErrStat, ErrMsg )
                      Turbine%ED, Turbine%SED, Turbine%BD, Turbine%SrvD, Turbine%AD, Turbine%ADsk, Turbine%ExtLd, Turbine%IfW, Turbine%ExtInfw, &
                      Turbine%SeaSt, Turbine%HD, Turbine%SD, Turbine%ExtPtfm, Turbine%MAP, Turbine%FEAM, Turbine%MD, Turbine%Orca, &
                      Turbine%IceF, Turbine%IceD, Turbine%MeshMapData, CompAeroMaps, ErrStat, ErrMsg )
+      if (ErrStat >= AbortErrLev) return
+
+      ! If BeamDyn blades are being used, return error
+      if (Turbine%p_FAST%CompElast == Module_BD) then
+         ErrStat = ErrID_Fatal
+         ErrMsg = "AeroMap does not currently work with BeamDyn blades, support will be added in a future version of OpenFAST"
+         return
+      end if
 
       call InitFlowField()
+      
+      CALL SimStatus_FirstTime( Turbine%m_FAST%TiLstPrn, Turbine%m_FAST%PrevClockTime, Turbine%m_FAST%SimStrtTime, Turbine%m_FAST%UsrTime2, &
+                                t_initial, Turbine%p_FAST%TMax, Turbine%p_FAST%TDesc, useCases=Turbine%p_FAST%CompAeroMaps)
+      
 
 contains
    !> AD15 now directly accesses FlowField data from IfW.  Since we don't use IfW, we need to manually set the FlowField data

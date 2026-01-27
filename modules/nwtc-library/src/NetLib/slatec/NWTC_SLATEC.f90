@@ -45,11 +45,11 @@ MODULE NWTC_SLATEC
 
 
    !> Single precision wrapper for the qk61 integration routine from the slatec library
-   !! Note that the qk61 routine follows -fdefault-real-8 setting, so it is of type ReKi
+   !! Note that the qk61 routine follows -fdefault-real-4 setting, so it is of type ReKi
    subroutine wrap_qk61(func,low,hi,answer,abserr,resabs,resasc)
       real(R4Ki), intent(in   ) :: low,hi       ! integration limits
       real(R4Ki), intent(  out) :: answer
-      real(R4Ki), intent(in   ) :: abserr,resabs,resasc
+      real(R4Ki), intent(  out) :: abserr,resabs,resasc
       real(R4Ki), external :: func              ! function
       call qk61(func,low,hi,answer,abserr,resabs,resasc)
    end subroutine wrap_qk61
@@ -59,7 +59,7 @@ MODULE NWTC_SLATEC
    subroutine wrap_dqk61(func,low,hi,answer,abserr,resabs,resasc)
       real(R8Ki), intent(in   ) :: low,hi       ! integration limits
       real(R8Ki), intent(  out) :: answer
-      real(R8Ki), intent(in   ) :: abserr,resabs,resasc
+      real(R8Ki), intent(  out) :: abserr,resabs,resasc
       real(R8Ki), external :: func              ! function
       call dqk61(func,low,hi,answer,abserr,resabs,resasc)
    end subroutine wrap_dqk61

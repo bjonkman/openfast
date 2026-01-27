@@ -241,7 +241,7 @@ SUBROUTINE WAMIT_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, ErrS
       
       ! Set up wave excitation grid - Can no longer use the WaveField parameters due to different headings
       ! Copy WaveField grid parameters
-      call SeaSt_WaveField_CopyParam(p%WaveField%GridParams, p%ExctnGridParams, 0, ErrStat2, ErrMsg2); CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+      call GridInterp_CopyParam(p%WaveField%VolGridParams, p%ExctnGridParams, 0, ErrStat2, ErrMsg2); CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
       if ( p%ExctnDisp == 0 ) then
          p%ExctnGridParams%n(2:3)     =  1_IntKi
          p%ExctnGridParams%delta(2:3) =  0.0_SiKi
@@ -257,7 +257,6 @@ SUBROUTINE WAMIT_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, ErrS
          p%ExctnGridParams%pZero(4) = -Pi
       end if
       p%ExctnGridParams%n(4)    =  p%NExctnHdg+1
-      p%ExctnGridParams%Z_depth = -1.0   ! Set to Z_depth to a negative value to indicate uniform "z" grid for platform heading
 
          ! This module's implementation requires that if NBodyMod = 2 or 3, then there is one instance of a WAMIT module for each body, therefore, HydroDyn may have NBody > 1, but this WAMIT module will have NBody = 1
       if ( (p%NBodyMod > 1) .and. (p%NBody > 1) ) then
@@ -1101,16 +1100,18 @@ end if
                      ! Apply rotation only for NBodyMod = 1,3
                   do J = 1, NInpWvDir  
                      do I = 1, NInpFreq
+                        do iBody = 1, p%NBody
+                           K = 6*(iBody-1)
+                           Ctmp1 = ( HdroExctn(I,J,K+1)*cos(InitInp%PtfmRefztRot(iBody)) ) - ( HdroExctn(I,J,K+2)*sin(InitInp%PtfmRefztRot(iBody)) )
+                           Ctmp2 = ( HdroExctn(I,J,K+1)*sin(InitInp%PtfmRefztRot(iBody)) ) + ( HdroExctn(I,J,K+2)*cos(InitInp%PtfmRefztRot(iBody)) )
+                           Ctmp4 = ( HdroExctn(I,J,K+4)*cos(InitInp%PtfmRefztRot(iBody)) ) - ( HdroExctn(I,J,K+5)*sin(InitInp%PtfmRefztRot(iBody)) )
+                           Ctmp5 = ( HdroExctn(I,J,K+4)*sin(InitInp%PtfmRefztRot(iBody)) ) + ( HdroExctn(I,J,K+5)*cos(InitInp%PtfmRefztRot(iBody)) )
 
-                        Ctmp1 = ( HdroExctn(I,J,1)*cos(InitInp%PtfmRefztRot(1)) ) - ( HdroExctn(I,J,2)*sin(InitInp%PtfmRefztRot(1)) )
-                        Ctmp2 = ( HdroExctn(I,J,1)*sin(InitInp%PtfmRefztRot(1)) ) + ( HdroExctn(I,J,2)*cos(InitInp%PtfmRefztRot(1)) )  
-                        Ctmp4 = ( HdroExctn(I,J,4)*cos(InitInp%PtfmRefztRot(1)) ) - ( HdroExctn(I,J,5)*sin(InitInp%PtfmRefztRot(1)) )
-                        Ctmp5 = ( HdroExctn(I,J,4)*sin(InitInp%PtfmRefztRot(1)) ) + ( HdroExctn(I,J,5)*cos(InitInp%PtfmRefztRot(1)) )
-
-                        HdroExctn(I,J,1) = Ctmp1
-                        HdroExctn(I,J,2) = Ctmp2
-                        HdroExctn(I,J,4) = Ctmp4
-                        HdroExctn(I,J,5) = Ctmp5
+                           HdroExctn(I,J,K+1) = Ctmp1
+                           HdroExctn(I,J,K+2) = Ctmp2
+                           HdroExctn(I,J,K+4) = Ctmp4
+                           HdroExctn(I,J,K+5) = Ctmp5
+                        end do
                      end do
                   end do  
                   

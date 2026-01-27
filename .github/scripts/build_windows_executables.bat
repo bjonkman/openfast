@@ -35,6 +35,7 @@ devenv vs-build/TurbSim/TurbSim.vfproj /Build "Release|x64"
 devenv vs-build/UnsteadyAero/UnsteadyAero.sln /Build "Release|x64"
 
 @REM Build MATLAB solution last
+rd /s /q .\build\lib
 devenv vs-build/FAST/FAST.sln /Build "Release_Matlab|x64"
 
 @REM Copy controllers to bin directory
