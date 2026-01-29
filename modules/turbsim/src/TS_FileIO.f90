@@ -2523,6 +2523,7 @@ SUBROUTINE WrBinHAWC( p, V, USig, VSig, WSig, ErrStat, ErrMsg)
    WRITE( UnWind, '(2x,A, T30, I8, 1x, F15.5, " ;")' ) 'box_dim_u', p%grid%NumSteps, p%UHub*p%grid%TimeStep    ! Note: these files have to be periodic, so I'm going to output all of the steps.
    WRITE( UnWind, '(2x,A, T30, I8, 1x, F15.5, " ;")' ) 'box_dim_v', p%grid%NumGrid_Y, p%grid%GridRes_Y
    WRITE( UnWind, '(2x,A, T30, I8, 1x, F15.5, " ;")' ) 'box_dim_w', p%grid%NumGrid_Z, p%grid%GridRes_Z
+   WRITE( UnWind, '(2x,A)' ) 'box_front last_plane; written to file assuming positive x is negative time (HAWC v13.1 and later)'
    WRITE( UnWind, '(A)' )  'end mann;'
    CLOSE ( UnWind )
    
@@ -2535,10 +2536,10 @@ SUBROUTINE WrBinHAWC( p, V, USig, VSig, WSig, ErrStat, ErrMsg)
       CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName) 
 
    ! Create temp file for easier writing (originally added vertical wind component here, first):
-   DO IT = 1,p%grid%NumSteps
+   DO IT = p%grid%NumSteps,1,-1
    
       IH = 1
-      DO IY=p%grid%NumGrid_Y,1,-1
+      DO IY=1,p%grid%NumGrid_Y
          DO IZ=1,p%grid%NumGrid_Z
 
             II = (IZ-1)*p%grid%NumGrid_Y + IY
@@ -2564,7 +2565,7 @@ SUBROUTINE WrBinHAWC( p, V, USig, VSig, WSig, ErrStat, ErrMsg)
          CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName) 
          IF (ErrStat >= AbortErrLev) EXIT ! exit this do loop to deallocate array
 
-      DO IT = 1,p%grid%NumSteps
+      DO IT = p%grid%NumSteps,1,-1
 
          WRITE( UnWind, IOSTAT=ErrStat2 ) REAL( TmpV(IT,:,IC) * ScaleFactors(IC), SiKi )
 

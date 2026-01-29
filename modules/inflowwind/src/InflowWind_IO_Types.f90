@@ -119,6 +119,7 @@ IMPLICIT NONE
     REAL(ReKi)  :: dy = 0      !< size of grids in the y direction (in the 3 files above) [-]
     REAL(ReKi)  :: dz = 0      !< size of grids in the z direction (in the 3 files above) [-]
     TYPE(Grid3D_InitInputType)  :: G3D      !< Grid3D initialization input [-]
+    LOGICAL  :: box_front_first = .false.      !< is the front of the HAWC turbulence box the first plane (incorrect/historical) value? [-]
   END TYPE HAWC_InitInputType
 ! =======================
 ! =========  User_InitInputType  =======
@@ -548,6 +549,7 @@ subroutine InflowWind_IO_CopyHAWC_InitInputType(SrcHAWC_InitInputTypeData, DstHA
    call InflowWind_IO_CopyGrid3D_InitInputType(SrcHAWC_InitInputTypeData%G3D, DstHAWC_InitInputTypeData%G3D, CtrlCode, ErrStat2, ErrMsg2)
    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
    if (ErrStat >= AbortErrLev) return
+   DstHAWC_InitInputTypeData%box_front_first = SrcHAWC_InitInputTypeData%box_front_first
 end subroutine
 
 subroutine InflowWind_IO_DestroyHAWC_InitInputType(HAWC_InitInputTypeData, ErrStat, ErrMsg)
@@ -576,6 +578,7 @@ subroutine InflowWind_IO_PackHAWC_InitInputType(RF, Indata)
    call RegPack(RF, InData%dy)
    call RegPack(RF, InData%dz)
    call InflowWind_IO_PackGrid3D_InitInputType(RF, InData%G3D) 
+   call RegPack(RF, InData%box_front_first)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -592,6 +595,7 @@ subroutine InflowWind_IO_UnPackHAWC_InitInputType(RF, OutData)
    call RegUnpack(RF, OutData%dy); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%dz); if (RegCheckErr(RF, RoutineName)) return
    call InflowWind_IO_UnpackGrid3D_InitInputType(RF, OutData%G3D) ! G3D 
+   call RegUnpack(RF, OutData%box_front_first); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
 subroutine InflowWind_IO_CopyUser_InitInputType(SrcUser_InitInputTypeData, DstUser_InitInputTypeData, CtrlCode, ErrStat, ErrMsg)

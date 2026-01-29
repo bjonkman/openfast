@@ -800,11 +800,14 @@ subroutine IfW_HAWC_Init(InitInp, SumFileUnit, G3D, FileDat, ErrStat, ErrMsg)
    integer(IntKi)                :: WindFileUnit
    real(SiKi), allocatable       :: VelRaw(:, :)      ! grid-field data for one timestep
    integer                       :: IC                ! Loop counter for the number of wind components
-   integer                       :: IX, IY, IZ        ! Loop counters for the number of grid points in the X,Y,Z directions
+   integer                       :: IT, IY, IZ        ! Loop counters for the number of grid points in the X,Y,Z directions
    real(DbKi)                    :: vMean             ! average wind speeds over time at target position
    real(ReKi)                    :: ScaleFactors(3)   ! scale factors
    integer(IntKi)                :: TmpErrStat        ! temporary error status
    character(ErrMsgLen)          :: TmpErrMsg
+   
+   integer(IntKi)                :: ix_first, ix_last, ix_stride ! indices for reading HAWC2 files based on box_front_first
+   integer(IntKi)                :: iy_first, iy_last, iy_stride ! indices for reading HAWC2 files based on box_front_first
 
    !----------------------------------------------------------------------------
    ! Initialize variables
@@ -892,7 +895,24 @@ subroutine IfW_HAWC_Init(InitInp, SumFileUnit, G3D, FileDat, ErrStat, ErrMsg)
    !----------------------------------------------------------------------------
    ! Loop through files and read data
    !----------------------------------------------------------------------------
+   if (InitInp%box_front_first) then ! this is the historical (incorrect) way HAWC2 read turbulence boxes
+      iX_first = 1
+      iX_last = G3D%NSteps
+      iX_stride = 1
+      
+      iY_first  = G3D%NYGrids
+      iY_last   = 1
+      iY_stride = -1
+   else ! this is the default in HAWC2 v13.1 and later
+      iX_first = G3D%NSteps
+      iX_last = 1
+      iX_stride = -1
 
+      iY_first  = 1
+      iY_last   = G3D%NYGrids
+      iY_stride = 1
+   end if
+   
    ! Display message indicating that file is being read
    call WrScr(NewLine//'   Reading HAWC wind files with grids of '// &
               TRIM(Num2LStr(G3D%NSteps))//' x '//TRIM(Num2LStr(G3D%NYGrids))//' x '//TRIM(Num2LStr(G3D%NZGrids))//' points'// &
@@ -915,22 +935,22 @@ subroutine IfW_HAWC_Init(InitInp, SumFileUnit, G3D, FileDat, ErrStat, ErrMsg)
       if (ErrStat >= AbortErrLev) return
 
       ! Loop through time steps
-      do IX = 1, G3D%NSteps
+      do IT = iX_first,iX_last, iX_stride
 
-         ! Read file data for this timestep (Z(1:N),Y(N:1),C(1:3))
+         ! Read file data for this timestep (Z(1:N),[Y(N:1) or Y(1:N)],C(1:3))
          read (WindFileUnit, IOSTAT=TmpErrStat) VelRaw
          if (TmpErrStat /= 0) then
             TmpErrMsg = ' Error reading binary data from "'//TRIM(InitInp%WindFileName(IC)) &
                         //'". I/O error '//TRIM(Num2LStr(TmpErrStat)) &
-                        //' occurred at IX='//TRIM(Num2LStr(IX))//'.'
+                        //' occurred at it='//TRIM(Num2LStr(IT))//'.'
             close (WindFileUnit)
             call SetErrStat(ErrID_Fatal, TmpErrMsg, ErrStat, ErrMsg, RoutineName)
             return
          end if
 
-         ! Reorganize raw data into grid-field array (reverse Y indices)
+         ! Reorganize raw data into grid-field array (reverse Y indices with box_front_first)
          do IZ = 1, G3D%NZGrids
-            G3D%Vel(IC, :, IZ, IX) = VelRaw(IZ, G3D%NYGrids:1:-1)
+            G3D%Vel(IC, :, IZ, IT) = VelRaw(IZ, iY_first:iY_last:iY_stride)
          end do
       end do
 
@@ -2864,7 +2884,7 @@ subroutine Grid3D_WriteHAWC(G3D, FileRootName, unit, ErrStat, ErrMsg)
    character(*), parameter       :: RoutineName = 'Grid3D_WriteHAWC'
    character(*), parameter       :: Comp(3) = (/'u', 'v', 'w'/)
    real(ReKi)                    :: delta(3)
-   integer(IntKi)                :: IC, IX, IY, IZ
+   integer(IntKi)                :: IC, IT, IY, IZ
    real(SiKi), allocatable       :: MeanVal(:)
    integer(IntKi)                :: ErrStat2
    character(ErrMsgLen)          :: ErrMsg2
@@ -2917,6 +2937,7 @@ subroutine Grid3D_WriteHAWC(G3D, FileRootName, unit, ErrStat, ErrMsg)
    write (unit, '(2x,A, T30, I8, 1x, F15.5, " ;")') 'box_dim_w', G3D%NZGrids, delta(3)
 
    write (unit, '(2x,A)') 'dont_scale 1;  converter did not rescale turbulence to unit standard deviation'
+   write (unit, '(2x,A)') 'box_front last_plane;  converter wrote to file assuming positive x is negative t'
    write (unit, '(A)') 'end mann;'
    close (unit)
 
@@ -2930,9 +2951,9 @@ subroutine Grid3D_WriteHAWC(G3D, FileRootName, unit, ErrStat, ErrMsg)
       call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
       if (ErrStat >= AbortErrLev) return
 
-      do IX = 1, G3D%NSteps
-         do IY = G3D%NYGrids, 1, -1
-            write (unit, IOSTAT=ErrStat2) real(G3D%Vel(ic, iy, :, ix) - MeanVal, SiKi)
+      do it = G3D%NSteps,1, -1
+         do IY = 1,G3D%NYGrids
+            write (unit, IOSTAT=ErrStat2) real(G3D%Vel(ic, iy, :, it) - MeanVal, SiKi)
          end do
       end do
 

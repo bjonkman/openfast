@@ -313,7 +313,8 @@ SUBROUTINE InflowWind_Init( InitInp, InputGuess, p, ContStates, DiscStates, Cons
       HAWC_InitInput%nx = InputFileData%HAWC_nx
       HAWC_InitInput%ny = InputFileData%HAWC_ny
       HAWC_InitInput%nz = InputFileData%HAWC_nz
-      HAWC_InitInput%dx = InputFileData%HAWC_dx
+      HAWC_InitInput%box_front_first = InputFileData%HAWC_dx < 0.0_ReKi ! maybe you want to specify this in the input file instead of getting the value from the sign of dx
+      HAWC_InitInput%dx = abs(InputFileData%HAWC_dx)
       HAWC_InitInput%dy = InputFileData%HAWC_dy
       HAWC_InitInput%dz = InputFileData%HAWC_dz
       HAWC_InitInput%G3D%RefHt = InputFileData%FF%RefHt
