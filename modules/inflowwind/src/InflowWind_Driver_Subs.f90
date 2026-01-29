@@ -211,36 +211,6 @@ SUBROUTINE RetrieveArgs( CLSettings, CLFlags, ErrStat, ErrMsg )
    !-------------------------------------------------------------------------------
       CONTAINS
 
-
-   !-------------------------------------------------------------------------------
-   FUNCTION StringToReal( StringIn, ErrStat )
-         !-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-!
-         ! Convert a string to a real number !
-         !-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-!
-
-      IMPLICIT NONE
-
-         ! Error Handling
-      INTEGER(IntKi),                     INTENT(  OUT)  :: ErrStat
-
-         ! Input
-      CHARACTER(*),                       INTENT(IN   )  :: StringIn
-
-         ! Returned value
-      REAL(ReKi)                                         :: StringToReal
-
-         ! Local Variables
-      INTEGER(IntKi)                                     :: ErrStatTmp         ! Temporary variable to hold the error status
-
-         read( StringIn, *, iostat=ErrStatTmp) StringToReal
-
-            ! If that isn't a number, only warn since we can continue by skipping this value
-         IF ( ErrStatTmp .ne. 0 ) ErrStat  = ErrID_Warn
-
-   END FUNCTION StringToReal
-
-
-
    !-------------------------------------------------------------------------------
    SUBROUTINE ParseArg( CLSettings, CLFlags, ThisArgUC, ThisArg, ifwFlagSet, ErrStat, ErrMsg )
          !-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-!
@@ -275,12 +245,12 @@ SUBROUTINE RetrieveArgs( CLSettings, CLFlags, ErrStat, ErrMsg )
       REAL(ReKi)                                         :: TempReal             ! temp variable to hold a real
 
       INTEGER(IntKi)                                     :: ErrStatTmp           ! Temporary error status for calls
+      character(*), parameter                            :: RoutineName = 'ParseArg'
 
 
 
          ! Initialize some things
       ErrStat     = ErrID_None
-      ErrStatTmp  =  ErrID_None
       ErrMsg      = ''
 
          ! Get the delimiters -- returns 0 if there isn't one
@@ -292,14 +262,14 @@ SUBROUTINE RetrieveArgs( CLSettings, CLFlags, ErrStat, ErrMsg )
          ! check that if there is an opening bracket, then there is a closing one
       IF ( (Delim1 > 0_IntKi ) .and. (Delim2 < Delim1) ) THEN
          CALL SetErrStat(ErrID_Warn," Syntax error in option: '"//SwChar//TRIM(ThisArg)//"'. Ignoring.",   &
-            ErrStat,ErrMsg,'ParseArg')
+            ErrStat,ErrMsg,RoutineName)
          RETURN
       ENDIF
 
          ! check that if there is a colon, then there are brackets
       IF ( (DelimSep > 0_IntKi) .and. (Delim1 == 0_IntKi) ) THEN
          CALL SetErrStat(ErrID_Warn," Syntax error in option: '"//SwChar//TRIM(ThisArg)//"'. Ignoring.",   &
-            ErrStat,ErrMsg,'ParseArg')
+            ErrStat,ErrMsg,RoutineName)
          RETURN
       ENDIF
 
@@ -339,7 +309,7 @@ SUBROUTINE RetrieveArgs( CLSettings, CLFlags, ErrStat, ErrMsg )
             RETURN
          ELSE
             CALL SetErrStat( ErrID_Warn," Unrecognized option '"//SwChar//TRIM(ThisArg)//"'. Ignoring. Use option "//SwChar//"help for list of options.",  &
-               ErrStat,ErrMsg,'ParseArg')
+               ErrStat,ErrMsg,RoutineName)
          ENDIF
 
       ENDIF
@@ -352,64 +322,28 @@ SUBROUTINE RetrieveArgs( CLSettings, CLFlags, ErrStat, ErrMsg )
          DelimSep2= INDEX(ThisArgUC(DelimSep+1:),',') + DelimSep
          IF ( DelimSep2 <= DelimSep ) THEN
             CALL SetErrStat(ErrID_Warn," Unrecognized coordinate in '"//SwChar//TRIM(ThisArg)//"'.  Ignoring.", &
-               ErrStat,ErrMsg,'ParseArg')
+               ErrStat,ErrMsg,RoutineName)
             RETURN
          ENDIF
+         
             ! First Value
-         TempReal = StringToReal( ThisArgUC(Delim1+1:DelimSep-1), ErrStatTmp )
-         IF ( ErrStatTmp == ErrID_None ) THEN
-            CLFlags%FFTcalc            = .TRUE.
-            CLSettings%FFTcoord(1)     = TempReal
-         ELSE
-            CLFlags%FFTcalc            = .FALSE.
-            IF ( ErrStatTmp == ErrID_Warn ) THEN
-               CALL SetErrStat(ErrStatTmp," Invalid number in option '"//SwChar//TRIM(ThisArg)//"'. Ignoring.",  &
-                  ErrStat, ErrMsg, 'ParseArg')
-            ELSE
-               CALL SetErrStat(ErrID_FATAL," Something failed in parsing option '"//SwChar//TRIM(ThisArg)//"'.", &
-                  ErrStat, ErrMsg, 'ParseArg')
-            ENDIF
-            RETURN
-         ENDIF
-
+         call ArgErrorCheck_RealNumber(ThisArg,ThisArgUC(Delim1+1:DelimSep-1),TempReal,CLFlags%FFTcalc)
+         if (ErrStat /= ErrID_None) return
+         CLSettings%FFTcoord(1) = TempReal
+         
             ! Second Value
-         TempReal = StringToReal( ThisArgUC(DelimSep+1:DelimSep2-1), ErrStatTmp )
-         IF ( ErrStatTmp == ErrID_None ) THEN
-            CLFlags%FFTcalc            = .TRUE.
-            CLSettings%FFTcoord(2)     = TempReal
-         ELSE
-            CLFlags%FFTcalc            = .FALSE.
-            IF ( ErrStatTmp == ErrID_Warn ) THEN
-               CALL SetErrStat(ErrStatTmp," Invalid number in option '"//SwChar//TRIM(ThisArg)//"'. Ignoring.",  &
-                  ErrStat, ErrMsg, 'ParseArg')
-            ELSE
-               CALL SetErrStat( ErrID_Fatal," Something failed in parsing option '"//SwChar//TRIM(ThisArg)//"'.", &
-                  ErrStat, ErrMsg, 'ParseArg')
-            ENDIF
-            RETURN
-         ENDIF
+         call ArgErrorCheck_RealNumber(ThisArg,ThisArgUC(DelimSep+1:DelimSep2-1),TempReal,CLFlags%FFTcalc)
+         if (ErrStat /= ErrID_None) return
+         CLSettings%FFTcoord(2) = TempReal
 
             ! Third Value
-         TempReal = StringToReal( ThisArgUC(DelimSep2+1:Delim2-1), ErrStatTmp )
-         IF ( ErrStatTmp == ErrID_None ) THEN
-            CLFlags%FFTcalc            = .TRUE.
-            CLSettings%FFTcoord(3)     = TempReal
-         ELSE
-            CLFlags%FFTcalc            = .FALSE.
-            IF ( ErrStatTmp == ErrID_Warn ) THEN
-               CALL SetErrStat( ErrStatTmp," Invalid number in option '"//SwChar//TRIM(ThisArg)//"'. Ignoring.", &
-                  ErrStat, ErrMsg, 'ParseArg')
-            ELSE
-               CALL SetErrStat( ErrID_Fatal," Something failed in parsing option '"//SwChar//TRIM(ThisArg)//"'.", &
-                  ErrStat, ErrMsg, 'ParseArg')
-            ENDIF
-            RETURN
-         ENDIF
-
+         call ArgErrorCheck_RealNumber(ThisArg,ThisArgUC(DelimSep2+1:Delim2-1),TempReal,CLFlags%FFTcalc)
+         if (ErrStat /= ErrID_None) return
+         CLSettings%FFTcoord(3) = TempReal
 
          IF ( CLSettings%FFTcoord(3) <= 0.0_ReKi ) THEN
             CALL SetErrStat( ErrID_Warn,' FFT coordinate ['//TRIM(Num2LStr(CLSettings%FFTcoord(1)))//','//  &
-               TRIM(Num2LStr(CLSettings%FFTcoord(1)))//','//TRIM(Num2LStr(CLSettings%FFTcoord(1)))//        &
+               TRIM(Num2LStr(CLSettings%FFTcoord(2)))//','//TRIM(Num2LStr(CLSettings%FFTcoord(3)))//        &
                '] is at or below ground level where there is no wind.  Ingoring.',   &
                ErrStat,ErrMsg,'UpdateSettingsWithCL' )
             CLFlags%FFTcalc =  .FALSE.
@@ -419,38 +353,14 @@ SUBROUTINE RetrieveArgs( CLSettings, CLFlags, ErrStat, ErrMsg )
       ELSEIF ( ThisArgUC(1:Delim1) == "XRANGE["         ) THEN
 
             ! First Value
-         TempReal = StringToReal( ThisArgUC(Delim1+1:DelimSep-1), ErrStatTmp )
-         IF     ( ErrStatTmp == ErrID_None ) THEN
-            CLFlags%XRange = .TRUE.
-            CLSettings%XRange(1)    = TempReal
-         ELSE
-            CLFlags%XRange          = .FALSE.
-            IF ( ErrStatTmp == ErrID_Warn ) THEN
-               CALL SetErrStat(ErrStatTmp," Invalid number in option '"//SwChar//TRIM(ThisArg)//"'. Ignoring.",   &
-                  ErrStat,ErrMsg,'ParseArgs')
-            ELSE
-               CALL SetErrStat( ErrID_Fatal," Something failed in parsing option '"//SwChar//TRIM(ThisArg)//"'.", &
-                  ErrStat, ErrMsg, 'ParseArg')
-            ENDIF
-            RETURN
-         ENDIF
-
+         call ArgErrorCheck_RealNumber(ThisArg,ThisArgUC(Delim1+1:DelimSep-1),TempReal,CLFlags%XRange)
+         if (ErrStat /= ErrID_None) return
+         CLSettings%XRange(1) = TempReal
+         
             ! Second Value
-         TempReal = StringToReal( ThisArgUC(DelimSep+1:Delim2-1), ErrStatTmp )
-         IF ( ErrStatTmp == ErrID_None ) THEN
-            CLFlags%XRange          = .TRUE.
-            CLSettings%XRange(2)    = TempReal
-         ELSE
-            CLFlags%XRange          = .FALSE.
-            IF ( ErrStatTmp == ErrID_Warn ) THEN
-               CALL SetErrStat(ErrStatTmp," Invalid number in option '"//SwChar//TRIM(ThisArg)//"'. Ignoring.",   &
-                  ErrStat,ErrMsg,'ParseArgs')
-            ELSE
-               CALL SetErrStat( ErrID_Fatal," Something failed in parsing option '"//SwChar//TRIM(ThisArg)//"'.", &
-                  ErrStat, ErrMsg, 'ParseArg')
-            ENDIF
-            RETURN
-         ENDIF
+         call ArgErrorCheck_RealNumber(ThisArg,ThisArgUC(DelimSep+1:Delim2-1),TempReal,CLFlags%XRange)
+         if (ErrStat /= ErrID_None) return
+         CLSettings%XRange(2) = TempReal
 
             ! Check the order of values
          IF ( CLSettings%XRange(1) > CLSettings%Xrange(2) ) THEN
@@ -458,7 +368,7 @@ SUBROUTINE RetrieveArgs( CLSettings, CLFlags, ErrStat, ErrMsg )
             CLSettings%XRange(2)    = 0.0
             CLFlags%XRange          = .FALSE.
             CALL SetErrStat(ErrID_Warn," Unexpected order of values in option '"//SwChar//TRIM(ThisArg)//"'. Ignoring.",   &
-               ErrStat, ErrMsg, 'ParseArgs')
+               ErrStat, ErrMsg, RoutineName)
          ENDIF
 
 
@@ -467,38 +377,14 @@ SUBROUTINE RetrieveArgs( CLSettings, CLFlags, ErrStat, ErrMsg )
       ELSEIF ( ThisArgUC(1:Delim1) == "YRANGE["         ) THEN
 
             ! First Value
-         TempReal = StringToReal( ThisArgUC(Delim1+1:DelimSep-1), ErrStatTmp )
-         IF     ( ErrStatTmp == ErrID_None ) THEN
-            CLFlags%YRange          = .TRUE.
-            CLSettings%YRange(1)    = TempReal
-         ELSE
-            CLFlags%YRange          = .FALSE.
-            IF ( ErrStatTmp == ErrID_Warn ) THEN
-               CALL SetErrStat(ErrStatTmp," Invalid number in option '"//SwChar//TRIM(ThisArg)//"'. Ignoring.",   &
-                  ErrStat,ErrMsg,'ParseArgs')
-            ELSE
-               CALL SetErrStat( ErrID_Fatal," Something failed in parsing option '"//SwChar//TRIM(ThisArg)//"'.", &
-                  ErrStat, ErrMsg, 'ParseArg')
-            ENDIF
-            RETURN
-         ENDIF
-
+         call ArgErrorCheck_RealNumber(ThisArg,ThisArgUC(Delim1+1:DelimSep-1),TempReal,CLFlags%YRange)
+         if (ErrStat /= ErrID_None) return
+         CLSettings%YRange(1) = TempReal
+         
             ! Second Value
-         TempReal = StringToReal( ThisArgUC(DelimSep+1:Delim2-1), ErrStatTmp )
-         IF ( ErrStatTmp == ErrID_None ) THEN
-            CLFlags%YRange          = .TRUE.
-            CLSettings%YRange(2)    = TempReal
-         ELSE
-            CLFlags%YRange          = .FALSE.
-            IF ( ErrStatTmp == ErrID_Warn ) THEN
-               CALL SetErrStat(ErrStatTmp," Invalid number in option '"//SwChar//TRIM(ThisArg)//"'. Ignoring.",   &
-                  ErrStat,ErrMsg,'ParseArgs')
-            ELSE
-               CALL SetErrStat( ErrID_Fatal," Something failed in parsing option '"//SwChar//TRIM(ThisArg)//"'.", &
-                  ErrStat, ErrMsg, 'ParseArg')
-            ENDIF
-            RETURN
-         ENDIF
+         call ArgErrorCheck_RealNumber(ThisArg,ThisArgUC(DelimSep+1:Delim2-1),TempReal,CLFlags%YRange)
+         if (ErrStat /= ErrID_None) return
+         CLSettings%YRange(2) = TempReal
 
             ! Check the order of values
          IF ( CLSettings%YRange(1) > CLSettings%Yrange(2) ) THEN
@@ -506,47 +392,22 @@ SUBROUTINE RetrieveArgs( CLSettings, CLFlags, ErrStat, ErrMsg )
             CLSettings%YRange(2)    = 0.0
             CLFlags%YRange          = .FALSE.
             CALL SetErrStat(ErrID_Warn," Unexpected order of values in option '"//SwChar//TRIM(ThisArg)//"'. Ingoring.",   &
-               ErrStat, ErrMsg, 'ParseArgs')
+               ErrStat, ErrMsg, RoutineName)
          ENDIF
-
 
 
          ! "ZRANGE[#:#]"
       ELSEIF ( ThisArgUC(1:Delim1) == "ZRANGE["         ) THEN
 
             ! First Value
-         TempReal = StringToReal( ThisArgUC(Delim1+1:DelimSep-1), ErrStatTmp )
-         IF     ( ErrStatTmp == ErrID_None ) THEN
-            CLFlags%ZRange          = .TRUE.
-            CLSettings%ZRange(1)    = TempReal
-         ELSE
-            CLFlags%ZRange          = .FALSE.
-            IF ( ErrStatTmp == ErrID_Warn ) THEN
-               CALL SetErrStat(ErrStatTmp," Invalid number in option '"//SwChar//TRIM(ThisArg)//"'. Ignoring.",   &
-                  ErrStat,ErrMsg,'ParseArgs')
-            ELSE
-               CALL SetErrStat( ErrID_Fatal," Something failed in parsing option '"//SwChar//TRIM(ThisArg)//"'.", &
-                  ErrStat, ErrMsg, 'ParseArg')
-            ENDIF
-            RETURN
-         ENDIF
-
+         call ArgErrorCheck_RealNumber(ThisArg,ThisArgUC(Delim1+1:DelimSep-1),TempReal,CLFlags%ZRange)
+         if (ErrStat /= ErrID_None) return
+         CLSettings%ZRange(1) = TempReal
+         
             ! Second Value
-         TempReal = StringToReal( ThisArgUC(DelimSep+1:Delim2-1), ErrStatTmp )
-         IF ( ErrStatTmp == ErrID_None ) THEN
-            CLFlags%ZRange          = .TRUE.
-            CLSettings%ZRange(2)    = TempReal
-         ELSE
-            CLFlags%ZRange          = .FALSE.
-            IF ( ErrStatTmp == ErrID_Warn ) THEN
-               CALL SetErrStat(ErrStatTmp," Invalid number in option '"//SwChar//TRIM(ThisArg)//"'. Ignoring.",   &
-                  ErrStat,ErrMsg,'ParseArgs')
-            ELSE
-               CALL SetErrStat( ErrID_Fatal," Something failed in parsing option '"//SwChar//TRIM(ThisArg)//"'.", &
-                  ErrStat, ErrMsg, 'ParseArg')
-            ENDIF
-            RETURN
-         ENDIF
+         call ArgErrorCheck_RealNumber(ThisArg,ThisArgUC(DelimSep+1:Delim2-1),TempReal,CLFlags%ZRange)
+         if (ErrStat /= ErrID_None) return
+         CLSettings%ZRange(2) = TempReal
 
             ! Check the order of values
          IF ( CLSettings%ZRange(1) > CLSettings%Zrange(2) ) THEN
@@ -554,126 +415,46 @@ SUBROUTINE RetrieveArgs( CLSettings, CLFlags, ErrStat, ErrMsg )
             CLSettings%ZRange(2)    = 0.0
             CLFlags%ZRange          = .FALSE.
             CALL SetErrStat(ErrID_Warn," Unexpected order of values in option '"//SwChar//TRIM(ThisArg)//"'. Ingoring.",   &
-               ErrStat, ErrMsg, 'ParseArgs')
+               ErrStat, ErrMsg, RoutineName)
          ENDIF
 
 
          ! "DX[#]"
       ELSEIF( ThisArgUC(1:Delim1) == "DX["      ) THEN
-         TempReal = StringToReal( ThisArgUC(Delim1+1:Delim2-1), ErrStat )
-         IF ( ErrStat == ErrID_None ) THEN
-            CLFlags%Dx           = .TRUE.
-            CLSettings%GridDelta(1) = abs(TempReal)
-         ELSE
-            CLFlags%Dx           = .FALSE.
-            IF ( ErrStat == ErrID_Warn ) THEN
-               CALL SetErrStat(ErrStatTmp," Invalid number in option '"//SwChar//TRIM(ThisArg)//"'. Ignoring.",   &
-                  ErrStat,ErrMsg,'ParseArgs')
-            ELSE
-               CALL SetErrStat( ErrID_Fatal," Something failed in parsing option '"//SwChar//TRIM(ThisArg)//"'.", &
-                  ErrStat, ErrMsg, 'ParseArg')
-            ENDIF
-            RETURN
-         ENDIF
-
+         call ArgErrorCheck_RealNumber(ThisArg,ThisArgUC(Delim1+1:Delim2-1),TempReal,CLFlags%Dx)
+         if (ErrStat /= ErrID_None) return
+         CLSettings%GridDelta(1) = abs(TempReal)
 
          ! "DY[#]"
       ELSEIF( ThisArgUC(1:Delim1) == "DY["      ) THEN
-         TempReal = StringToReal( ThisArgUC(Delim1+1:Delim2-1), ErrStat )
-         IF ( ErrStat == ErrID_None ) THEN
-            CLFlags%Dy           = .TRUE.
-            CLSettings%GridDelta(2) = abs(TempReal)
-         ELSE
-            CLFlags%Dy           = .FALSE.
-            IF ( ErrStat == ErrID_Warn ) THEN
-               CALL SetErrStat(ErrStatTmp," Invalid number in option '"//SwChar//TRIM(ThisArg)//"'. Ignoring.",   &
-                  ErrStat,ErrMsg,'ParseArgs')
-            ELSE
-               CALL SetErrStat( ErrID_Fatal," Something failed in parsing option '"//SwChar//TRIM(ThisArg)//"'.", &
-                  ErrStat, ErrMsg, 'ParseArg')
-            ENDIF
-            RETURN
-         ENDIF
-
+         call ArgErrorCheck_RealNumber(ThisArg,ThisArgUC(Delim1+1:Delim2-1),TempReal,CLFlags%Dy)
+         if (ErrStat /= ErrID_None) return
+         CLSettings%GridDelta(2) = abs(TempReal)
 
          ! "DZ[#]"
       ELSEIF( ThisArgUC(1:Delim1) == "DZ["      ) THEN
-         TempReal = StringToReal( ThisArgUC(Delim1+1:Delim2-1), ErrStat )
-         IF ( ErrStat == ErrID_None ) THEN
-            CLFlags%Dz           = .TRUE.
-            CLSettings%GridDelta(3) = abs(TempReal)
-         ELSE
-            CLFlags%Dz           = .FALSE.
-            IF ( ErrStat == ErrID_Warn ) THEN
-               CALL SetErrStat(ErrStatTmp," Invalid number in option '"//SwChar//TRIM(ThisArg)//"'. Ignoring.",   &
-                  ErrStat,ErrMsg,'ParseArgs')
-            ELSE
-               CALL SetErrStat( ErrID_Fatal," Something failed in parsing option '"//SwChar//TRIM(ThisArg)//"'.", &
-                  ErrStat, ErrMsg, 'ParseArg')
-            ENDIF
-            RETURN
-         ENDIF
-
+         call ArgErrorCheck_RealNumber(ThisArg,ThisArgUC(Delim1+1:Delim2-1),TempReal,CLFlags%Dz)
+         if (ErrStat /= ErrID_None) return
+         CLSettings%GridDelta(3) = abs(TempReal)
 
          ! "DT[#]"
       ELSEIF( ThisArgUC(1:Delim1) == "DT["      ) THEN
-         TempReal = StringToReal( ThisArgUC(Delim1+1:Delim2-1), ErrStat )
-         IF ( ErrStat == ErrID_None ) THEN
-            CLFlags%Dt           = .TRUE.
-            CLSettings%DT        = abs(TempReal)
-         ELSE
-            CLFlags%Dt           = .FALSE.
-            IF ( ErrStat == ErrID_Warn ) THEN
-               CALL SetErrStat(ErrStatTmp," Invalid number in option '"//SwChar//TRIM(ThisArg)//"'. Ignoring.",   &
-                  ErrStat,ErrMsg,'ParseArgs')
-            ELSE
-               CALL SetErrStat( ErrID_Fatal," Something failed in parsing option '"//SwChar//TRIM(ThisArg)//"'.", &
-                  ErrStat, ErrMsg, 'ParseArg')
-            ENDIF
-            RETURN
-         ENDIF
+         call ArgErrorCheck_RealNumber(ThisArg,ThisArgUC(Delim1+1:Delim2-1),TempReal,CLFlags%DT)
+         if (ErrStat /= ErrID_None) return
+         CLSettings%DT = abs(TempReal)
 
 
          ! "TSTEPS[#]"
       ELSEIF( ThisArgUC(1:Delim1) == "TSTEPS["      ) THEN
-         TempReal = StringToReal( ThisArgUC(Delim1+1:Delim2-1), ErrStat )
-         IF ( ErrStat == ErrID_None ) THEN
-            CLFlags%NumTimeSteps  = .TRUE.
-            CLSettings%NumTimeSteps       = nint(abs(TempReal))
-         ELSE
-            CLFlags%NumTimeSteps  = .FALSE.
-            CLSettings%NumTimeSteps = 1_IntKi
-            IF ( ErrStat == ErrID_Warn ) THEN
-               CALL SetErrStat(ErrStatTmp," Invalid number in option '"//SwChar//TRIM(ThisArg)//"'. Ignoring.",   &
-                  ErrStat,ErrMsg,'ParseArgs')
-            ELSE
-               CALL SetErrStat( ErrID_Fatal," Something failed in parsing option '"//SwChar//TRIM(ThisArg)//"'.", &
-                  ErrStat, ErrMsg, 'ParseArg')
-            ENDIF
-            RETURN
-         ENDIF
-
-
+         call ArgErrorCheck_RealNumber(ThisArg,ThisArgUC(Delim1+1:Delim2-1),TempReal,CLFlags%NumTimeSteps)
+         if (ErrStat /= ErrID_None) return
+         CLSettings%NumTimeSteps = NINT(abs(TempReal))
 
          ! "TSTART[#]"
       ELSEIF( ThisArgUC(1:Delim1) == "TSTART["      ) THEN
-         TempReal = StringToReal( ThisArgUC(Delim1+1:Delim2-1), ErrStat )
-         IF ( ErrStat == ErrID_None ) THEN
-            CLFlags%TStart          = .TRUE.
-            CLSettings%TStart       = abs(TempReal)
-         ELSE
-            CLFlags%TStart          = .FALSE.
-            IF ( ErrStat == ErrID_Warn ) THEN
-               CALL SetErrStat(ErrStatTmp," Invalid number in option '"//SwChar//TRIM(ThisArg)//"'. Ignoring.",   &
-                  ErrStat,ErrMsg,'ParseArgs')
-            ELSE
-               CALL SetErrStat( ErrID_Fatal," Something failed in parsing option '"//SwChar//TRIM(ThisArg)//"'.", &
-                  ErrStat, ErrMsg, 'ParseArg')
-            ENDIF
-            RETURN
-         ENDIF
-
-
+         call ArgErrorCheck_RealNumber(ThisArg,ThisArgUC(Delim1+1:Delim2-1),TempReal,CLFlags%TStart)
+         if (ErrStat /= ErrID_None) return
+         CLSettings%TStart       = abs(TempReal)
 
          ! "POINTS[FILE]"
       ELSEIF( ThisArgUC(1:Delim1)   == "POINTS["    ) THEN
@@ -687,7 +468,23 @@ SUBROUTINE RetrieveArgs( CLSettings, CLFlags, ErrStat, ErrMsg )
    END SUBROUTINE ParseArg
    !-------------------------------------------------------------------------------
 
+   SUBROUTINE ArgErrorCheck_RealNumber(ThisArg,Str,TempReal,ValidValue)
+      character(*), intent(in)  :: ThisArg
+      character(*), intent(in)  :: Str
+      real(ReKi),   intent(out) :: TempReal
+      logical,      intent(out) :: ValidValue
 
+      INTEGER                   :: ErrStatTmp
+      
+      read( Str, *, iostat=ErrStatTmp) TempReal
+      ValidValue = ErrStatTmp == 0
+      
+         ! if that wasn't a number, warn (not fatal) since we can continue by skipping this value
+      IF (.not. ValidValue) then
+         TempReal = 1.0
+         Call SetErrStat(ErrID_Warn,"Ignoring the invalid number in option '"//SwChar//TRIM(ThisArg)//"'.", ErrStat, ErrMsg, 'ParseArg:ArgErrCheck')
+      END IF
+   END SUBROUTINE ArgErrorCheck_RealNumber
 
 END SUBROUTINE RetrieveArgs
 
