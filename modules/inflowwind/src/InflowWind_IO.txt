@@ -78,6 +78,7 @@ typedef  ^              ^                     ReKi                    dx        
 typedef  ^              ^                     ReKi                    dy                      -     0     -     "size of grids in the y direction (in the 3 files above)"         -
 typedef  ^              ^                     ReKi                    dz                      -     0     -     "size of grids in the z direction (in the 3 files above)"         -
 typedef  ^              ^                     Grid3D_InitInputType    G3D                     -     -     -     "Grid3D initialization input" -
+typedef  ^              ^                     logical                 box_front_first         -  .false.  -     "is the front of the HAWC turbulence box the first plane (incorrect/historical) value?" -
 
 #----------------------------------------------------------------------------------------------------------------------------------
 typedef  ^              User_InitInputType    SiKi                    Dummy                   -     -     -     "User field initialization input dummy value"                     -
