@@ -639,8 +639,10 @@ SUBROUTINE Spec_TimeSer ( p, Ht, Ucmp, LastIndex, Spec )
 
    InCoord(2) = Ht
    
-      ! overwrite Spec at the frequencies and wind components by interpolating from known points
-   DO I=1,p%usr%nFreq !p%grid%NumFreq ! note that this assumes TMax = AnalysisTime (i.e., we have the same delta frequencies)
+      ! overwrite Spec at the frequencies and wind components by interpolating from known points.
+      ! The DelF check in CreateGrid guarantees p%grid%Freq(i) == p%usr%f(i), so we can only go up to
+      ! the number of frequencies the user file resolves; above that the extrapolated values stand.
+   DO I=1,MIN( p%usr%nFreq, p%grid%NumFreq )
       
       InCoord(1) = p%grid%Freq(i)      
       CALL UserSpec_Interp2D( InCoord, p%usr, LastIndex, Spec(I,:) )  ! sets only Spec(1:p%usr%nFreq, 1:p%usr%nComp) values

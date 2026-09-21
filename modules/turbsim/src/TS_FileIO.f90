@@ -71,6 +71,9 @@ SUBROUTINE ReadInputFile(InFile, p, OtherSt_RandNum, ErrStat, ErrMsg)
    LOGICAL                       :: Randomize                        ! Whether to randomize the coherent turbulence scaling
    LOGICAL                       :: UseDefault                       ! Whether or not to use a default value
    LOGICAL                       :: IsUnusedParameter                ! Whether or not this variable will be ignored
+   LOGICAL                       :: IECScalingForExtrap              ! Whether the IEC scaling parameters are needed for the TIMESR fill-in model even though this is not an IEC run
+   LOGICAL                       :: NeedIECScaling                   ! IsIECModel .OR. IECScalingForExtrap: passed where the IEC scaling parameters are set up
+   INTEGER(IntKi)                :: IECScaling_TurbModel_ID          ! The model that the IEC scaling parameters are computed for (the fill-in model when IECScalingForExtrap)
                               
    CHARACTER(1024)               :: Line                             ! An input line
    CHARACTER(1)                  :: Line1                            ! The first character of an input line
@@ -487,6 +490,21 @@ SUBROUTINE ReadInputFile(InFile, p, OtherSt_RandNum, ErrStat, ErrMsg)
          
 !bjj: todo: verify that the API model sets the parameters for IECKAI as well (because it's using IECKAI for the v and w components)
 
+      ! The TIMESR model can name an IEC model on the ExtrapModel line of its user time-series input
+      ! file, to fill in the velocity components and frequencies that file does not specify. Those
+      ! models need SigmaIEC/Lambda/IntegralScale, which are otherwise computed only when this is
+      ! itself an IEC run; without this the fill-in spectrum would be identically zero. The IECstandard,
+      ! IECturbc and IEC_WindType inputs below therefore have to be processed for that case too, and
+      ! they set the level of the added turbulence.
+   IECScalingForExtrap = p%met%TurbModel_ID == SpecModel_TimeSer .AND. UsesIECScalingForExtrap( p%usr%TurbModel_ID )
+   NeedIECScaling      = p%met%IsIECModel .OR. IECScalingForExtrap
+   
+   IF ( IECScalingForExtrap ) THEN
+      IECScaling_TurbModel_ID = p%usr%TurbModel_ID
+   ELSE
+      IECScaling_TurbModel_ID = p%met%TurbModel_ID
+   END IF
+
       ! ------------ Read in the IEC standard and edition numbers. ---------------------------------------------
    CALL ReadVar( UI, InFile, Line, "IECstandard", "Number of the IEC standard",ErrStat2, ErrMsg2, UnEc)
       CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
@@ -496,7 +514,7 @@ SUBROUTINE ReadInputFile(InFile, p, OtherSt_RandNum, ErrStat, ErrMsg)
       END IF
 
       ! Process this line for IEC standard & edition & IECeditionStr >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-      CALL ProcessLine_IECstandard( Line, p%met%IsIECModel, p%met%TurbModel_ID, p%IEC%IECstandard, p%IEC%IECedition, p%IEC%IECeditionStr, ErrStat2, ErrMsg2)
+      CALL ProcessLine_IECstandard( Line, NeedIECScaling, IECScaling_TurbModel_ID, p%IEC%IECstandard, p%IEC%IECedition, p%IEC%IECeditionStr, ErrStat2, ErrMsg2)
          CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
          IF (ErrStat >= AbortErrLev) THEN
             CALL Cleanup()
@@ -509,7 +527,7 @@ SUBROUTINE ReadInputFile(InFile, p, OtherSt_RandNum, ErrStat, ErrMsg)
       CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
 
       ! Process this line for NumTurbInp, IECPerTurbInt, IECTurbC, and KHtest >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-      CALL ProcessLine_IECTurbc(Line, p%met%IsIECModel, p%IEC%IECstandard, p%IEC%IECedition, p%IEC%IECeditionStr, &
+      CALL ProcessLine_IECTurbc(Line, NeedIECScaling, p%IEC%IECstandard, p%IEC%IECedition, p%IEC%IECeditionStr, &
                                 p%IEC%NumTurbInp, p%IEC%IECTurbC, p%IEC%PerTurbInt, p%met%KHtest, ErrStat2, ErrMsg2)
          CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
          IF (ErrStat >= AbortErrLev) THEN
@@ -524,7 +542,7 @@ SUBROUTINE ReadInputFile(InFile, p, OtherSt_RandNum, ErrStat, ErrMsg)
 
    
          ! Process this line for IECTurbE, Vref, IEC_WindType, and IEC_WindDes >>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-      CALL ProcessLine_IEC_WindType(Line, p, ErrStat2, ErrMsg2)
+      CALL ProcessLine_IEC_WindType(Line, p, ErrStat2, ErrMsg2, IECScalingForExtrap)
             CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
             IF (ErrStat >= AbortErrLev) THEN
                CALL Cleanup()
@@ -831,7 +849,10 @@ CALL DefaultMetBndryCndtns(p)     ! Requires turbModel (some require RICH_NO, wh
       CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
       
       ! Default coherence parameters and IEC scaling parameters   
-   CALL CalcIECScalingParams(p%IEC, p%grid%HubHt, p%UHub, p%met%InCDec, p%met%InCohB, p%met%TurbModel_ID, p%met%IsIECModel, ErrStat2, ErrMsg2)                  
+      ! NOTE: when IECScalingForExtrap is true this also overwrites InCDec/InCohB with the IEC
+      ! coherence decrements, but GetDefaultCoh below restores the ones for the actual (non-IEC)
+      ! spectral model, so the coherence of this run is unaffected by the fill-in model.
+   CALL CalcIECScalingParams(p%IEC, p%grid%HubHt, p%UHub, p%met%InCDec, p%met%InCohB, IECScaling_TurbModel_ID, NeedIECScaling, ErrStat2, ErrMsg2)                  
       CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)      
       
    IF ( .NOT. p%met%IsIECModel  ) THEN
@@ -1576,7 +1597,11 @@ SUBROUTINE GetUSRTimeSeries(FileName, p, UnEc, ErrStat, ErrMsg)
       ! local variables
    real(reKi)                                     :: tmpAry(2)
    real(ReKi)                                     :: dt                             ! difference between consecutive times entered in the file (must be constant)
-   INTEGER(IntKi), PARAMETER                      :: NumLinesBeforeTS = 11          ! Number of lines in the input file before the time series start (need to add nPoint lines). IMPORTANT:  any changes to the number of lines in the header must be reflected here
+   INTEGER(IntKi)                                 :: NumLinesBeforeTS               ! Number of lines in the input file before the time series start (need to add nPoint lines). This is 11 for the original format and 12 when the optional ExtrapModel line is present.
+   INTEGER(IntKi)                                 :: NumPointHdrLines               ! Number of point-location header lines still to be read (see the ExtrapModel logic below)
+   INTEGER(IntKi)                                 :: nMult                          ! ratio of the time step in this file to the simulated time step
+   LOGICAL                                        :: FoundExtrapModel               ! whether the optional ExtrapModel line is present in this file
+   LOGICAL                                        :: HasExtrapKeyword               ! whether that line carries the "ExtrapModel" keyword (so a bad value can be reported as such)
       
    INTEGER(IntKi)                                 :: UnIn                           ! unit number for reading input file
    INTEGER(IntKi)                                 :: I, J                           ! loop counters
@@ -1589,6 +1614,8 @@ SUBROUTINE GetUSRTimeSeries(FileName, p, UnEc, ErrStat, ErrMsg)
    CHARACTER(200)                                 :: FormStr          
    CHARACTER(200)                                 :: TempWarn
    CHARACTER(1)                                   :: tmpChar          
+   CHARACTER(1024)                                :: Line                           ! a line read from the file (used for the optional ExtrapModel input)
+   CHARACTER(1024)                                :: LineUC                         ! upper-case copy of Line, for the keyword test
    
    ErrStat = ErrID_None
    ErrMsg  = ""
@@ -1645,7 +1672,59 @@ SUBROUTINE GetUSRTimeSeries(FileName, p, UnEc, ErrStat, ErrMsg)
       RETURN
    END IF
       
-   do i=1,2
+      ! ---------- Read the optional ExtrapModel input ----------------------------------------
+      ! This input names the spectral model used to fill in the velocity components and the
+      ! frequencies that this file does not specify (see Spec_TimeSer_Extrap). It was added after
+      ! the original file format was defined, so it is optional: if the next line is not this input
+      ! we assume it is the first of the two point-location header lines and default to NONE, which
+      ! reproduces the behavior of files written for the original format.
+      !
+      ! The line is recognized either by the "ExtrapModel" keyword or by its value naming a valid
+      ! model. Testing the keyword lets us tell "this is the input, with a bad value" apart from
+      ! "this file does not have the input", so a mistyped model name is reported as such instead of
+      ! surfacing later as an error about point locations.
+      ! ReadStr (not ReadVar) because we need the whole record: ReadVar on a CHARACTER is a
+      ! list-directed read and would return only the first token, hiding the keyword.
+   Line = ""
+   CALL ReadStr( UnIn, FileName, Line, 'ExtrapModel', 'Spectral model used to fill in the velocity '// &
+                 'components and frequencies not specified in this file', ErrStat2, ErrMsg2, UnEc )
+      IF (ErrStat2 >= AbortErrLev) THEN
+         CALL SetErrStat(ErrStat2, ErrMsg2 , ErrStat, ErrMsg, RoutineName)
+         CALL Cleanup()
+         RETURN
+      END IF
+
+   LineUC = Line
+   CALL Conv2UC( LineUC )
+   HasExtrapKeyword = INDEX( LineUC, 'EXTRAPMODEL' ) > 0
+
+   CALL GetExtrapModelID( Line, p%usr%TurbModel_ID, FoundExtrapModel )
+
+   IF ( HasExtrapKeyword .AND. .NOT. FoundExtrapModel ) THEN
+      CALL SetErrStat(ErrID_Fatal, 'Invalid ExtrapModel in the user time-series input file: "'// &
+           TRIM(Line)//'". Valid values are "NONE" and "IECKAI".', ErrStat, ErrMsg, RoutineName)
+!           TRIM(Line)//'". Valid values are "NONE", "IECKAI", "IECVKM" and "SMOOTH".', ErrStat, ErrMsg, RoutineName)
+      CALL Cleanup()
+      RETURN
+   END IF
+
+   FoundExtrapModel = FoundExtrapModel .OR. HasExtrapKeyword
+
+   IF ( FoundExtrapModel ) THEN
+      NumPointHdrLines = 2    ! both point-location header lines are still to be read
+   ELSE
+      NumPointHdrLines = 1    ! the line we just read was the first point-location header line
+      p%usr%TurbModel_ID = SpecModel_NONE
+   END IF
+
+      ! Number of lines in this file before the time-series data, used by the rewind-and-skip below
+      ! (the nPoints point-location rows are added there). The file always contains two
+      ! point-location header lines regardless of how many are still to be read here:
+      !   3 file headers + nComp + nPoints + RefPtID + [ExtrapModel] + 2 point headers + 3 TS headers
+   NumLinesBeforeTS = 11
+   IF ( FoundExtrapModel ) NumLinesBeforeTS = NumLinesBeforeTS + 1
+
+   do i=1,NumPointHdrLines
       CALL ReadCom( UnIn, FileName, "Point location header #"//TRIM(Num2Lstr(i)), ErrStat2, ErrMsg2, UnEc )   
          CALL SetErrStat(ErrStat2, ErrMsg2 , ErrStat, ErrMsg, RoutineName)
    end do
@@ -1797,8 +1876,30 @@ SUBROUTINE GetUSRTimeSeries(FileName, p, UnEc, ErrStat, ErrMsg)
    END DO
    
    
+      ! TimeStep may be smaller than the time step in this file. The simulated series then resolves
+      ! frequencies above this file's Nyquist frequency, and those extra frequencies are filled in
+      ! by the model named on the ExtrapModel line. TimeStep may not be larger, and the file's time
+      ! step must be an integer multiple of it so that both series span the same duration and
+      ! therefore have the same frequency increment (checked against p%usr%DelF in CreateGrid).
+   
    if ( .NOT. EqualRealNos( dt, p%grid%TimeStep ) ) THEN
-      call SetErrStat(ErrID_Fatal, 'In this version of TurbSim, TimeStep must be the same as the delta time in the user-input time series file.', ErrStat, ErrMsg, RoutineName)
+   
+      if ( p%grid%TimeStep > dt ) then
+         call SetErrStat(ErrID_Fatal, 'TimeStep ('//trim(num2lstr(p%grid%TimeStep))//' s) must not be larger than the '// &
+              'time between rows of the user-input time series file ('//trim(num2lstr(dt))//' s).', ErrStat, ErrMsg, RoutineName)
+      else
+         nMult = NINT( dt / p%grid%TimeStep )
+         if ( .NOT. EqualRealNos( dt, nMult*p%grid%TimeStep ) ) then
+            call SetErrStat(ErrID_Fatal, 'The time between rows of the user-input time series file ('// &
+                 trim(num2lstr(dt))//' s) must be an integer multiple of TimeStep ('// &
+                 trim(num2lstr(p%grid%TimeStep))//' s).', ErrStat, ErrMsg, RoutineName)
+         else if ( p%usr%TurbModel_ID == SpecModel_NONE ) then
+            call SetErrStat(ErrID_Warn, 'TimeStep is smaller than the time between rows of the user-input time series '// &
+                 'file, but ExtrapModel is "NONE", so the frequencies above '//trim(num2lstr(0.5_ReKi/dt))// &
+                 ' Hz will contain no energy. Set ExtrapModel to add high-frequency content.', ErrStat, ErrMsg, RoutineName)
+         end if
+      end if
+      
    end if
    
    
@@ -1816,6 +1917,64 @@ CONTAINS
    END SUBROUTINE Cleanup
 !...............................................
 END SUBROUTINE GetUSRTimeSeries 
+!=======================================================================
+!> Maps a spectral-model name to the TurbModel_ID that Spec_TimeSer_Extrap uses to fill in the
+!! velocity components and frequencies a user time-series input file does not specify.
+!! Only the models that Spec_TimeSer_Extrap can evaluate are recognized. Found is returned
+!! .FALSE. when ModelName is not one of them, which is what lets the caller treat the
+!! ExtrapModel input line as optional.
+SUBROUTINE GetExtrapModelID( InputLine, TurbModel_ID, Found )
+
+   CHARACTER(*),   INTENT(IN   ) :: InputLine                    !< the whole record read from the input file
+   INTEGER(IntKi), INTENT(  OUT) :: TurbModel_ID                 !< Integer value of spectral model (see SpecModel enum)
+   LOGICAL,        INTENT(  OUT) :: Found                        !< whether the first token named a valid fill-in model
+
+   CHARACTER(LEN(InputLine))     :: Model
+   INTEGER(IntKi)                :: iStat
+
+      ! isolate the first token: 
+   READ(InputLine,*,IOSTAT=iStat) Model
+   CALL Conv2UC( Model )
+
+   Found        = .TRUE.
+   TurbModel_ID = SpecModel_NONE
+
+   SELECT CASE ( TRIM(Model) )
+      CASE ( 'IECKAI' )
+         TurbModel_ID = SpecModel_IECKAI
+      !CASE ( 'IECVKM' )
+      !   TurbModel_ID = SpecModel_IECVKM
+      ! Note, we are going to keep this model out of the running until this has been tested more fully.
+      !CASE ( 'SMOOTH' )
+      !   TurbModel_ID = SpecModel_SMOOTH
+      ! Note, we are going to keep this model out of the running until this has been tested more fully.
+      CASE ( 'NONE' )
+         TurbModel_ID = SpecModel_NONE
+      CASE DEFAULT
+         
+         ! NOTE: SpecModel_API is deliberately not accepted here. Spec_API is written against a
+         ! 10 m reference height and a 1-hour mean URef, and the checks that enforce that (in
+         ! TS_ValidateInput) test p%met%TurbModel_ID, so they would not fire when API is only the
+         ! fill-in model. Worse, TIMESR overwrites RefHt and URef with the reference point's height
+         ! and mean speed, so the API spectrum would be scaled by an arbitrary factor.
+         Found        = .FALSE.
+   END SELECT
+
+END SUBROUTINE GetExtrapModelID
+!=======================================================================
+!> Returns .TRUE. when the fill-in model for a user time-series input file needs the IEC scaling
+!! parameters (SigmaIEC, Lambda, IntegralScale, LC). Those are normally computed only for IEC
+!! spectral models; TIMESR is not one, so without this the fill-in spectrum would be identically
+!! zero. See CalcIECScalingParams and Spec_TimeSer_Extrap.
+FUNCTION UsesIECScalingForExtrap( usr_TurbModel_ID )
+
+   INTEGER(IntKi), INTENT(IN) :: usr_TurbModel_ID
+   LOGICAL                    :: UsesIECScalingForExtrap
+
+   UsesIECScalingForExtrap = usr_TurbModel_ID == SpecModel_IECKAI .OR. &
+                             usr_TurbModel_ID == SpecModel_IECVKM
+
+END FUNCTION UsesIECScalingForExtrap
 !=======================================================================
 SUBROUTINE ReadCVarDefault ( UnIn, Fil, CharVar, VarName, VarDescr, UnEc, Def, ErrStat, ErrMsg, IGNORE )
 
@@ -2666,6 +2825,7 @@ SUBROUTINE WrSum_UserInput( p_met, p_usr, US  )
    
    INTEGER, INTENT(IN) :: US
    integer             :: i 
+   CHARACTER(30)       :: ExtrapName                                              ! name of the fill-in spectral model for user time-series input
 
 
    IF ( p_met%NumUSRz > 0 ) THEN
@@ -2704,6 +2864,26 @@ SUBROUTINE WrSum_UserInput( p_met, p_usr, US  )
       DO I=p_usr%nPoints,1,-1
          WRITE (US,"( 1X,F7.2, 2X,F9.2,2X, 3X,F10.2,10x,F10.2)") p_usr%pointzi(I), p_usr%meanU(I,1), p_usr%meanDir(I), p_usr%meanVAng(I)    
       END DO   
+      
+         ! Report what the ExtrapModel input is doing, so the synthesized part of the spectrum is
+         ! visible in the summary file rather than only implied by the standard-deviation tables.
+      SELECT CASE ( p_usr%TurbModel_ID )
+         CASE ( SpecModel_IECKAI ); ExtrapName = 'IECKAI (IEC Kaimal)'
+         CASE ( SpecModel_IECVKM ); ExtrapName = 'IECVKM (IEC von Karman)'
+         CASE ( SpecModel_SMOOTH ); ExtrapName = 'SMOOTH (RISO smooth terrain)'
+         CASE DEFAULT             ; ExtrapName = 'NONE'
+      END SELECT
+      
+      WRITE (US,"(/'  Fill-in spectral model (ExtrapModel)            ',A)") TRIM(ExtrapName)
+      
+      IF ( p_usr%TurbModel_ID == SpecModel_NONE ) THEN
+         IF ( p_usr%nComp < 3 ) WRITE (US,"('  NOTE: the ',A,' component(s) not in the time-series file will contain no energy.')") &
+                                       TRIM( TRIM(Comp(p_usr%nComp+1))//MERGE(' and w', '      ', p_usr%nComp == 1) )
+      ELSE
+         IF ( p_usr%nComp < 3 ) WRITE (US,"('     applied to the velocity component(s) not in the time-series file')")
+         WRITE (US,"('     applied above ',F8.3,' Hz (the Nyquist frequency of the time-series file)')") &
+               real(p_usr%nFreq*p_usr%DelF, ReKi)
+      END IF
       
    END IF
    
@@ -4179,20 +4359,24 @@ END SUBROUTINE ProcessLine_IECturbc
 !> This subroutine processes the user input from the IEC_WindType line
 !! and initializes the variables p%IEC%IECTurbE, p%IEC%Vref, 
 !! p%IEC%IEC_WindType, and p%IEC%IEC_WindDesc.
-SUBROUTINE ProcessLine_IEC_WindType(Line, p, ErrStat, ErrMsg)
+SUBROUTINE ProcessLine_IEC_WindType(Line, p, ErrStat, ErrMsg, IECScalingForExtrap)
    
    TYPE(TurbSim_ParameterType), INTENT(INOUT) :: p          !< TurbSim parameters      
    CHARACTER(*),                INTENT(INOUT) :: Line       !< on entry, the line from the input file. may be modified in this routine
                                                                 
    INTEGER(IntKi),              intent(  out) :: ErrStat    !< Error level
    CHARACTER(*),                intent(  out) :: ErrMsg     !< Message describing error
+   LOGICAL,        OPTIONAL,    intent(in   ) :: IECScalingForExtrap !< .TRUE. when a non-IEC run needs the IEC parameters for the TIMESR fill-in model
    
+   LOGICAL                                    :: ProcessIEC ! whether the IEC wind type on this line should be processed
 
    ErrStat = ErrID_None
    ErrMsg  = ""
    
+   ProcessIEC = p%met%IsIECModel
+   IF ( PRESENT(IECScalingForExtrap) ) ProcessIEC = ProcessIEC .OR. IECScalingForExtrap
    
-   IF ( p%met%IsIECModel .AND. p%met%TurbModel_ID /= SpecModel_MODVKM  ) THEN
+   IF ( ProcessIEC .AND. p%met%TurbModel_ID /= SpecModel_MODVKM  ) THEN
 
       CALL Conv2UC( Line )
 
@@ -5284,6 +5468,7 @@ SUBROUTINE CalcIECScalingParams( p_IEC, HubHt, UHub, InCDec, InCohB, TurbModel_I
        p_IEC%Lambda = 0
        p_IEC%IntegralScale = 0
        p_IEC%LC = 0.0    ! The length scale is not defined for the non-IEC models
+       p_IEC%TurbInt = 0.0  ! not defined either, but it is written to the AeroDyn .hh file unconditionally (see WrHH_ADtxtfile)
     
        RETURN
        

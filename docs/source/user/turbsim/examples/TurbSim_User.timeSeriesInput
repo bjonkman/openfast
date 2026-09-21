@@ -4,6 +4,7 @@ Time series input from Y:/wind/windweb/MetData/135mData/M4Twr/20Hz/mat/2014/01/1
           3  nComp    - Number of velocity components in the file (1=u component only; 2=u & v components; 3=u,v,w) [if < 3 other components will be generated using values from input file]
           5  nPoints  - Number of time series points contained in this file (-)
           4  RefPtID  - Index of the reference point (1-nPoints)
+     "NONE"  ExtrapModel - Spectral model used to fill in the velocity components and frequencies not specified in this file ("NONE","IECKAI","IECVKM","API","SMOOTH") [optional; defaults to "NONE" if this line is omitted]
 Pointyi     Pointzi    ! listed in order of increasing height
   (m)         (m)
     0.00000    15.00000

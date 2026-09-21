@@ -966,6 +966,7 @@ SUBROUTINE CalcTargetPSD(p, S, U, ErrStat, ErrMsg)
    
    INTEGER(IntKi)                   :: IVec                             ! loop counter for velocity components
    INTEGER(IntKi)                   :: IPoint, iPointUsr                ! loop counter for grid points
+   INTEGER(IntKi)                   :: nFreqUsr                         ! number of frequencies taken from the user time-series input (the rest are extrapolated)
    
    REAL(ReKi),   ALLOCATABLE        :: SSVS (:,:)                       ! A temporary work array (NumFreq,3) that holds a single-sided velocity spectrum.
    REAL(ReKi)                       :: DUDZ                             ! The steady u-component wind shear for the grid  [used in Hydro models only].
@@ -1086,6 +1087,10 @@ SUBROUTINE CalcTargetPSD(p, S, U, ErrStat, ErrMsg)
          
       CASE ( SpecModel_TimeSer ) 
          
+            ! The user file supplies the first nFreqUsr frequencies; anything above that is filled in
+            ! by the ExtrapModel. These are equal unless TimeStep is smaller than the file's time step.
+         nFreqUsr = MIN( p%usr%nFreq, p%grid%NumFreq )
+         
          DO iPointUsr = 1,p%usr%NPoints
       
             iPoint = iPointUsr 
@@ -1094,14 +1099,14 @@ SUBROUTINE CalcTargetPSD(p, S, U, ErrStat, ErrMsg)
             ELSEIF (iPointUsr  == p%usr%NPoints) THEN
                iPoint = p%usr%RefPtID
             END IF
-       !bjj: make sure size(ssvs,1) = p%grid%NumFreq <= p%usr%nFreq = size(p%usr%S,1)
             ! initialize SSVS with extrapolated values if there are non-specified components or frequencies 
             ! i.e., fill the gaps where wind component or frequencies exceed what was specified in the time-series data with some numerical model
             ! (use zeros for known spectral values that will get overwritten later)
             CALL Spec_TimeSer_Extrap ( p, p%grid%Z(iPoint), U(iPoint), SSVS )
             
-            ! overwrite the frequencies and wind components that were computed from measurements in the time-series file
-            SSVS(1:p%usr%nFreq,1:p%usr%nComp) = p%usr%S(1:p%usr%nFreq,iPointUsr,1:p%usr%nComp)
+            ! overwrite the frequencies and wind components that were computed from measurements in the time-series file.
+            ! nFreqUsr <= size(SSVS,1) = p%grid%NumFreq; the frequencies above it keep the extrapolated values.
+            SSVS(1:nFreqUsr,1:p%usr%nComp) = p%usr%S(1:nFreqUsr,iPointUsr,1:p%usr%nComp)
                         
             S(:,iPoint,:) = SSVS*HalfDelF
          END DO
@@ -1281,10 +1286,10 @@ SUBROUTINE CreateGrid( p_grid, p_usr, UHub, AddTower, ErrStat, ErrMsg )
          RETURN
       END IF      
       
-      if ( p_grid%NumFreq > p_usr%nFreq ) then
-         CALL SetErrStat(ErrID_Fatal, 'Cannot output more frequency values than were entered in user-defined time series file.', ErrStat, ErrMsg,RoutineName)
-         RETURN         
-      end if
+         ! p_grid%NumFreq may exceed p_usr%nFreq: that happens when TimeStep is smaller than the time
+         ! between rows of the user time-series input file. The frequencies the file does not resolve
+         ! are filled in by the model named on its ExtrapModel line (see Spec_TimeSer_Extrap). The
+         ! DelF check above guarantees Freq(i) == p_usr%f(i) for i <= p_usr%nFreq either way.
       
    END IF
    
@@ -1624,6 +1629,7 @@ SUBROUTINE SetPhaseAngles( p, OtherSt_RandNum, PhaseAngles, ErrStat, ErrMsg )
 
       ! local variables
    INTEGER(IntKi)                              :: iPoint, iPointUsr                              ! points that have phases defined already 
+   INTEGER(IntKi)                              :: nFreqUsr                                       ! number of frequencies supplied by the user time-series input file
    
 
       ! generate random phases for all the points
@@ -1644,7 +1650,10 @@ SUBROUTINE SetPhaseAngles( p, OtherSt_RandNum, PhaseAngles, ErrStat, ErrMsg )
          ELSEIF (iPointUsr == p%usr%NPoints) THEN
             iPoint = p%usr%RefPtID
          END IF
-         PhaseAngles(iPoint,1:p%usr%nFreq,1:p%usr%nComp) = p%usr%phaseAngles(:,iPointUsr,:)
+            ! Frequencies above p%usr%nFreq and components above p%usr%nComp keep the random phases
+            ! generated above, which is what the extrapolated part of the spectrum needs.
+         nFreqUsr = MIN( p%usr%nFreq, p%grid%NumFreq )
+         PhaseAngles(iPoint,1:nFreqUsr,1:p%usr%nComp) = p%usr%phaseAngles(1:nFreqUsr,iPointUsr,:)
       END DO
       
    END IF   
