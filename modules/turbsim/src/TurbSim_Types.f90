@@ -268,6 +268,13 @@ use NWTC_Library
       
       INTEGER(IntKi)               :: TurbModel_ID   = SpecModel_NONE          ! Integer value of spectral model (see SpecModel enum) for filling in high-frequency content; not all SpecModel values are valid here
       
+         ! Extrapolation of the measured spectra above SpliceFreq, using the inertial-subrange slope
+         ! anchored to the measured spectrum near AnchorFreq. Applies only to the nComp components
+         ! this file supplies; the others are filled in with TurbModel_ID. AnchorFreq <= 0 disables
+         ! it, in which case TurbModel_ID is used for every component.
+      real(ReKi)                   :: AnchorFreq     = 0.0_ReKi                ! frequency at which the extrapolated spectra are anchored to the measured spectra [Hz]
+      real(ReKi)                   :: SpliceFreq     = 0.0_ReKi                ! frequency above which the measured spectra are replaced by the extrapolation; <= 0 means the Nyquist frequency of the input time series [Hz]
+      
    END TYPE UserTSSpec_ParameterType
    
    

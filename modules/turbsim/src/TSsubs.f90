@@ -1087,9 +1087,17 @@ SUBROUTINE CalcTargetPSD(p, S, U, ErrStat, ErrMsg)
          
       CASE ( SpecModel_TimeSer ) 
          
-            ! The user file supplies the first nFreqUsr frequencies; anything above that is filled in
-            ! by the ExtrapModel. These are equal unless TimeStep is smaller than the file's time step.
+            ! The user file supplies the first nFreqUsr frequencies; anything above that is filled in.
+            ! nFreqUsr equals p%usr%nFreq unless TimeStep is smaller than the file's time step, or the
+            ! ExtrapFreqs line asked for the measurements to be replaced below their Nyquist frequency.
          nFreqUsr = MIN( p%usr%nFreq, p%grid%NumFreq )
+         
+         IF ( p%usr%AnchorFreq > 0.0_ReKi ) THEN
+            DO iFreq = nFreqUsr,1,-1
+               IF ( p%grid%Freq(iFreq) <= p%usr%SpliceFreq ) EXIT
+            END DO
+            nFreqUsr = MAX( 1, iFreq )
+         END IF
          
          DO iPointUsr = 1,p%usr%NPoints
       
@@ -1107,6 +1115,13 @@ SUBROUTINE CalcTargetPSD(p, S, U, ErrStat, ErrMsg)
             ! overwrite the frequencies and wind components that were computed from measurements in the time-series file.
             ! nFreqUsr <= size(SSVS,1) = p%grid%NumFreq; the frequencies above it keep the extrapolated values.
             SSVS(1:nFreqUsr,1:p%usr%nComp) = p%usr%S(1:nFreqUsr,iPointUsr,1:p%usr%nComp)
+            
+            ! for the components the file does supply, optionally replace the spectra above the splice
+            ! frequency with an extrapolation of the measurements themselves rather than a model
+            CALL Spec_TimeSer_Extrap_Measured ( p, SSVS )
+            
+            ! report how big a step the splice introduces (reference point only)
+            IF ( iPointUsr == p%usr%RefPtID ) CALL CheckSpliceContinuity( p, iPointUsr, SSVS, ErrStat, ErrMsg )
                         
             S(:,iPoint,:) = SSVS*HalfDelF
          END DO
@@ -1204,6 +1219,108 @@ CONTAINS
 
    END SUBROUTINE Cleanup
 END SUBROUTINE CalcTargetPSD
+!=======================================================================
+!> Reports the size of the step in the spectrum at the frequency where TurbSim stops using the
+!! measured spectra and starts using the extrapolation, and warns if it is large.
+!!
+!! Without this there is no feedback at all on whether the extrapolated spectrum is compatible with
+!! the measurements. A large step is not necessarily a bug, but it is always worth knowing about: the
+!! usual causes are a fill-in model whose turbulence level was set from an IEC class unrelated to the
+!! site, or a splice frequency placed where the instrument no longer resolves the flow, so that the
+!! "measured" spectrum being matched is really an artefact of sampling or interpolation.
+!!
+!! Band averages are compared rather than single bins, because individual periodogram bins are
+!! exponentially distributed and routinely differ from their mean by a factor of several.
+SUBROUTINE CheckSpliceContinuity( p, iPointUsr, SSVS, ErrStat, ErrMsg )
+
+   TYPE(TurbSim_ParameterType), INTENT(IN   ) :: p                 !< TurbSim parameters
+   INTEGER(IntKi),              INTENT(IN   ) :: iPointUsr         !< the user point whose spectra are being checked
+   REAL(ReKi),                  INTENT(IN   ) :: SSVS(:,:)         !< the assembled single-sided velocity spectrum (Frequency, component)
+   INTEGER(IntKi),              INTENT(INOUT) :: ErrStat           !< Error level
+   CHARACTER(*),                INTENT(INOUT) :: ErrMsg            !< Message describing error
+
+   REAL(ReKi), PARAMETER                      :: RatioWarn = 2.0_ReKi   ! warn when the step exceeds this factor either way
+   INTEGER(IntKi), PARAMETER                  :: nAvgMax   = 20         ! most bins to average on each side of the splice
+
+   REAL(ReKi), PARAMETER                      :: Slope = -5.0_ReKi/3.0_ReKi   ! reference slope for the smooth-spectrum expectation
+   REAL(ReKi)                                 :: Below, Above, Ratio
+   REAL(ReKi)                                 :: ShapeBelow, ShapeAbove, ShapeRatio
+   REAL(ReKi)                                 :: WorstRatio
+   INTEGER(IntKi)                             :: iSplice, nAvg, iFreq, iVec
+   LOGICAL                                    :: AnyWarn
+   CHARACTER(3)                               :: WorstComp
+   CHARACTER(*), PARAMETER                    :: RoutineName = 'CheckSpliceContinuity'
+
+
+      ! only meaningful when something above the splice was actually filled in
+   IF ( p%usr%TurbModel_ID == SpecModel_NONE .AND. p%usr%AnchorFreq <= 0.0_ReKi ) RETURN
+
+   iSplice = 0
+   DO iFreq = 1,p%grid%NumFreq
+      IF ( p%grid%Freq(iFreq) <= p%usr%SpliceFreq ) iSplice = iFreq
+   END DO
+
+   nAvg = MIN( nAvgMax, iSplice, p%grid%NumFreq - iSplice )
+   IF ( nAvg < 1 ) RETURN                       ! no gap, or no room to average
+
+      ! The two averaging windows straddle the splice, so for a smooth spectrum their averages differ
+      ! simply because one sits at a higher frequency than the other. That difference is a large
+      ! fraction of the result when the splice frequency is low, so divide it out: the reported ratio
+      ! is then 1.0 for any spectrum that continues smoothly with the inertial-subrange slope,
+      ! whatever the splice frequency and window width.
+   ShapeBelow = 0.0_ReKi
+   ShapeAbove = 0.0_ReKi
+   DO iFreq = iSplice-nAvg+1,iSplice
+      ShapeBelow = ShapeBelow + ( p%grid%Freq(iFreq)/p%usr%SpliceFreq )**Slope
+   END DO
+   DO iFreq = iSplice+1,iSplice+nAvg
+      ShapeAbove = ShapeAbove + ( p%grid%Freq(iFreq)/p%usr%SpliceFreq )**Slope
+   END DO
+   ShapeRatio = 1.0_ReKi
+   IF ( ShapeBelow > 0.0_ReKi .AND. ShapeAbove > 0.0_ReKi ) ShapeRatio = ShapeAbove / ShapeBelow
+
+   IF ( p%US > 0 ) THEN
+      WRITE (p%US,"(/'  Spectrum step at the splice frequency (',F8.3,' Hz), reference point:')") p%usr%SpliceFreq
+      WRITE (p%US,"('  (ratio is 1.0 if the spectrum continues smoothly with the -5/3 slope)')")
+      WRITE (p%US,"('     component   measured        extrapolated       ratio')")
+   END IF
+
+   AnyWarn    = .FALSE.
+   WorstRatio = 1.0_ReKi
+   WorstComp  = '   '
+
+   DO iVec = 1,3
+
+      Below = SUM( SSVS(iSplice-nAvg+1:iSplice,          iVec) ) / nAvg
+      Above = SUM( SSVS(iSplice+1      :iSplice+nAvg,    iVec) ) / nAvg
+
+      IF ( .NOT. Below > 0.0_ReKi ) CYCLE       ! nothing measured here to compare against (e.g. a component not in the file)
+
+      Ratio = ( Above / Below ) / ShapeRatio
+
+      IF ( p%US > 0 ) THEN
+         WRITE (p%US,"('        ',A,4X,ES12.4,4X,ES12.4,4X,F10.2)") Comp(iVec), Below, Above, Ratio
+      END IF
+
+      IF ( Ratio > RatioWarn .OR. Ratio < 1.0_ReKi/RatioWarn ) THEN
+         AnyWarn = .TRUE.
+         IF ( MAX(Ratio, 1.0_ReKi/Ratio) > MAX(WorstRatio, 1.0_ReKi/WorstRatio) ) THEN
+            WorstRatio = Ratio
+            WorstComp  = Comp(iVec)
+         END IF
+      END IF
+
+   END DO
+
+   IF ( AnyWarn ) THEN
+      CALL SetErrStat( ErrID_Warn, 'The spectrum steps by a factor of '//trim(num2lstr(WorstRatio))// &
+           ' in the '//trim(WorstComp)//' component at the splice frequency ('//trim(num2lstr(p%usr%SpliceFreq))// &
+           ' Hz). See the summary file. Either the level of the fill-in spectrum does not match the '// &
+           'measurements, or the splice frequency is above the highest frequency the measurements '// &
+           'actually resolve.', ErrStat, ErrMsg, RoutineName )
+   END IF
+
+END SUBROUTINE CheckSpliceContinuity
 !=======================================================================
 !> This routine creates the grid (cartesian + other points) that are
 !!  to be simulated.
@@ -1629,7 +1746,8 @@ SUBROUTINE SetPhaseAngles( p, OtherSt_RandNum, PhaseAngles, ErrStat, ErrMsg )
 
       ! local variables
    INTEGER(IntKi)                              :: iPoint, iPointUsr                              ! points that have phases defined already 
-   INTEGER(IntKi)                              :: nFreqUsr                                       ! number of frequencies supplied by the user time-series input file
+   INTEGER(IntKi)                              :: nFreqUsr                                       ! number of frequencies taken from the user time-series input file
+   INTEGER(IntKi)                              :: iFreq                                          ! loop counter for frequency
    
 
       ! generate random phases for all the points
@@ -1650,9 +1768,16 @@ SUBROUTINE SetPhaseAngles( p, OtherSt_RandNum, PhaseAngles, ErrStat, ErrMsg )
          ELSEIF (iPointUsr == p%usr%NPoints) THEN
             iPoint = p%usr%RefPtID
          END IF
-            ! Frequencies above p%usr%nFreq and components above p%usr%nComp keep the random phases
-            ! generated above, which is what the extrapolated part of the spectrum needs.
+            ! Frequencies above nFreqUsr and components above p%usr%nComp keep the random phases
+            ! generated above, which is what the extrapolated part of the spectrum needs. The bound
+            ! must match the one CalcTargetPSD uses for the spectra, including the splice frequency.
          nFreqUsr = MIN( p%usr%nFreq, p%grid%NumFreq )
+         IF ( p%usr%AnchorFreq > 0.0_ReKi ) THEN
+            DO iFreq = nFreqUsr,1,-1
+               IF ( p%grid%Freq(iFreq) <= p%usr%SpliceFreq ) EXIT
+            END DO
+            nFreqUsr = MAX( 1, iFreq )
+         END IF
          PhaseAngles(iPoint,1:nFreqUsr,1:p%usr%nComp) = p%usr%phaseAngles(1:nFreqUsr,iPointUsr,:)
       END DO
       
@@ -2242,6 +2367,7 @@ SUBROUTINE TimeSeriesToSpectra( p, ErrStat, ErrMsg )
    REAL(ReKi)                                  :: meanW                        ! mean value of the W component
 
    REAL(DbKi)                                  :: DelF                         ! delta frequency
+   REAL(ReKi)                                  :: fNyquistUsr                  ! Nyquist frequency of the user-input time series
 
    REAL(ReKi)                                  :: cosH, sinH                   ! cosine and sin of horizontal angles
    REAL(ReKi)                                  :: cosV, sinV                   ! cosine and sin of vertical angles
@@ -2411,6 +2537,39 @@ SUBROUTINE TimeSeriesToSpectra( p, ErrStat, ErrMsg )
    
    p%usr%S = p%usr%S*real(2.0_DbKi/p%usr%DelF,ReKi) ! p%usr%S*2.0_ReKi/p%usr%f(1)  ! make this the single-sided velocity spectra we're using in the rest of the code
       
+   !.......................................................................
+   ! Validate the optional ExtrapFreqs input, now that the frequencies are known.
+   !.......................................................................
+   fNyquistUsr = real( p%usr%nFreq*p%usr%DelF, ReKi )
+   
+   IF ( p%usr%SpliceFreq <= 0.0_ReKi ) p%usr%SpliceFreq = fNyquistUsr   ! default: keep every measured frequency
+   
+   IF ( p%usr%AnchorFreq > 0.0_ReKi ) THEN
+   
+      IF ( p%usr%SpliceFreq > fNyquistUsr ) THEN
+         CALL SetErrStat(ErrID_Fatal, 'The splice frequency on the ExtrapFreqs line ('// &
+              trim(num2lstr(p%usr%SpliceFreq))//' Hz) must not exceed the Nyquist frequency of the '// &
+              'user time series ('//trim(num2lstr(fNyquistUsr))//' Hz).', ErrStat, ErrMsg, RoutineName)
+      END IF
+      
+      IF ( p%usr%AnchorFreq >= p%usr%SpliceFreq ) THEN
+         CALL SetErrStat(ErrID_Fatal, 'The anchor frequency on the ExtrapFreqs line ('// &
+              trim(num2lstr(p%usr%AnchorFreq))//' Hz) must be less than the splice frequency ('// &
+              trim(num2lstr(p%usr%SpliceFreq))//' Hz).', ErrStat, ErrMsg, RoutineName)
+      END IF
+      
+      IF ( p%usr%AnchorFreq < real(p%usr%DelF,ReKi) ) THEN
+         CALL SetErrStat(ErrID_Fatal, 'The anchor frequency on the ExtrapFreqs line ('// &
+              trim(num2lstr(p%usr%AnchorFreq))//' Hz) is below the lowest frequency resolved by the '// &
+              'user time series ('//trim(num2lstr(real(p%usr%DelF,ReKi)))//' Hz).', ErrStat, ErrMsg, RoutineName)
+      END IF
+      
+      IF (ErrStat >= AbortErrLev) THEN
+         CALL Cleanup()
+         RETURN
+      END IF
+      
+   END IF
 
    CALL Cleanup()
 

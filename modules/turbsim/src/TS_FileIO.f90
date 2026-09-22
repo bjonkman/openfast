@@ -1600,8 +1600,8 @@ SUBROUTINE GetUSRTimeSeries(FileName, p, UnEc, ErrStat, ErrMsg)
    INTEGER(IntKi)                                 :: NumLinesBeforeTS               ! Number of lines in the input file before the time series start (need to add nPoint lines). This is 11 for the original format and 12 when the optional ExtrapModel line is present.
    INTEGER(IntKi)                                 :: NumPointHdrLines               ! Number of point-location header lines still to be read (see the ExtrapModel logic below)
    INTEGER(IntKi)                                 :: nMult                          ! ratio of the time step in this file to the simulated time step
-   LOGICAL                                        :: FoundExtrapModel               ! whether the optional ExtrapModel line is present in this file
-   LOGICAL                                        :: HasExtrapKeyword               ! whether that line carries the "ExtrapModel" keyword (so a bad value can be reported as such)
+   LOGICAL                                        :: FoundExtrapModel               ! whether the ExtrapModel line named a valid model
+   INTEGER(IntKi)                                 :: NumOptionalLines               ! how many of the optional extrapolation inputs this file contains
       
    INTEGER(IntKi)                                 :: UnIn                           ! unit number for reading input file
    INTEGER(IntKi)                                 :: I, J                           ! loop counters
@@ -1614,8 +1614,8 @@ SUBROUTINE GetUSRTimeSeries(FileName, p, UnEc, ErrStat, ErrMsg)
    CHARACTER(200)                                 :: FormStr          
    CHARACTER(200)                                 :: TempWarn
    CHARACTER(1)                                   :: tmpChar          
-   CHARACTER(1024)                                :: Line                           ! a line read from the file (used for the optional ExtrapModel input)
-   CHARACTER(1024)                                :: LineUC                         ! upper-case copy of Line, for the keyword test
+   CHARACTER(1024*3)                              :: Line                           ! a line read from the file (used for the optional ExtrapModel input)
+   CHARACTER(1024*3)                              :: LineUC                         ! upper-case copy of Line, for the keyword test
    
    ErrStat = ErrID_None
    ErrMsg  = ""
@@ -1685,44 +1685,66 @@ SUBROUTINE GetUSRTimeSeries(FileName, p, UnEc, ErrStat, ErrMsg)
       ! surfacing later as an error about point locations.
       ! ReadStr (not ReadVar) because we need the whole record: ReadVar on a CHARACTER is a
       ! list-directed read and would return only the first token, hiding the keyword.
-   Line = ""
-   CALL ReadStr( UnIn, FileName, Line, 'ExtrapModel', 'Spectral model used to fill in the velocity '// &
-                 'components and frequencies not specified in this file', ErrStat2, ErrMsg2, UnEc )
-      IF (ErrStat2 >= AbortErrLev) THEN
-         CALL SetErrStat(ErrStat2, ErrMsg2 , ErrStat, ErrMsg, RoutineName)
-         CALL Cleanup()
-         RETURN
+      ! A second optional input, ExtrapFreqs, may also appear here, in either order relative to
+      ! ExtrapModel. It gives the anchor and splice frequencies used to extrapolate the measured
+      ! spectra of the components this file DOES supply. The loop below ends at the first line that
+      ! is neither input, which is the first of the two point-location header lines.
+      
+   NumOptionalLines = 0
+   NumPointHdrLines = 2
+   
+   do i = 1, 2   ! at most two optional inputs
+   
+      Line = ""
+      CALL ReadStr( UnIn, FileName, Line, 'ExtrapModel or ExtrapFreqs', 'Optional extrapolation input', &
+                    ErrStat2, ErrMsg2, UnEc )
+         IF (ErrStat2 >= AbortErrLev) THEN
+            CALL SetErrStat(ErrStat2, ErrMsg2 , ErrStat, ErrMsg, RoutineName)
+            CALL Cleanup()
+            RETURN
+         END IF
+
+      LineUC = Line
+      CALL Conv2UC( LineUC )
+
+      IF ( INDEX( LineUC, 'EXTRAPMODEL' ) > 0 ) THEN
+
+         CALL GetExtrapModelID( LineUC, p%usr%TurbModel_ID, FoundExtrapModel )
+
+         IF ( .NOT. FoundExtrapModel ) THEN
+            CALL SetErrStat(ErrID_Fatal, 'Invalid ExtrapModel in the user time-series input file: "'// &
+                 TRIM(Line)//'". Valid values are "NONE", "IECKAI", "IECVKM" and "SMOOTH".', ErrStat, ErrMsg, RoutineName)
+            CALL Cleanup()
+            RETURN
+         END IF
+         NumOptionalLines = NumOptionalLines + 1
+
+      ELSEIF ( INDEX( LineUC, 'EXTRAPFREQS' ) > 0 ) THEN
+
+         READ( Line, *, IOSTAT=ErrStat2 ) p%usr%AnchorFreq, p%usr%SpliceFreq
+         IF ( ErrStat2 /= 0 ) THEN
+            CALL SetErrStat(ErrID_Fatal, 'Could not read two frequencies from the ExtrapFreqs line of the '// &
+                 'user time-series input file: "'//TRIM(Line)//'".', ErrStat, ErrMsg, RoutineName)
+            CALL Cleanup()
+            RETURN
+         END IF
+         NumOptionalLines = NumOptionalLines + 1
+
+      ELSE
+
+            ! neither keyword, so this was the first point-location header line
+         NumPointHdrLines = 1
+         EXIT
+
       END IF
 
-   LineUC = Line
-   CALL Conv2UC( LineUC )
-   HasExtrapKeyword = INDEX( LineUC, 'EXTRAPMODEL' ) > 0
-
-   CALL GetExtrapModelID( Line, p%usr%TurbModel_ID, FoundExtrapModel )
-
-   IF ( HasExtrapKeyword .AND. .NOT. FoundExtrapModel ) THEN
-      CALL SetErrStat(ErrID_Fatal, 'Invalid ExtrapModel in the user time-series input file: "'// &
-           TRIM(Line)//'". Valid values are "NONE" and "IECKAI".', ErrStat, ErrMsg, RoutineName)
-!           TRIM(Line)//'". Valid values are "NONE", "IECKAI", "IECVKM" and "SMOOTH".', ErrStat, ErrMsg, RoutineName)
-      CALL Cleanup()
-      RETURN
-   END IF
-
-   FoundExtrapModel = FoundExtrapModel .OR. HasExtrapKeyword
-
-   IF ( FoundExtrapModel ) THEN
-      NumPointHdrLines = 2    ! both point-location header lines are still to be read
-   ELSE
-      NumPointHdrLines = 1    ! the line we just read was the first point-location header line
-      p%usr%TurbModel_ID = SpecModel_NONE
-   END IF
+   end do
 
       ! Number of lines in this file before the time-series data, used by the rewind-and-skip below
       ! (the nPoints point-location rows are added there). The file always contains two
       ! point-location header lines regardless of how many are still to be read here:
-      !   3 file headers + nComp + nPoints + RefPtID + [ExtrapModel] + 2 point headers + 3 TS headers
-   NumLinesBeforeTS = 11
-   IF ( FoundExtrapModel ) NumLinesBeforeTS = NumLinesBeforeTS + 1
+      !   3 file headers + nComp + nPoints + RefPtID + optional inputs + 2 point headers + 3 TS headers
+   NumLinesBeforeTS = 11 + NumOptionalLines
 
    do i=1,NumPointHdrLines
       CALL ReadCom( UnIn, FileName, "Point location header #"//TRIM(Num2Lstr(i)), ErrStat2, ErrMsg2, UnEc )   
@@ -1932,9 +1954,13 @@ SUBROUTINE GetExtrapModelID( InputLine, TurbModel_ID, Found )
    CHARACTER(LEN(InputLine))     :: Model
    INTEGER(IntKi)                :: iStat
 
-      ! isolate the first token: 
+      ! Isolate the first token. Note that the comment on this line legitimately contains quotes (it
+      ! lists the valid values), so a malformed value can yield a token that runs on into the
+      ! comment. That just falls through to CASE DEFAULT and is reported as an invalid ExtrapModel.
+   Model = ""
    READ(InputLine,*,IOSTAT=iStat) Model
-   CALL Conv2UC( Model )
+   IF ( iStat /= 0 ) Model = ""              ! list-directed input does not always assign its item
+   CALL Conv2UC( Model ) !bjj: this was already done, but it's a short string now
 
    Found        = .TRUE.
    TurbModel_ID = SpecModel_NONE
@@ -1942,16 +1968,13 @@ SUBROUTINE GetExtrapModelID( InputLine, TurbModel_ID, Found )
    SELECT CASE ( TRIM(Model) )
       CASE ( 'IECKAI' )
          TurbModel_ID = SpecModel_IECKAI
-      !CASE ( 'IECVKM' )
-      !   TurbModel_ID = SpecModel_IECVKM
-      ! Note, we are going to keep this model out of the running until this has been tested more fully.
-      !CASE ( 'SMOOTH' )
-      !   TurbModel_ID = SpecModel_SMOOTH
-      ! Note, we are going to keep this model out of the running until this has been tested more fully.
+      CASE ( 'IECVKM' )
+         TurbModel_ID = SpecModel_IECVKM
+      CASE ( 'SMOOTH' )
+         TurbModel_ID = SpecModel_SMOOTH
       CASE ( 'NONE' )
          TurbModel_ID = SpecModel_NONE
       CASE DEFAULT
-         
          ! NOTE: SpecModel_API is deliberately not accepted here. Spec_API is written against a
          ! 10 m reference height and a 1-hour mean URef, and the checks that enforce that (in
          ! TS_ValidateInput) test p%met%TurbModel_ID, so they would not fire when API is only the
@@ -2880,8 +2903,26 @@ SUBROUTINE WrSum_UserInput( p_met, p_usr, US  )
          IF ( p_usr%nComp < 3 ) WRITE (US,"('  NOTE: the ',A,' component(s) not in the time-series file will contain no energy.')") &
                                        TRIM( TRIM(Comp(p_usr%nComp+1))//MERGE(' and w', '      ', p_usr%nComp == 1) )
       ELSE
-         IF ( p_usr%nComp < 3 ) WRITE (US,"('     applied to the velocity component(s) not in the time-series file')")
-         WRITE (US,"('     applied above ',F8.3,' Hz (the Nyquist frequency of the time-series file)')") &
+         IF ( p_usr%nComp < 3 ) THEN
+            WRITE (US,"('     applied to the velocity component(s) not in the time-series file')")
+         ELSE
+            WRITE (US,"('     not used: the time-series file supplies all three velocity components')")
+         END IF
+      END IF
+      
+         ! extrapolation of the measured spectra (ExtrapFreqs)
+      IF ( p_usr%AnchorFreq > 0.0_ReKi ) THEN
+         WRITE (US,"( '  Measured spectra of the ',I1,' supplied component(s) extrapolated above',F9.3,' Hz')") &
+               p_usr%nComp, p_usr%SpliceFreq
+         WRITE (US,"( '     inertial-subrange slope (-5/3), anchored to the measurements near',F9.3,' Hz')") &
+               p_usr%AnchorFreq
+         IF ( p_usr%SpliceFreq < real(p_usr%nFreq*p_usr%DelF,ReKi) ) THEN
+            WRITE (US,"( '     NOTE: this is below the ',F8.3,' Hz Nyquist frequency of the time-series file, so the')") &
+                  real(p_usr%nFreq*p_usr%DelF, ReKi)
+            WRITE (US,"( '           input time series is NOT reproduced exactly at the user-specified points.')")
+         END IF
+      ELSE
+         WRITE (US,"( '  Measured spectra extrapolated above',F9.3,' Hz     No (ExtrapFreqs not used)')") &
                real(p_usr%nFreq*p_usr%DelF, ReKi)
       END IF
       
