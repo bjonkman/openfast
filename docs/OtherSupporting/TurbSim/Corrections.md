@@ -7,7 +7,7 @@ The User-Defined profiles listed in the "Profiles" section contain horizontal an
 ## User time-series input file: new optional `ExtrapModel` input
 
 The user time-series input file (`TurbModel = "TIMESR"`) takes two optional inputs, which may appear
-in either order on the lines after `RefPtID`:
+on the lines after `RefPtID`:
 
 ```
    "IECKAI"  ExtrapModel - Spectral model used for the velocity components this file does not supply ("NONE","IECKAI","IECVKM","SMOOTH")
@@ -30,12 +30,7 @@ and produce the same results as before.
 primary input file, exactly as in a normal IEC run, so `IECturbc` sets how much turbulence is added.
 (Those inputs are otherwise ignored for `TIMESR`.) `SMOOTH` instead uses `RICH_NO` and `UStar`. The
 coherence of the run is unaffected: it continues to come from the `SCMod`/`InCDec` inputs for the
-`TIMESR` model rather than from the fill-in model.
-
-`API` is **not** accepted. `Spec_API` is written against a 10 m reference height and a 1-hour mean
-`URef`, the checks that enforce those conditions test `p%met%TurbModel_ID` and so never fire when API
-is only the fill-in model, and `TIMESR` has by then overwritten `RefHt` and `URef` with the reference
-point's height and mean speed. The resulting spectrum would be scaled by an arbitrary factor.
+`TIMESR` model rather than from the fill-in model. `API` is **not** accepted. 
 
 ### Reaching the frequencies above the file's Nyquist
 
@@ -49,18 +44,7 @@ Reducing `TimeStep` is **not** required in order to use `ExtrapFreqs`. A splice 
 file's own Nyquist frequency already creates a band for the -5/3 fit to occupy, so `ExtrapFreqs` is
 useful at `TimeStep` equal to the file's time step.
 
-Note that this feature was present in the source but inert before this change: the model was
-read from `p%usr%TurbModel_ID`, which was initialised to `SpecModel_NONE` and never assigned, so
-`Spec_TimeSer_Extrap` always returned a zero spectrum. This is why the `nComp` comment in the
-file header ("if < 3 other components will be generated using values from input file") did not
-previously describe the observed behavior.
-
 ## User time-series input file: new optional `ExtrapFreqs` input
-
-`ExtrapModel` fills in parts of the spectrum from a model that knows nothing about the measured
-data, so the two generally do not join up. With `IECturbc = "10"` on a site whose measured
-turbulence intensity was 1.7%, the IEC Kaimal spectrum was measured at **1100 times** the measured
-spectrum for `u` and **3900 times** for `v` at the splice frequency.
 
 `ExtrapFreqs` is an alternative for the components the file *does* supply: extrapolate the measured
 spectra themselves rather than substituting a model. It takes two frequencies in Hz and may appear
@@ -78,9 +62,7 @@ behaviour.
 
 The fit band deliberately *ends* at the splice. A band that stops short of it leaves the power law
 free to drift away from the measurements over the intervening gap, and because these spectra roll off
-more steeply than -5/3 the drift is always upward. Measured with anchor 0.1 Hz and splice 0.3 Hz,
-fitting over a band centred on the anchor (0.067 to 0.15 Hz) left the extrapolation 1.32x high at the
-splice; fitting over 0.1 to 0.3 Hz brought that to 1.14x.
+more steeply than -5/3 the drift is always upward. 
 
 `ExtrapModel` still handles the components the file does not supply, because there is no measured
 spectrum to anchor those to. The two inputs are complementary and are normally used together.
@@ -92,38 +74,16 @@ Together they define the fit band, so they must come from the measured spectrum,
 * **anchor** — the lowest frequency you consider clean and representative.
 * **splice** — the highest frequency you still trust. Also the top of the fit band.
 
-For the nacelle-lidar data this was developed against, the spectrum is closest to -5/3 somewhere
-around 0.05 to 0.15 Hz, steepens past -2 above that (instrument volume-averaging), and steepens
-further above roughly 0.4 Hz (the roll-off of whatever interpolant removed the instrument's
-zero-order hold). Note the measured slope depends on the band edges you pick *and* on how the hold
-was removed: over 0.05-0.15 Hz it was -1.65, but over 0.067-0.15 Hz already -1.84, and with the raw
-staircase retained instead of interpolated, -1.92. Establish it for your own data rather than
-assuming these numbers.
+Note that measured spectra may be affected by instrument volume-averaging and processing (e.g., removing zero-order hold).
 
-An anchor of 0.1 Hz with a splice of 0.3 Hz is a reasonable starting point for this instrument.
-Leaving the splice at the file's Nyquist frequency is not: the "measured" spectrum being matched
-there is numerical artefact rather than flow, and the step reached factors of 45 and 122 in `u` and
-`v`.
-
-Expect the power law to remain somewhat above the measured continuation well above the splice — about
-2.6x by 5 Hz in the case above. That is a *slope* mismatch, not a level error, so it cannot be fixed
-by moving the fit band, and it is not necessarily wrong: the measured continuation up there is the
-instrument's attenuation plus the output-format quantisation floor, which is what the extrapolation
-exists to replace.
-
-The slope is **imposed, not fitted**. Fitting it near the splice would extrapolate whichever
-artefact dominates there. The trap that makes fitting unsafe in general: a zero-order-hold staircase
-rolls off at roughly -1.8, close enough to -5/3 to look like an inertial subrange while being
-meaningless, so a fitted slope would depend on how the input data happened to be resampled.
 
 ### Effect on exact reproduction of the input
 
 A splice below the file's Nyquist frequency means the measured spectrum above it is discarded, so
 **the input time series is no longer reproduced exactly** at the user-specified points. The phase
 angles from the file are likewise used only up to the splice. This is usually a good trade, because
-the discarded band is mostly artefact: in the case above, splicing at 0.3 Hz retained 0.1879 of the
-0.1900 m/s measured standard deviation, i.e. it discarded 0.3% of the resolved energy. It is
-nevertheless a change to what `TIMESR` normally guarantees, so it only happens when asked for.
+the discarded band is mostly artefact. It is a change to what `TIMESR` normally guarantees, so it 
+only happens when asked for.
 
 The summary file records the splice and anchor frequencies and notes when exact reproduction has
 been given up.
@@ -143,12 +103,9 @@ when the ratio exceeds a factor of two either way:
         w      2.0432E-01      1.7570E-01          1.04
 ```
 
-Band averages are compared rather than single frequencies, because individual spectral estimates are
-exponentially distributed and routinely differ from their mean by a factor of several. The ratio is
-normalised by the step a smooth -5/3 spectrum would itself produce across the two averaging windows,
-so 1.0 means continuous regardless of the splice frequency or window width. A component filled in
-entirely by `ExtrapModel` therefore reports exactly 1.00, since both sides come from the same model.
-
 A large ratio is not necessarily an error, but it always means one of two things: the level of the
 fill-in spectrum does not match the site, or the splice frequency is above the highest frequency the
 measurements genuinely resolve.
+
+It is recommended that users calculate and plot the PSDs of the resulting time series when using this
+feature.

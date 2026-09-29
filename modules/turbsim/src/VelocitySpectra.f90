@@ -734,7 +734,6 @@ SUBROUTINE Spec_TimeSer_Extrap_Measured ( p, Spec )
       ! Local variables
    REAL(ReKi), PARAMETER                      :: Slope = -5.0_ReKi/3.0_ReKi   ! inertial-subrange slope
    REAL(ReKi)                                 :: SumMeasured                  ! sum of the measured PSD over the fit band
-   REAL(ReKi)                                 :: SumShape                     ! sum of the normalized power law over the same band
    REAL(ReKi)                                 :: Level                        ! fitted PSD of the power law AT the splice frequency
    INTEGER(IntKi)                             :: iLo                          ! first frequency index of the fit band (>= AnchorFreq)
    INTEGER(IntKi)                             :: iSplice                      ! last frequency index taken from the measurements; also the top of the fit band
@@ -754,22 +753,12 @@ SUBROUTINE Spec_TimeSer_Extrap_Measured ( p, Spec )
    IF ( iLo < 1 .OR. iSplice < iLo ) RETURN       ! no usable fit band
    IF ( iSplice >= p%grid%NumFreq ) RETURN        ! nothing above the splice to fill
 
-      ! The shape sum does not depend on the component. Frequencies are normalized by SpliceFreq so
-      ! that Level is the fitted PSD at the splice, which is the quantity worth reporting. Note the
-      ! normalizing frequency cancels out of Spec below; it is kept only to give Level that meaning.
-   SumShape = 0.0_ReKi
-   DO iFreq = iLo,iSplice
-      SumShape = SumShape + ( p%grid%Freq(iFreq)/p%usr%SpliceFreq )**Slope
-   END DO
-   IF ( .NOT. SumShape > 0.0_ReKi ) RETURN
-
    DO iVec = 1,p%usr%nComp
 
       SumMeasured = SUM( Spec(iLo:iSplice,iVec) ) 
       IF ( .NOT. SumMeasured > 0.0_ReKi ) CYCLE   ! no measured energy to anchor to; leave the model values
 
-      Level = SumMeasured / SumShape
-      !Level = SumMeasured / (iSplice-iLo) / p%grid%Freq(iSplice)**Slope !bjj: this is the arithmetic mean of the measured PSD over the fit band, divided by the spectra shape at the splice frequency
+      Level = SumMeasured / (iSplice-iLo) / p%grid%Freq(iSplice)**Slope !bjj: this is the arithmetic mean of the measured PSD over the fit band, divided by the spectra shape at the splice frequency
 
       DO iFreq = iSplice+1,p%grid%NumFreq
          Spec(iFreq,iVec) = Level * ( p%grid%Freq(iFreq)/p%usr%SpliceFreq )**Slope
