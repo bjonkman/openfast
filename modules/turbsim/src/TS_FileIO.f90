@@ -2914,8 +2914,8 @@ SUBROUTINE WrSum_UserInput( p_met, p_usr, US  )
       IF ( p_usr%AnchorFreq > 0.0_ReKi ) THEN
          WRITE (US,"( '  Measured spectra of the ',I1,' supplied component(s) extrapolated above',F9.3,' Hz')") &
                p_usr%nComp, p_usr%SpliceFreq
-         WRITE (US,"( '     inertial-subrange slope (-5/3), anchored to the measurements near',F9.3,' Hz')") &
-               p_usr%AnchorFreq
+         WRITE (US,"( '     inertial-subrange slope (-5/3), level fitted over',F9.3,' to',F9.3,' Hz')") &
+               p_usr%AnchorFreq, p_usr%SpliceFreq
          IF ( p_usr%SpliceFreq < real(p_usr%nFreq*p_usr%DelF,ReKi) ) THEN
             WRITE (US,"( '     NOTE: this is below the ',F8.3,' Hz Nyquist frequency of the time-series file, so the')") &
                   real(p_usr%nFreq*p_usr%DelF, ReKi)

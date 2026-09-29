@@ -698,24 +698,32 @@ END SUBROUTINE Spec_TimeSer_Extrap
 !=======================================================================
 !< Extrapolates the MEASURED spectra above p%usr%SpliceFreq instead of using a spectral model.
 !!
-!! The inertial-subrange slope is imposed, and the level is anchored to the measured spectrum in a
-!! band around p%usr%AnchorFreq. Only the p%usr%nComp components the user file supplies are touched;
-!! components it does not supply keep whatever Spec_TimeSer_Extrap put there, because there is no
-!! measured spectrum to anchor them to.
+!! The inertial-subrange slope is imposed, and the level is fitted to the measured spectrum over the
+!! band [p%usr%AnchorFreq, p%usr%SpliceFreq]. Only the p%usr%nComp components the user file supplies
+!! are touched; components it does not supply keep whatever Spec_TimeSer_Extrap put there, because
+!! there is no measured spectrum to anchor them to.
+!!
+!! The fit band ENDS at the splice deliberately. Fitting in a band that stops short of the splice
+!! leaves the power law free to drift away from the measurements over the gap between the two, and
+!! because these spectra roll off more steeply than -5/3 the drift is always upward. Measured on
+!! nacelle-lidar data with AnchorFreq = 0.1 Hz and SpliceFreq = 0.3 Hz, fitting over a band centred
+!! on the anchor ([0.067, 0.15] Hz) left the extrapolation 1.32x too high at the splice; fitting over
+!! [0.1, 0.3] Hz brought that to 1.14x. Making the band abut the splice also removes the need for an
+!! arbitrary bandwidth parameter and gives AnchorFreq a job: it is the bottom of the fit band.
 !!
 !! Why the slope is imposed rather than fitted: for lidar data the measured spectrum only follows
-!! -5/3 over a limited band. Above that it steepens sharply (instrument volume-averaging, then the
-!! roll-off of whatever interpolant was used to remove a zero-order hold, then a write-precision
-!! floor). Fitting the slope near the splice would extrapolate one of those artefacts. Worse, a
-!! zero-order-hold staircase has a roll-off close to -5/3 by coincidence, so a fitted slope would
-!! look plausible while being meaningless. Hence: pick the anchor band where the measurement is
-!! trustworthy, and impose the physics.
+!! -5/3 over a limited band, and not always even there. Above it the spectrum steepens sharply
+!! (instrument volume-averaging, then the roll-off of whatever interpolant was used to remove a
+!! zero-order hold, then a write-precision floor). Fitting the slope near the splice would
+!! extrapolate one of those artefacts. Worse, a zero-order-hold staircase rolls off close to -5/3 by
+!! coincidence, so a fitted slope would look plausible while being meaningless. Hence: choose a fit
+!! band where the measurement is trustworthy, and impose the physics.
 !!
-!! Spec must already hold the measured (or height-interpolated measured) spectra throughout the
-!! anchor band, which is guaranteed because the anchor band lies below the splice.
+!! Spec must already hold the measured (or height-interpolated measured) spectra throughout the fit
+!! band, which is guaranteed because the band lies at or below the splice.
 !!
-!! The level is set so the power law reproduces the measured ARITHMETIC mean over the anchor band.
-!! The arithmetic mean of a periodogram is unbiased, so no log-bias correction is needed (averaging
+!! The level is set so the power law reproduces the measured ARITHMETIC mean over the fit band. The
+!! arithmetic mean of a periodogram is unbiased, so no log-bias correction is needed (averaging
 !! spectral estimates in log space would need a factor exp(gamma) ~ 1.78).
 SUBROUTINE Spec_TimeSer_Extrap_Measured ( p, Spec )
 
@@ -725,12 +733,11 @@ SUBROUTINE Spec_TimeSer_Extrap_Measured ( p, Spec )
 
       ! Local variables
    REAL(ReKi), PARAMETER                      :: Slope = -5.0_ReKi/3.0_ReKi   ! inertial-subrange slope
-   REAL(ReKi), PARAMETER                      :: BandFactor = 1.5_ReKi        ! anchor band is AnchorFreq/BandFactor to AnchorFreq*BandFactor
-   REAL(ReKi)                                 :: SumMeasured                  ! sum of the measured PSD over the anchor band
+   REAL(ReKi)                                 :: SumMeasured                  ! sum of the measured PSD over the fit band
    REAL(ReKi)                                 :: SumShape                     ! sum of the normalized power law over the same band
-   REAL(ReKi)                                 :: Level                        ! anchored level of the power law
-   INTEGER(IntKi)                             :: iLo, iHi                     ! first and last frequency index of the anchor band
-   INTEGER(IntKi)                             :: iSplice                      ! last frequency index taken from the measurements
+   REAL(ReKi)                                 :: Level                        ! fitted PSD of the power law AT the splice frequency
+   INTEGER(IntKi)                             :: iLo                          ! first frequency index of the fit band (>= AnchorFreq)
+   INTEGER(IntKi)                             :: iSplice                      ! last frequency index taken from the measurements; also the top of the fit band
    INTEGER(IntKi)                             :: iFreq, iVec
 
 
@@ -739,33 +746,33 @@ SUBROUTINE Spec_TimeSer_Extrap_Measured ( p, Spec )
       ! frequency indices: the grid and user frequency vectors coincide (see the DelF check in CreateGrid)
    iSplice = 0
    iLo     = 0
-   iHi     = 0
    DO iFreq = 1,p%grid%NumFreq
-      IF ( p%grid%Freq(iFreq) <= p%usr%SpliceFreq )                iSplice = iFreq
-      IF ( iLo == 0 .AND. p%grid%Freq(iFreq) >= p%usr%AnchorFreq/BandFactor ) iLo = iFreq
-      IF ( p%grid%Freq(iFreq) <= p%usr%AnchorFreq*BandFactor )      iHi = iFreq
+      IF ( p%grid%Freq(iFreq) <= p%usr%SpliceFreq )                          iSplice = iFreq
+      IF ( iLo == 0 .AND. p%grid%Freq(iFreq) >= p%usr%AnchorFreq )           iLo     = iFreq
    END DO
 
-   iHi = MIN( iHi, iSplice )                      ! never anchor on extrapolated values
-   IF ( iLo < 1 .OR. iHi < iLo ) RETURN           ! no usable anchor band
+   IF ( iLo < 1 .OR. iSplice < iLo ) RETURN       ! no usable fit band
    IF ( iSplice >= p%grid%NumFreq ) RETURN        ! nothing above the splice to fill
 
-      ! the shape sum does not depend on the component
+      ! The shape sum does not depend on the component. Frequencies are normalized by SpliceFreq so
+      ! that Level is the fitted PSD at the splice, which is the quantity worth reporting. Note the
+      ! normalizing frequency cancels out of Spec below; it is kept only to give Level that meaning.
    SumShape = 0.0_ReKi
-   DO iFreq = iLo,iHi
-      SumShape = SumShape + ( p%grid%Freq(iFreq)/p%usr%AnchorFreq )**Slope
+   DO iFreq = iLo,iSplice
+      SumShape = SumShape + ( p%grid%Freq(iFreq)/p%usr%SpliceFreq )**Slope
    END DO
    IF ( .NOT. SumShape > 0.0_ReKi ) RETURN
 
    DO iVec = 1,p%usr%nComp
 
-      SumMeasured = SUM( Spec(iLo:iHi,iVec) )
+      SumMeasured = SUM( Spec(iLo:iSplice,iVec) ) 
       IF ( .NOT. SumMeasured > 0.0_ReKi ) CYCLE   ! no measured energy to anchor to; leave the model values
 
       Level = SumMeasured / SumShape
+      !Level = SumMeasured / (iSplice-iLo) / p%grid%Freq(iSplice)**Slope !bjj: this is the arithmetic mean of the measured PSD over the fit band, divided by the spectra shape at the splice frequency
 
       DO iFreq = iSplice+1,p%grid%NumFreq
-         Spec(iFreq,iVec) = Level * ( p%grid%Freq(iFreq)/p%usr%AnchorFreq )**Slope
+         Spec(iFreq,iVec) = Level * ( p%grid%Freq(iFreq)/p%usr%SpliceFreq )**Slope
       END DO
 
    END DO
